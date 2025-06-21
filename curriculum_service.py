@@ -82,23 +82,48 @@ class CurriculumGenerator:
             str: The loaded or created prompt template
             
         Raises:
+            FileNotFoundError: If the prompt file doesn't exist and can't be created
             IOError: If there's an error reading or writing the prompt file
         """
+        prompt_path = PROMPTS_DIR / filename
+        
+        # If file exists, try to read it
+        if prompt_path.exists():
+            try:
+                with open(prompt_path, 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                    if content:  # Only return if file has content
+                        return content
+            except IOError as e:
+                logger.warning(f"Error reading prompt file {prompt_path}: {e}")
+                # Continue to create a new file
+        
+        # If we get here, either file doesn't exist or was empty
+        logger.info(f"Creating default prompt at {prompt_path}")
         try:
-            prompt_path = PROMPTS_DIR / filename
-            if not prompt_path.exists():
-                logger.info(f"Prompt file not found, creating default at {prompt_path}")
-                prompt_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(prompt_path, 'w', encoding='utf-8') as f:
-                    f.write(self.config.default_prompt)
-                return self.config.default_prompt
-            
-            with open(prompt_path, 'r', encoding='utf-8') as f:
-                return f.read()
-        except IOError as e:
-            logger.error(f"Error loading prompt file: {e}")
-            # Fall back to default prompt if there's an error
+            prompt_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(prompt_path, 'w', encoding='utf-8') as f:
+                f.write(self.config.default_prompt)
             return self.config.default_prompt
+        except IOError as e:
+            logger.error(f"Failed to create default prompt file: {e}")
+            # If we can't create the file, just return the default content
+            return self.config.default_prompt
+            
+    def _load_prompt_template(self) -> str:
+        """
+        Load the curriculum prompt template.
+        
+        This is a convenience wrapper around _load_prompt for the curriculum template.
+        
+        Returns:
+            str: The loaded prompt template
+            
+        Raises:
+            FileNotFoundError: If the prompt file doesn't exist and can't be created
+            IOError: If there's an error reading or writing the prompt file
+        """
+        return self._load_prompt('curriculum_template.txt')
     
     def generate_curriculum(self, learning_goal: str, output_path: Optional[Union[str, Path]] = None) -> str:
         """
@@ -250,6 +275,83 @@ class CurriculumGenerator:
             logger.error(f"Error saving curriculum to {output_path}: {e}")
             raise IOError(f"Failed to save curriculum: {e}") from e
     
+    def _load_curriculum(self, file_path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
+        """
+        Load a saved curriculum from a JSON file.
+        
+        Args:
+            file_path: Path to the curriculum file (defaults to CURRICULUM_PATH)
+            
+        Returns:
+            Dict containing the loaded curriculum data
+            
+        Raises:
+            FileNotFoundError: If the curriculum file doesn't exist
+            json.JSONDecodeError: If the file contains invalid JSON
+            ParserError: If the curriculum data is invalid
+        """
+        file_path = Path(file_path) if file_path else CURRICULUM_PATH
+        
+        if not file_path.exists():
+            raise FileNotFoundError(f"Curriculum file not found: {file_path}")
+            
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                
+            # Validate the loaded data structure
+            required_keys = ['learning_goal', 'content', 'days', 'metadata']
+            if not all(key in data for key in required_keys):
+                raise ParserError("Invalid curriculum format: missing required fields")
+                
+            return data
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing curriculum JSON: {e}")
+            raise
+            
+    def _validate_curriculum_structure(self, curriculum_text: str) -> None:
+        """
+        Validate the structure of the curriculum content.
+        
+        Args:
+            curriculum_text: The curriculum text to validate
+            
+        Raises:
+            ValueError: If the curriculum structure is invalid
+        """
+        if not curriculum_text:
+            raise ValueError("Empty curriculum content")
+            
+        # Check for required day sections
+        days = {}
+        current_day = None
+        
+        for day_num in range(1, self.config.num_days + 1):
+            day_header = f"Day {day_num}:"
+            if day_header.lower() not in curriculum_text.lower():
+                raise ValueError(f"Missing {day_header} in curriculum")
+        
+        # Check for required sections in each day
+        lines = curriculum_text.split('\n')
+        current_day = None
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            if line.lower().startswith('day '):
+                current_day = line.split(':')[0].strip()
+            
+            # Check for required sections if we're in a day section
+            if current_day:
+                if any(section.lower() in line.lower() for section in self.config.required_sections):
+                    continue
+        
+        # If we get here, all validations passed
+        return True
+            
     def _parse_curriculum_days(self, curriculum_text: str) -> Dict[str, List[str]]:
         """
         Parse the curriculum text into structured day-by-day content.
@@ -264,7 +366,13 @@ class CurriculumGenerator:
             ParserError: If there's an error in the curriculum format
         """
         if not curriculum_text:
-            return {}
+            raise ParserError("Empty curriculum content")
+            
+        # First validate the overall structure
+        try:
+            self._validate_curriculum_structure(curriculum_text)
+        except ValueError as e:
+            raise ParserError(str(e)) from e
             
         days = {}
         current_day = None

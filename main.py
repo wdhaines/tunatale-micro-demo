@@ -330,6 +330,9 @@ class CLI:
             args = self.parser.parse_args()
             handler = self.commands[args.command].handler
             return handler(args)
+        except KeyboardInterrupt:
+            print("\nOperation cancelled by user", file=sys.stderr)
+            return 1
         except argparse.ArgumentError as e:
             print(f"Error: {e}", file=sys.stderr)
             return 2
