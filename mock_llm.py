@@ -148,7 +148,15 @@ Who knew that one curious question could lead to such an exciting discovery? Emm
                 }]
             }
         else:
-            response = response_content
+            # For other types, still return a properly formatted response
+            response = {
+                "choices": [{
+                    "message": {
+                        "content": response_content,
+                        "role": "assistant"
+                    }
+                }]
+            }
         
         # Cache the response
         with open(cache_path, 'w') as f:
