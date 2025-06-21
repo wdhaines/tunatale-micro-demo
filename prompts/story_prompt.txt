@@ -1,0 +1,21 @@
+Generate a compelling story for: {LEARNING_OBJECTIVE}
+TARGET LANGUAGE: {TARGET_LANGUAGE}
+LEARNER LEVEL: {CEFR_LEVEL}
+STORY LENGTH: {STORY_LENGTH} words
+
+INSTRUCTIONS:
+1. Write a complete story with a clear beginning, middle, and end
+2. Use simple, clear language appropriate for {CEFR_LEVEL} level
+3. Keep the story engaging and focused on the topic
+4. End your response with exactly '%%%' on a new line
+5. Do not include any additional text after '%%%'
+
+Focus on:
+- Natural, engaging narrative
+- Appropriate complexity for {CEFR_LEVEL}
+- Topic content that serves the learning objective
+- Clear, simple language
+- Proper grammar and punctuation
+
+STORY:
+- Good storytelling craft

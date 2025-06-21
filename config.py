@@ -1,0 +1,25 @@
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Base directory
+BASE_DIR = Path(__file__).parent
+DATA_DIR = BASE_DIR / 'data'
+PROMPTS_DIR = BASE_DIR / 'prompts'
+MOCK_RESPONSES_DIR = DATA_DIR / 'mock_responses'
+
+# Create directories if they don't exist
+DATA_DIR.mkdir(exist_ok=True)
+PROMPTS_DIR.mkdir(exist_ok=True)
+MOCK_RESPONSES_DIR.mkdir(exist_ok=True)
+(DATA_DIR / 'generated_content').mkdir(exist_ok=True)
+
+# Default configuration
+DEFAULT_STORY_LENGTH = int(os.getenv('DEFAULT_STORY_LENGTH', '500'))  # Default to 500 words if not set
+
+# File paths
+CURRICULUM_PATH = DATA_DIR / 'curriculum.json'
+COLLOCATIONS_PATH = DATA_DIR / 'collocations.json'
