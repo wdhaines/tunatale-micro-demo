@@ -91,10 +91,12 @@ python main.py view story --day 1
 ```
 tunatale_micro_demo/
 ├── config.py              # Configuration and paths
-├── curriculum_generator.py # Curriculum generation logic
+├── curriculum_service.py  # Curriculum generation service
 ├── collocation_extractor.py # Collocation extraction logic
-├── content_generator.py   # Story generation logic
+├── story_generator.py     # Story generation logic
+├── llm_mock.py           # Mock LLM for testing and development
 ├── main.py                # Command-line interface
+├── PROJECT_STATUS.md      # Project status and progress tracking
 ├── requirements.txt       # Python dependencies
 ├── .env                  # Environment variables
 ├── data/
@@ -102,16 +104,16 @@ tunatale_micro_demo/
 │   ├── collocations.json  # Extracted collocations
 │   └── generated_content/ # Generated stories
 └── prompts/              # Prompt templates
-    ├── curriculum_prompt.txt
-    └── story_generation_prompt.txt
+    ├── curriculum_template.txt
+    └── story_template.txt
 ```
 
 ## Customization
 
 ### Modifying Prompts
 Edit the files in the `prompts/` directory to customize the behavior of the AI:
-- `curriculum_prompt.txt`: Controls how the curriculum is generated
-- `story_generation_prompt.txt`: Controls how stories are generated
+- `curriculum_template.txt`: Controls how the curriculum is generated
+- `story_template.txt`: Controls how stories are generated
 
 ### Adjusting Collocation Extraction
 Edit the `extract_collocations` method in `collocation_extractor.py` to modify how collocations are identified and filtered.

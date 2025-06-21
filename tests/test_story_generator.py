@@ -1,11 +1,11 @@
-"""Tests for content_generator.py."""
+"""Tests for story_generator.py."""
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch, mock_open
 
 import pytest
 
-from content_generator import ContentGenerator, StoryParams, CEFRLevel
+from story_generator import ContentGenerator, StoryParams, CEFRLevel
 
 
 def test_story_params_default_length() -> None:
@@ -92,7 +92,7 @@ def test_generate_story_creates_output_dir(content_generator: ContentGenerator, 
     mock_save_story.return_value = str(test_output_dir / "generated_content" / "test_story.txt")
     
     # Patch the DATA_DIR and _save_story method
-    with patch('content_generator.DATA_DIR', test_output_dir), \
+    with patch('story_generator.DATA_DIR', test_output_dir), \
          patch.object(generator, '_save_story', mock_save_story):
         
         # Call the method
@@ -141,7 +141,7 @@ def test_save_story_creates_valid_filename(content_generator: ContentGenerator, 
     test_objective = "Test Objective with Spaces & Special!@#"
     
     # Patch the DATA_DIR to use a temporary directory for testing
-    with patch('content_generator.DATA_DIR', tmp_path / 'test_data'):
+    with patch('story_generator.DATA_DIR', tmp_path / 'test_data'):
         # Create a mock for the open function
         mock_file = mock_open()
         
@@ -178,7 +178,7 @@ def test_save_story_with_empty_objective(content_generator: ContentGenerator, tm
     test_story = "Test story content"
     
     # Patch the DATA_DIR to use a temporary directory for testing
-    with patch('content_generator.DATA_DIR', tmp_path / 'test_data'):
+    with patch('story_generator.DATA_DIR', tmp_path / 'test_data'):
         # Test that ValueError is raised when learning_objective is empty
         with pytest.raises(ValueError, match="learning_objective cannot be empty"):
             content_generator._save_story(
@@ -225,7 +225,7 @@ def test_generate_story_uses_prompt_template(content_generator: ContentGenerator
     mock_save_story.return_value = str(tmp_path / 'test_data' / 'generated_content' / 'test_story.txt')
     
     # Patch DATA_DIR and _save_story
-    with patch('content_generator.DATA_DIR', tmp_path / 'test_data'), \
+    with patch('story_generator.DATA_DIR', tmp_path / 'test_data'), \
          patch.object(content_generator, '_save_story', mock_save_story):
         
         # Call the method

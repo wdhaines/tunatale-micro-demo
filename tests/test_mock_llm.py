@@ -6,7 +6,7 @@ from unittest.mock import patch, mock_open
 
 import pytest
 
-from mock_llm import MockLLM
+from llm_mock import MockLLM
 
 # Set a 10-second timeout for all tests in this file
 pytestmark = pytest.mark.timeout(10)
@@ -166,20 +166,9 @@ def test_get_response_handles_empty_response(monkeypatch, tmp_path: Path) -> Non
          patch('json.dump') as mock_json_dump, \
          patch('builtins.print'):  # Suppress print output during tests
         
-        # Test with story type - should use default story for empty input
-        response = llm.get_response("test prompt", response_type="story")
-        
-        # Should return a valid response structure with default story content
-        assert isinstance(response, dict), "Response should be a dictionary"
-        assert "choices" in response, "Response should contain 'choices' key"
-        assert len(response["choices"]) > 0, "Choices should not be empty"
-        assert "message" in response["choices"][0], "First choice should have 'message' key"
-        assert "content" in response["choices"][0]["message"], "Message should have 'content' key"
-        
-        # Should contain default story content
-        content = response["choices"][0]["message"]["content"]
-        assert "Emma" in content, "Default story should contain 'Emma'"
-        assert len(content) > 100, "Default story should be more than 100 characters"
+        # Test with story type - should raise ValueError for empty input
+        with pytest.raises(ValueError, match="Empty story response received"):
+            llm.get_response("test prompt", response_type="story")
     
     # Test case 2: Empty response for non-story type should return empty content
     input_responses = [

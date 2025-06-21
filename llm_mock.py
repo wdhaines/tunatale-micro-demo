@@ -107,37 +107,11 @@ class MockLLM:
                 }]
             }
         elif response_type == "story":
-            # Provide a complete story if no content was provided
-            if not response_content.strip() or len(response_content) < 100:
-                response_content = """**The Amazing Discovery**
-
-Emma loved plants. Every weekend, she visited the botanical garden to see the beautiful flowers and trees. But one day, something extraordinary caught her eye - a plant with red, tube-shaped leaves that looked like they were licking their lips!
-
-"What kind of plant is that?" Emma asked the gardener.
-
-"Ah, that's a carnivorous plant called a pitcher plant," the gardener explained. "It eats insects!"
-
-Emma couldn't believe her ears. A plant that eats bugs? She had to learn more!
-
-The next day, Emma went to the library and found books about carnivorous plants. She learned that these amazing plants grow in places where the soil doesn't have enough nutrients, so they've adapted to get food in a different way.
-
-There are many types of carnivorous plants:
-1. Venus Flytraps - They have special leaves that snap shut when an insect touches them.
-2. Sundews - Their leaves have sticky hairs that trap insects.
-3. Pitcher Plants - Insects fall into their tube-shaped leaves and can't climb out.
-4. Bladderworts - They suck in tiny water creatures like a vacuum cleaner!
-
-Emma decided to give a talk about these fascinating plants at her school's science fair. She made colorful posters showing how each plant catches its food. She even brought a small Venus flytrap to demonstrate.
-
-On the day of the science fair, Emma was nervous but excited. She took a deep breath and began her presentation. Soon, all her classmates were gathered around, their eyes wide with wonder.
-
-"These plants are like nature's pest control!" Emma explained. "They help keep the insect population in balance."
-
-By the end of her talk, Emma had taught her whole class about these incredible plants. Her teacher was so impressed that she invited Emma to present to other classes too.
-
-From that day on, Emma became known as the "Plant Detective" at school. She continued learning about different plants and even started a small garden at home with her very own carnivorous plants.
-
-Who knew that one curious question could lead to such an exciting discovery? Emma learned that nature is full of surprises, and sometimes the most amazing things come in small, leafy packages!"""
+            # Validate that we have a proper story response
+            if not response_content.strip():
+                raise ValueError("Empty story response received. Please provide a valid story.")
+            if len(response_content.strip()) < 100:
+                raise ValueError(f"Story is too short ({len(response_content)} chars). Please provide a more detailed story (minimum 100 characters).")
             
             response = {
                 "choices": [{

@@ -1,0 +1,10 @@
+Create a {num_days}-day language learning curriculum for the following goal: {goal}
+
+For each day, include:
+1. Key phrases/concepts to learn (Topics)
+2. Grammar points
+3. Vocabulary focus
+4. Suggested practice activities
+
+Make it progressive, starting simple and building complexity.
+Focus on practical, conversational language.

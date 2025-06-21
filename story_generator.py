@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from config import DATA_DIR, PROMPTS_DIR, DEFAULT_STORY_LENGTH, MOCK_RESPONSES_DIR
-from mock_llm import MockLLM
+from llm_mock import MockLLM
 
 class CEFRLevel(str, Enum):
     A1 = "A1"
@@ -54,7 +54,7 @@ class StoryParams:
 class ContentGenerator:
     def __init__(self):
         self.llm = MockLLM()
-        self.story_prompt = self._load_prompt('story_prompt.txt')
+        self.story_prompt = self._load_prompt('story_template.txt')
     
     def _load_prompt(self, filename: str) -> str:
         """Load prompt from file or use default if not found."""

@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
-from content_generator import ContentGenerator, StoryParams, CEFRLevel
-from mock_llm import MockLLM
+from story_generator import ContentGenerator, StoryParams, CEFRLevel
+from llm_mock import MockLLM
 
 
 @pytest.fixture
@@ -49,7 +49,7 @@ def mock_llm_response() -> Dict[str, Any]:
 @pytest.fixture
 def mock_llm(mocker, mock_llm_response):
     """Patch the MockLLM class for testing."""
-    with mocker.patch("content_generator.MockLLM") as mock:
+    with mocker.patch("story_generator.MockLLM") as mock:
         instance = mock.return_value
         instance.get_response.return_value = mock_llm_response
         yield instance
@@ -63,7 +63,7 @@ def content_generator(mocker, tmp_path):
     test_output_dir.mkdir()
     
     # Mock the DATA_DIR to use our test directory
-    mocker.patch('content_generator.DATA_DIR', test_output_dir)
+    mocker.patch('story_generator.DATA_DIR', test_output_dir)
     
     # Create a mock for the LLM with a default response
     mock_llm = MagicMock()
