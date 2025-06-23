@@ -1,11 +1,13 @@
 import json
 from pathlib import Path
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
 from config import DATA_DIR, PROMPTS_DIR, DEFAULT_STORY_LENGTH, MOCK_RESPONSES_DIR
 from llm_mock import MockLLM
+from srs_tracker import SRSTracker
+from collocation_extractor import CollocationExtractor
 
 class CEFRLevel(str, Enum):
     A1 = "A1"
@@ -34,6 +36,9 @@ class StoryParams:
     cefr_level: Union[CEFRLevel, str]
     phase: int
     length: int = field(default_factory=lambda: DEFAULT_STORY_LENGTH)
+    new_vocabulary: List[str] = field(default_factory=list)
+    recycled_vocabulary: List[str] = field(default_factory=list)
+    recycled_collocations: List[str] = field(default_factory=list)
     
     def __post_init__(self):
         """Validate the CEFR level after initialization."""
@@ -55,6 +60,15 @@ class ContentGenerator:
     def __init__(self):
         self.llm = MockLLM()
         self.story_prompt = self._load_prompt('story_template.txt')
+        self.srs = SRSTracker()
+        self._collocation_extractor = None
+    
+    @property
+    def collocation_extractor(self):
+        """Lazily load the CollocationExtractor to prevent test failures."""
+        if self._collocation_extractor is None:
+            self._collocation_extractor = CollocationExtractor()
+        return self._collocation_extractor
     
     def _load_prompt(self, filename: str) -> str:
         """Load prompt from file or use default if not found."""
