@@ -1,0 +1,158 @@
+"""Unit tests for srs_tracker.py"""
+
+import json
+import pytest
+from pathlib import Path
+from unittest.mock import patch, mock_open
+
+from srs_tracker import SRSTracker, CollocationStatus
+
+# Test data
+SAMPLE_COLLOCATIONS = ["special plants", "heavy rain", "strong coffee"]
+
+# Fixtures
+@pytest.fixture
+def temp_dir():
+    """Create and return a temporary directory for testing."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        yield tmp_dir
+
+@pytest.fixture
+def tracker(temp_dir):
+    """Fixture providing an SRSTracker with a temporary data directory."""
+    return SRSTracker(data_dir=temp_dir, filename='test_srs.json')
+class TestCollocationStatus:
+    """Tests for CollocationStatus class."""
+    
+    def test_to_dict(self):
+        """Test conversion of CollocationStatus to dictionary."""
+        colloc = CollocationStatus(
+            text="test phrase",
+            first_seen_day=1,
+            last_seen_day=1,
+            appearances=[1],
+            review_count=1,
+            next_review_day=2,
+            stability=1.0
+        )
+        expected = {
+            'text': 'test phrase',
+            'first_seen_day': 1,
+            'last_seen_day': 1,
+            'appearances': [1],
+            'review_count': 1,
+            'next_review_day': 2,
+            'stability': 1.0
+        }
+        assert colloc.to_dict() == expected
+
+    def test_from_dict(self):
+        """Test creation of CollocationStatus from dictionary."""
+        data = {
+            'text': 'test phrase',
+            'first_seen_day': 1,
+            'last_seen_day': 1,
+            'appearances': [1],
+            'review_count': 1,
+            'next_review_day': 2,
+            'stability': 1.0
+        }
+        colloc = CollocationStatus.from_dict(data)
+        assert colloc.text == 'test phrase'
+        assert colloc.first_seen_day == 1
+        assert colloc.next_review_day == 2
+
+
+class TestSRSTracker:
+    """Tests for SRSTracker class."""
+    
+    def test_initialization_new_file(self, temp_dir):
+        """Test initializing with a new file."""
+        test_file = Path(temp_dir) / 'test_srs.json'
+        tracker = SRSTracker(data_dir=temp_dir, filename='test_srs.json')
+        assert tracker.current_day == 1
+        assert len(tracker.collocations) == 0
+        assert test_file.exists()
+
+    def test_add_collocations_new(self, tracker):
+        """Test adding new collocations."""
+        tracker.add_collocations(["test phrase"], day=1)
+        
+        assert len(tracker.collocations) == 1
+        assert "test phrase" in tracker.collocations
+        colloc = tracker.collocations["test phrase"]
+        assert colloc.first_seen_day == 1
+        assert colloc.last_seen_day == 1
+        assert colloc.review_count == 1
+        assert colloc.next_review_day == 2  # First review after 1 day
+
+    def test_add_collocations_existing(self, tracker):
+        """Test updating existing collocations."""
+        tracker.add_collocations(["test phrase"], day=1)
+        tracker.add_collocations(["test phrase"], day=3)  # Reviewing
+        
+        colloc = tracker.collocations["test phrase"]
+        assert colloc.review_count == 2
+        assert colloc.last_seen_day == 3
+        assert colloc.next_review_day == 5  # Interval doubled from 2 to 4 days
+        assert abs(colloc.stability - 1.2) < 0.001  # Stability increased
+
+    def test_get_due_collocations(self, tracker):
+        """Test retrieving due collocations."""
+        tracker.add_collocations(["test phrase"], day=1)
+        
+        # Not due yet on day 1 (just added)
+        due = tracker.get_due_collocations(day=1)
+        assert len(due) == 0
+        
+        # Due on day 2
+        due = tracker.get_due_collocations(day=2)
+        assert len(due) == 1
+        assert due[0].text == "test phrase"
+        
+        # After review, next due in 2 days (on day 4)
+        tracker.add_collocations(["test phrase"], day=2)
+        due = tracker.get_due_collocations(day=3)
+        assert len(due) == 0
+        
+        due = tracker.get_due_collocations(day=4)
+        assert len(due) == 1
+
+    def test_save_and_load_state(self, temp_dir):
+        """Test that state is properly saved and loaded."""
+        # Create and save state
+        tracker1 = SRSTracker(data_dir=temp_dir, filename='test_srs.json')
+        tracker1.add_collocations(["test phrase"], day=1)
+        tracker1.current_day = 5
+        tracker1._save_state()
+        
+        # Load in a new tracker
+        tracker2 = SRSTracker(data_dir=temp_dir, filename='test_srs.json')
+        
+        assert tracker2.current_day == 5
+        assert "test phrase" in tracker2.collocations
+        assert tracker2.collocations["test phrase"].first_seen_day == 1
+
+    def test_corrupted_file_handling(self, temp_dir):
+        """Test handling of corrupted JSON file."""
+        test_file = Path(temp_dir) / 'test_srs.json'
+        # Create a corrupted JSON file
+        with open(test_file, 'w') as f:
+            f.write('{invalid json')
+        
+        # Should not raise exception
+        tracker = SRSTracker(data_dir=temp_dir, filename='test_srs.json')
+        assert len(tracker.collocations) == 0
+        assert tracker.current_day == 1
+
+    def test_context_manager(self, temp_dir):
+        """Test that context manager properly saves on exit."""
+        test_file = Path(temp_dir) / 'test_srs.json'
+        with SRSTracker(data_dir=temp_dir, filename='test_srs.json') as tracker:
+            tracker.add_collocations(["test phrase"], day=1)
+        
+        # Check that file was saved
+        with open(test_file, 'r') as f:
+            data = json.load(f)
+            assert 'test phrase' in data['collocations']
