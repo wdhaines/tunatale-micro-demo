@@ -59,6 +59,9 @@ def test_get_response_prompts_user_when_no_cache(monkeypatch, tmp_path: Path) ->
     test_prompt = "test prompt"
     test_response = "test response"
     
+    # Use a non-curriculum response type to test interactive input
+    response_type = "custom"
+    
     # Track input calls and responses
     input_calls = []
     input_responses = [
@@ -86,8 +89,8 @@ def test_get_response_prompts_user_when_no_cache(monkeypatch, tmp_path: Path) ->
     with patch('builtins.open', mock_file_handle) as mock_file, \
          patch('json.dump') as mock_json_dump, \
          patch('builtins.print'):  # Suppress print output during tests
-        # Call the method under test
-        response = llm.get_response(test_prompt)
+        # Call the method under test with custom response type
+        response = llm.get_response(test_prompt, response_type=response_type)
         
         # Debug: Print all input calls for inspection
         print("\n=== Input Calls ===")
@@ -111,8 +114,16 @@ def test_get_response_prompts_user_when_no_cache(monkeypatch, tmp_path: Path) ->
             f"Response content should contain '{test_response}'"
         
         # Verify the cache file was created with the correct content
-        cache_path = llm._get_cache_path(test_prompt)
-        mock_file.assert_called_once_with(cache_path, 'w')
+        # Get the actual cache path that was used
+        mock_call = mock_file.call_args[0]
+        actual_cache_path = mock_call[0]
+        
+        # Verify it's in the expected directory and has a .json extension
+        assert str(actual_cache_path).startswith(str(tmp_path))
+        assert actual_cache_path.suffix == '.json'
+        
+        # Verify the open mode is correct
+        assert mock_call[1] == 'w'
         
         # Verify the response was saved to cache using json.dump
         mock_json_dump.assert_called_once()

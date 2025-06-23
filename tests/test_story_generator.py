@@ -1,11 +1,16 @@
 """Tests for story_generator.py."""
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch, mock_open, call
+from typing import Dict, Any
 
 import pytest
 
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
+
+# Test data paths
+TEST_DATA_DIR = Path(__file__).parent / 'test_data'
+TEST_CURRICULUM_PATH = TEST_DATA_DIR / 'test_curriculum.json'
 
 
 def test_story_params_default_length() -> None:

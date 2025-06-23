@@ -1,11 +1,13 @@
 import json
 from pathlib import Path
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
-from config import DATA_DIR, PROMPTS_DIR, DEFAULT_STORY_LENGTH, MOCK_RESPONSES_DIR
+from config import DATA_DIR, PROMPTS_DIR, DEFAULT_STORY_LENGTH, MOCK_RESPONSES_DIR, CURRICULUM_PATH
 from llm_mock import MockLLM
+from srs_tracker import SRSTracker
+from collocation_extractor import CollocationExtractor
 
 class CEFRLevel(str, Enum):
     A1 = "A1"
@@ -34,6 +36,9 @@ class StoryParams:
     cefr_level: Union[CEFRLevel, str]
     phase: int
     length: int = field(default_factory=lambda: DEFAULT_STORY_LENGTH)
+    new_vocabulary: List[str] = field(default_factory=list)
+    recycled_vocabulary: List[str] = field(default_factory=list)
+    recycled_collocations: List[str] = field(default_factory=list)
     
     def __post_init__(self):
         """Validate the CEFR level after initialization."""
@@ -55,6 +60,15 @@ class ContentGenerator:
     def __init__(self):
         self.llm = MockLLM()
         self.story_prompt = self._load_prompt('story_template.txt')
+        self.srs = SRSTracker()
+        self._collocation_extractor = None
+    
+    @property
+    def collocation_extractor(self):
+        """Lazily load the CollocationExtractor to prevent test failures."""
+        if self._collocation_extractor is None:
+            self._collocation_extractor = CollocationExtractor()
+        return self._collocation_extractor
     
     def _load_prompt(self, filename: str) -> str:
         """Load prompt from file or use default if not found."""
@@ -85,6 +99,9 @@ class ContentGenerator:
                 TARGET_LANGUAGE=params.language,
                 CEFR_LEVEL=params.cefr_level.value if isinstance(params.cefr_level, CEFRLevel) else params.cefr_level,
                 STORY_LENGTH=params.length,
+                NEW_VOCABULARY=", ".join(params.new_vocabulary) if params.new_vocabulary else "None",
+                RECYCLED_VOCABULARY=", ".join(params.recycled_vocabulary) if params.recycled_vocabulary else "None",
+                RECYCLED_COLLOCATIONS=", ".join(params.recycled_collocations) if params.recycled_collocations else "None",
                 PREVIOUS_STORY=previous_story
             )
             
@@ -100,6 +117,16 @@ class ContentGenerator:
             # Save the story with phase number and learning objective
             story_path = self._save_story(story, params.phase, params.learning_objective)
             print(f"Story saved to: {story_path}")
+            
+            # Extract collocations from the story and add them to SRS
+            try:
+                collocations = self.collocation_extractor.extract_collocations(story)
+                if collocations:
+                    self.srs.add_collocations(collocations, day=params.phase)
+                    print(f"Added {len(collocations)} collocations to SRS")
+            except Exception as e:
+                print(f"Warning: Failed to extract collocations: {e}")
+                
             return story
             
         except IOError as e:
@@ -161,6 +188,100 @@ class ContentGenerator:
             error_msg = f"Failed to save story to {story_path}: {e}"
             print(f"Error: {error_msg}")
             raise IOError(error_msg) from e  
+    def _load_curriculum(self) -> Dict[str, Any]:
+        """Load and parse the curriculum JSON file.
+        
+        Returns:
+            Dict containing the curriculum data
+            
+        Raises:
+            FileNotFoundError: If the curriculum file doesn't exist
+            json.JSONDecodeError: If the file contains invalid JSON
+        """
+        if not CURRICULUM_PATH.exists():
+            raise FileNotFoundError(f"Curriculum file not found at {CURRICULUM_PATH}")
+            
+        with open(CURRICULUM_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)
+            
+    def generate_story_for_day(self, day: int) -> Optional[str]:
+        """Generate a story for a specific day using curriculum and SRS data.
+        
+        Args:
+            day: The day number to generate the story for
+            
+        Returns:
+            Generated story text, or None if generation failed
+        """
+        try:
+            # Load curriculum and get phase data
+            curriculum = self._load_curriculum()
+            phase_data = curriculum.get('phases', {}).get(f'phase{day}')
+            if not phase_data:
+                print(f"No curriculum found for day {day}")
+                return None
+                
+            # Get due collocations from SRS
+            due_collocations = self.srs.get_due_collocations(day)
+            
+            # Convert CollocationStatus objects to strings for the prompt
+            recycled_collocations = [c.text for c in due_collocations] if due_collocations else []
+            
+            # Get recycled vocabulary from previous stories
+            recycled_vocab = phase_data.get('recycled_vocabulary', [])
+            
+            print(f"\n--- SRS Status ---")
+            print(f"Due collocations for day {day}: {len(recycled_collocations)}")
+            if recycled_collocations:
+                print("Recycled collocations:", ", ".join(f'"{c}"' for c in recycled_collocations))
+            else:
+                print("No collocations due for review today")
+            
+            # Create story parameters
+            params = StoryParams(
+                learning_objective=phase_data.get('learning_objective', 'General Learning'),
+                language=curriculum.get('language', 'English'),
+                cefr_level=phase_data.get('cefr_level', 'B1'),
+                phase=day,
+                length=phase_data.get('story_length', DEFAULT_STORY_LENGTH),
+                recycled_collocations=recycled_collocations,
+                new_vocabulary=phase_data.get('new_vocabulary', []),
+                recycled_vocabulary=recycled_vocab
+            )
+            
+            # Get previous story for continuity
+            previous_story = self.get_previous_story(day)
+            
+            # Generate the story
+            story = self.generate_story(params, previous_story)
+            if not story:
+                return None
+                
+            # Extract collocations from the generated story
+            collocations = self.collocation_extractor.extract_collocations(story)
+            
+            if collocations:
+                # Add new collocations to SRS
+                self.srs.add_collocations(
+                    collocations=collocations,
+                    day=day
+                )
+                
+                # Print summary
+                new_count = len([c for c in collocations if c not in due_collocations])
+                print(f"\n--- Collocation Summary ---")
+                print(f"Recycled collocations: {len(due_collocations)}")
+                print(f"New collocations found: {new_count}")
+                print(f"Total collocations: {len(collocations)}")
+                
+            return story
+            
+        except Exception as e:
+            print(f"Error generating story for day {day}: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
     def get_previous_story(self, day_number: int) -> str:
         """Get the story from the previous day, if it exists."""
         if day_number <= 1:

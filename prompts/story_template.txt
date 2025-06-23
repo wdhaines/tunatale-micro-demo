@@ -3,12 +3,20 @@ TARGET LANGUAGE: {TARGET_LANGUAGE}
 LEARNER LEVEL: {CEFR_LEVEL}
 STORY LENGTH: {STORY_LENGTH} words
 
+NEW VOCABULARY TO INCLUDE: {NEW_VOCABULARY}
+RECYCLED VOCABULARY FROM PREVIOUS DAYS: {RECYCLED_VOCABULARY}
+COLLOCATIONS TO NATURALLY RECYCLE: {RECYCLED_COLLOCATIONS}
+
 INSTRUCTIONS:
 1. Write a complete story with a clear beginning, middle, and end
 2. Use simple, clear language appropriate for {CEFR_LEVEL} level
 3. Keep the story engaging and focused on the topic
-4. End your response with exactly '%%%' on a new line
-5. Do not include any additional text after '%%%'
+4. Naturally incorporate ALL new vocabulary words
+5. Include recycled vocabulary where it fits naturally
+6. Try to use the recycled collocations in natural contexts
+7. Do not force vocabulary - use it naturally within the story flow
+8. End your response with exactly '%%%' on a new line
+9. Do not include any additional text after '%%%'
 
 Focus on:
 - Natural, engaging narrative

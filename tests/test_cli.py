@@ -43,14 +43,36 @@ class TestCLI:
 class TestGenerateCommand:
     """Test cases for the 'generate' command."""
 
-    @patch('main.CurriculumGenerator')
+    @pytest.fixture
+    def mock_curriculum(self):
+        """Create a mock curriculum generator with default settings."""
+        with patch('main.CurriculumGenerator') as mock_gen:
+            mock_instance = mock_gen.return_value
+            # Create a more realistic curriculum response
+            curriculum_data = {
+                'learning_goal': 'Test Goal',
+                'target_language': 'English',
+                'cefr_level': 'A2',
+                'days': 30,
+                'content': 'Generated curriculum content',
+                'metadata': {'generated_at': '2023-01-01T00:00:00', 'transcript_used': False},
+                'days_content': {
+                    'Day 1': ['Topic 1', 'Grammar 1'],
+                    'Day 2': ['Topic 2', 'Grammar 2']
+                }
+            }
+            mock_instance.generate_curriculum.return_value = curriculum_data
+            # Mock the _save_curriculum method
+            mock_instance._save_curriculum = MagicMock()
+            yield mock_instance
+
     @patch('builtins.open', new_callable=mock_open)
     @patch('sys.stdout', new_callable=io.StringIO)
     @patch('llm_mock.MockLLM.get_response')
     def test_generate_curriculum_success(
-        self, mock_llm, mock_stdout, mock_file, mock_curriculum_gen, tmp_path
+        self, mock_llm, mock_stdout, mock_file, mock_curriculum, tmp_path
     ):
-        """Test successful curriculum generation."""
+        """Test successful curriculum generation with default parameters."""
         # Setup mock LLM response
         mock_llm.return_value = {
             'choices': [{
@@ -60,27 +82,177 @@ class TestGenerateCommand:
             }]
         }
         
-        # Setup mock curriculum generator
-        mock_instance = mock_curriculum_gen.return_value
-        mock_instance.generate_curriculum.return_value = "Generated curriculum content"
-        
-        # Run the command with a mock for the confirmation prompt
+        # Run the command with default parameters
         with patch('sys.argv', ['main.py', 'generate', 'Learn Spanish']), \
-             patch('pathlib.Path.exists', return_value=False), \
-             patch('pathlib.Path.mkdir'), \
-             patch('json.dump'), \
-             patch('builtins.input', return_value='y'):  # Mock user confirmation
+             patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             result = CLI().run()
             
-        # Verify the result - should return 0 on success
+        # Verify the result
         assert result == 0
-        mock_instance.generate_curriculum.assert_called_once_with("Learn Spanish")
+        args, kwargs = mock_curriculum.generate_curriculum.call_args
+        assert kwargs['learning_goal'] == 'Learn Spanish'
+        assert kwargs['target_language'] == 'English'
+        assert kwargs['cefr_level'] == 'A2'
+        assert kwargs['days'] == 30
+        assert kwargs['transcript'] is None
+        assert 'output_path' in kwargs  # Don't check specific path, just that it was provided
         
         # Verify success message
         output = mock_stdout.getvalue()
         assert "Generating curriculum for: Learn Spanish" in output
-        assert "Curriculum generated successfully!" in output
-        assert "Run 'python main.py view curriculum' to see it." in output
+        assert "Target language: English" in output
+        assert "CEFR Level: A2" in output
+        assert "Duration: 30 days" in output
+        assert "Curriculum generated successfully and saved to: curriculum.json" in output
+        
+    @patch('sys.stdout', new_callable=io.StringIO)
+    @patch('sys.stderr', new_callable=io.StringIO)
+    def test_generate_with_all_parameters(
+        self, mock_stderr, mock_stdout, mock_curriculum, tmp_path
+    ):
+        """Test curriculum generation with all parameters specified."""
+        # Setup test files
+        transcript_path = tmp_path / 'transcript.txt'
+        output_path = tmp_path / 'custom_output.json'
+        
+        # Setup mock curriculum data
+        curriculum_data = {
+            'learning_goal': 'Learn Spanish',
+            'target_language': 'French',
+            'cefr_level': 'B1',
+            'days': 14,
+            'content': 'Generated curriculum content',
+            'metadata': {'generated_at': '2023-01-01T00:00:00', 'transcript_used': True},
+            'days_content': {
+                'Day 1': ['Topic 1', 'Grammar 1'],
+                'Day 2': ['Topic 2', 'Grammar 2']
+            }
+        }
+        mock_curriculum.generate_curriculum.return_value = curriculum_data
+        
+        # Create a mock for the transcript file
+        mock_transcript_content = 'Sample transcript content'
+        
+        # Use separate mocks for different file operations
+        with patch('builtins.open', side_effect=[
+            mock_open(read_data=mock_transcript_content).return_value,  # For reading transcript
+            mock_open().return_value  # For writing output
+        ]) as mock_file, \
+             patch('pathlib.Path.mkdir'):
+            
+            # Run the command with all parameters
+            with patch('sys.argv', [
+                'main.py', 'generate', 'Learn Spanish',
+                '--target-language', 'French',
+                '--cefr-level', 'B1',
+                '--days', '14',
+                '--transcript', str(transcript_path),
+                '--output', str(output_path)
+            ]):
+                result = CLI().run()
+        
+        # Verify the result
+        assert result == 0
+        mock_curriculum.generate_curriculum.assert_called_once()
+        
+        # Check the call arguments
+        args, kwargs = mock_curriculum.generate_curriculum.call_args
+        assert kwargs['learning_goal'] == 'Learn Spanish'
+        assert kwargs['target_language'] == 'French'
+        assert kwargs['cefr_level'] == 'B1'
+        assert kwargs['days'] == 14
+        assert kwargs['transcript'] == 'Sample transcript content'
+        
+    @patch('sys.stderr', new_callable=io.StringIO)
+    @patch('sys.exit')
+    def test_invalid_cefr_level(self, mock_exit, mock_stderr, mock_curriculum):
+        """Test handling of invalid CEFR level."""
+        # Setup mock to prevent actual exit
+        mock_exit.side_effect = SystemExit(2)
+        
+        with patch('sys.argv', [
+            'main.py', 'generate', 'Learn Spanish',
+            '--cefr-level', 'X1'  # Invalid level
+        ]):
+            with pytest.raises(SystemExit) as exc_info:
+                CLI().run()
+                
+        assert exc_info.value.code == 2
+        assert "invalid choice: 'X1'" in mock_stderr.getvalue()
+        
+    @patch('sys.stderr', new_callable=io.StringIO)
+    def test_invalid_days(self, mock_stderr, mock_curriculum):
+        """Test handling of invalid number of days."""
+        # Mock the validation to raise an error for invalid days
+        mock_curriculum.generate_curriculum.side_effect = ValueError("Number of days must be between 1 and 365")
+        
+        with patch('sys.argv', [
+            'main.py', 'generate', 'Learn Spanish',
+            '--days', '0'  # Invalid number of days
+        ]), patch('pathlib.Path.exists', return_value=False):
+            result = CLI().run()
+            
+        assert result == 1
+        assert "Number of days must be between 1 and 365" in mock_stderr.getvalue()
+        
+    @patch('builtins.open', side_effect=FileNotFoundError('No such file or directory'))
+    @patch('pathlib.Path.mkdir')
+    @patch('pathlib.Path.exists', side_effect=lambda x: str(x) != 'nonexistent.txt')
+    @patch('json.dump')
+    def test_nonexistent_transcript(self, mock_json_dump, mock_exists, mock_mkdir, mock_open_file):
+        """Test handling of non-existent transcript file."""
+        # Setup mock for the CurriculumGenerator
+        mock_curriculum = MagicMock()
+        # Return a non-empty dictionary to ensure it's not falsy
+        mock_curriculum.generate_curriculum.return_value = {
+            'learning_goal': 'Learn Spanish',
+            'content': 'Generated content',
+            'metadata': {'transcript_used': False},
+            'days': [{'day': 1, 'topic': 'Introduction', 'vocabulary': [], 'collocations': []}]
+        }
+        
+        # Mock the output file handling
+        mock_output_file = MagicMock()
+        mock_output_file.__enter__.return_value = mock_output_file
+        
+        # Mock the CurriculumGenerator class and file operations
+        with patch('main.CurriculumGenerator', return_value=mock_curriculum), \
+             patch('sys.argv', [
+                 'main.py', 'generate', 'Learn Spanish',
+                 '--transcript', 'nonexistent.txt',
+                 '--output', 'test_output.json'  # Explicit output file
+             ]), \
+             patch('sys.stderr', new_callable=io.StringIO) as mock_stderr, \
+             patch('sys.stdout', new_callable=io.StringIO) as mock_stdout, \
+             patch('builtins.open', side_effect=[
+                 FileNotFoundError('No such file or directory'),  # For transcript
+                 mock_output_file  # For output file
+             ]):
+            result = CLI().run()
+            
+            # Get the output
+            stderr_output = mock_stderr.getvalue().strip()
+            stdout_output = mock_stdout.getvalue().strip()
+            
+            # Debug output
+            print("\n--- DEBUG OUTPUT ---")
+            print("STDERR:", repr(stderr_output))
+            print("STDOUT:", repr(stdout_output))
+            print("--- END DEBUG ---\n")
+            
+            # Check if the warning is in either stderr or stdout
+            assert "Warning: Could not read transcript file:" in f"{stdout_output}\n{stderr_output}"
+            
+            # Verify the curriculum generation was attempted with transcript=None
+            mock_curriculum.generate_curriculum.assert_called_once()
+            args, kwargs = mock_curriculum.generate_curriculum.call_args
+            assert kwargs['transcript'] is None
+            
+            # Verify the output file was written to
+            mock_json_dump.assert_called_once()
+            
+            # Verify success status code (0)
+            assert result == 0
 
     @patch('sys.stderr', new_callable=io.StringIO)
     def test_generate_validation_error(self, mock_stderr):
@@ -92,6 +264,33 @@ class TestGenerateCommand:
             
         assert result == 1
         assert "Learning goal must be a non-empty string" in mock_stderr.getvalue()
+        
+    @patch('sys.stderr', new_callable=io.StringIO)
+    def test_output_file_handling(self, mock_stderr, mock_curriculum, tmp_path):
+        """Test custom output file handling."""
+        output_path = tmp_path / 'custom_curriculum.json'
+        
+        # Setup mock to return our path when converted to string
+        mock_curriculum.generate_curriculum.return_value = {
+            'learning_goal': 'Test Goal',
+            'content': 'Test content',
+            'metadata': {}
+        }
+        
+        with patch('sys.argv', [
+            'main.py', 'generate', 'Test Goal',
+            '--output', str(output_path)
+        ]), patch('pathlib.Path.mkdir'):
+            result = CLI().run()
+            
+        assert result == 0
+        assert output_path.exists()
+        mock_curriculum.generate_curriculum.assert_called_once()
+        
+        # Check that the output file was written
+        with open(output_path, 'r') as f:
+            content = json.load(f)
+            assert content['learning_goal'] == 'Test Goal'
 
 
 class TestExtractCommand:

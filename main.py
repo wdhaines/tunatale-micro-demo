@@ -41,12 +41,42 @@ class CLI:
         # Generate curriculum command
         gen_parser = subparsers.add_parser(
             'generate',
-            help='Generate a new language learning curriculum'
+            help='Generate a new language learning curriculum',
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter
         )
         gen_parser.add_argument(
             'goal',
             type=str,
             help='Learning goal (e.g., "Ordering food in a restaurant")'
+        )
+        gen_parser.add_argument(
+            '--target-language',
+            type=str,
+            default='English',
+            help='Target language for the curriculum'
+        )
+        gen_parser.add_argument(
+            '--cefr-level',
+            type=str,
+            choices=['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
+            default='A2',
+            help='CEFR level for the curriculum'
+        )
+        gen_parser.add_argument(
+            '--days',
+            type=int,
+            default=30,
+            help='Number of days for the curriculum'
+        )
+        gen_parser.add_argument(
+            '--transcript',
+            type=str,
+            help='Path to the target presentation transcript file'
+        )
+        gen_parser.add_argument(
+            '--output',
+            type=str,
+            help='Output file path for the generated curriculum (default: curriculum.json)'
         )
         
         # Extract collocations command
@@ -70,6 +100,20 @@ class CLI:
             help='View generated content'
         )
         self._setup_view_parser(view_parser)
+        
+        # Generate day command
+        story_day_parser = subparsers.add_parser(
+            'generate-day',
+            help='Generate story for specific curriculum day with SRS'
+        )
+        story_day_parser.add_argument('day', type=int, help='Day number (1-5)')
+        
+        # Progress command
+        progress_parser = subparsers.add_parser(
+            'progress', 
+            help='View SRS progress and collocation tracking'
+        )
+        progress_parser.add_argument('--day', type=int, help='Show due collocations for day')
         
         return parser
     
@@ -176,18 +220,65 @@ class CLI:
                 handler=self._handle_view,
                 help='View generated content'
             ),
+            'generate-day': Command(
+                handler=self._handle_generate_day,
+                help='Generate story for specific curriculum day with SRS'
+            ),
+            'progress': Command(
+                handler=self._handle_progress,
+                help='View SRS progress and collocation tracking'
+            ),
         }
     
     def _handle_generate(self, args: argparse.Namespace) -> int:
         """Handle the generate curriculum command."""
         print(f"Generating curriculum for: {args.goal}")
+        print(f"Target language: {args.target_language}")
+        print(f"CEFR Level: {args.cefr_level}")
+        print(f"Duration: {args.days} days")
+        
+        # Read transcript if provided
+        transcript = None
+        if args.transcript:
+            try:
+                with open(args.transcript, 'r') as f:
+                    transcript = f.read()
+                print(f"Using transcript from: {args.transcript}")
+            except OSError as e:  # Catches FileNotFoundError, PermissionError, etc.
+                print(f"Warning: Could not read transcript file: {e}", file=sys.stderr)
+                # Continue without transcript
+        
+        # Set default output path
+        output_path = Path(args.output) if args.output else Path('curriculum.json')
+        
+        # Generate the curriculum
         generator = CurriculumGenerator()
-        curriculum = generator.generate_curriculum(args.goal)
-        if curriculum:
-            print("\nCurriculum generated successfully!")
-            print("Run 'python main.py view curriculum' to see it.")
-            return 0
-        return 1
+        try:
+            curriculum = generator.generate_curriculum(
+                learning_goal=args.goal,
+                target_language=args.target_language,
+                cefr_level=args.cefr_level,
+                days=args.days,
+                transcript=transcript,
+                output_path=output_path
+            )
+            
+            if curriculum:
+                # Ensure the output directory exists
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                with open(output_path, 'w') as f:
+                    json.dump(curriculum, f, indent=2)
+                print(f"\nCurriculum generated successfully and saved to: {output_path}")
+                return 0
+            return 1
+            
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+        except IOError as e:
+            print(f"Error saving curriculum: {e}", file=sys.stderr)
+            return 1
     
     def _handle_extract(self, args: argparse.Namespace) -> int:
         """Handle the extract collocations command."""
@@ -237,6 +328,65 @@ class CLI:
             return 1
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
+            return 1
+    
+    def _handle_generate_day(self, args: argparse.Namespace) -> int:
+        """Handle the generate-day command."""
+        from story_generator import ContentGenerator
+        from srs_tracker import SRSTracker
+        
+        if not 1 <= args.day <= 5:
+            print(f"Error: Day must be between 1 and 5, got {args.day}", file=sys.stderr)
+            return 1
+            
+        try:
+            generator = ContentGenerator()
+            result = generator.generate_story_for_day(args.day)
+            if result:
+                print(f"Successfully generated story for day {args.day}")
+                return 0
+            return 1
+        except Exception as e:
+            print(f"Error generating story for day {args.day}: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:  # Don't print traceback during tests
+                import traceback
+                traceback.print_exc()
+            return 1
+    
+    def _handle_progress(self, args: argparse.Namespace) -> int:
+        """Handle the progress command."""
+        from srs_tracker import SRSTracker
+        
+        try:
+            srs = SRSTracker()
+            
+            if args.day is not None:
+                if not 1 <= args.day <= 5:
+                    print(f"Error: Day must be between 1 and 5, got {args.day}", file=sys.stderr)
+                    return 1
+                
+                due = srs.get_due_collocations(args.day)
+                if not due:
+                    print(f"No collocations due for review on day {args.day}")
+                else:
+                    print(f"Collocations due for day {args.day}:")
+                    for i, colloc in enumerate(due, 1):
+                        print(f"{i}. {colloc.text} (next review: day {colloc.next_review_day})")
+            else:
+                # Show overall progress
+                total = len(srs.collocations)
+                due_today = len(srs.get_due_collocations(srs.current_day))
+                print(f"SRS Progress (Day {srs.current_day}):")
+                print(f"- Total collocations: {total}")
+                print(f"- Due for review today: {due_today}")
+                
+            return 0
+            
+        except Exception as e:
+            print(f"Error checking progress: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:  # Don't print traceback during tests
+                import traceback
+                traceback.print_exc()
             return 1
     
     def _handle_view(self, args: argparse.Namespace) -> int:

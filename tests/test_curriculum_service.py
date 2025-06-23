@@ -86,19 +86,37 @@ class TestCurriculumGenerator:
     
     def test_generate_curriculum_success(self, curriculum_generator, mock_llm, tmp_path):
         """Test successful curriculum generation."""
+        # Use the sample curriculum that's already defined at the top of the file
+        mock_response = {
+            'choices': [{
+                'message': {
+                    'content': SAMPLE_CURRICULUM
+                }
+            }]
+        }
+        mock_llm.generate.return_value = mock_response
+        
         with patch('curriculum_service.CURRICULUM_PATH', tmp_path / 'curriculum.json'):
             result = curriculum_generator.generate_curriculum("Test learning goal")
             
             # Verify LLM was called with correct prompt
-            args, kwargs = mock_llm.get_response.call_args
-            assert "Test learning goal" in kwargs['prompt']
-            assert kwargs['response_type'] == "curriculum"
+            args, kwargs = mock_llm.generate.call_args
+            assert "Test learning goal" in args[0]
             
-            # Verify result matches expected curriculum
-            assert result == SAMPLE_CURRICULUM
+            # Verify result has expected structure
+            assert isinstance(result, dict)
+            assert result['learning_goal'] == "Test learning goal"
+            assert 'content' in result
+            assert 'days' in result
+            assert 'target_language' in result
+            assert 'cefr_level' in result
             
             # Verify file was saved
             assert (tmp_path / 'curriculum.json').exists()
+            with open(tmp_path / 'curriculum.json', 'r') as f:
+                saved_curriculum = json.load(f)
+                assert saved_curriculum['learning_goal'] == "Test learning goal"
+                assert 'content' in saved_curriculum
     
     def test_generate_curriculum_empty_goal(self, curriculum_generator):
         """Test curriculum generation with empty learning goal raises ValidationError."""
