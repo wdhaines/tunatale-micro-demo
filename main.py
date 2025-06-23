@@ -71,6 +71,20 @@ class CLI:
         )
         self._setup_view_parser(view_parser)
         
+        # Generate day command
+        story_day_parser = subparsers.add_parser(
+            'generate-day',
+            help='Generate story for specific curriculum day with SRS'
+        )
+        story_day_parser.add_argument('day', type=int, help='Day number (1-5)')
+        
+        # Progress command
+        progress_parser = subparsers.add_parser(
+            'progress', 
+            help='View SRS progress and collocation tracking'
+        )
+        progress_parser.add_argument('--day', type=int, help='Show due collocations for day')
+        
         return parser
     
     def _setup_story_parser(self, parser: argparse.ArgumentParser) -> None:
@@ -176,6 +190,14 @@ class CLI:
                 handler=self._handle_view,
                 help='View generated content'
             ),
+            'generate-day': Command(
+                handler=self._handle_generate_day,
+                help='Generate story for specific curriculum day with SRS'
+            ),
+            'progress': Command(
+                handler=self._handle_progress,
+                help='View SRS progress and collocation tracking'
+            ),
         }
     
     def _handle_generate(self, args: argparse.Namespace) -> int:
@@ -237,6 +259,65 @@ class CLI:
             return 1
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
+            return 1
+    
+    def _handle_generate_day(self, args: argparse.Namespace) -> int:
+        """Handle the generate-day command."""
+        from story_generator import ContentGenerator
+        from srs_tracker import SRSTracker
+        
+        if not 1 <= args.day <= 5:
+            print(f"Error: Day must be between 1 and 5, got {args.day}", file=sys.stderr)
+            return 1
+            
+        try:
+            generator = ContentGenerator()
+            result = generator.generate_story_for_day(args.day)
+            if result:
+                print(f"Successfully generated story for day {args.day}")
+                return 0
+            return 1
+        except Exception as e:
+            print(f"Error generating story for day {args.day}: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:  # Don't print traceback during tests
+                import traceback
+                traceback.print_exc()
+            return 1
+    
+    def _handle_progress(self, args: argparse.Namespace) -> int:
+        """Handle the progress command."""
+        from srs_tracker import SRSTracker
+        
+        try:
+            srs = SRSTracker()
+            
+            if args.day is not None:
+                if not 1 <= args.day <= 5:
+                    print(f"Error: Day must be between 1 and 5, got {args.day}", file=sys.stderr)
+                    return 1
+                
+                due = srs.get_due_collocations(args.day)
+                if not due:
+                    print(f"No collocations due for review on day {args.day}")
+                else:
+                    print(f"Collocations due for day {args.day}:")
+                    for i, colloc in enumerate(due, 1):
+                        print(f"{i}. {colloc.text} (next review: day {colloc.next_review_day})")
+            else:
+                # Show overall progress
+                total = len(srs.collocations)
+                due_today = len(srs.get_due_collocations(srs.current_day))
+                print(f"SRS Progress (Day {srs.current_day}):")
+                print(f"- Total collocations: {total}")
+                print(f"- Due for review today: {due_today}")
+                
+            return 0
+            
+        except Exception as e:
+            print(f"Error checking progress: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:  # Don't print traceback during tests
+                import traceback
+                traceback.print_exc()
             return 1
     
     def _handle_view(self, args: argparse.Namespace) -> int:
