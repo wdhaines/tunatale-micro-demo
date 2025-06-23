@@ -125,16 +125,28 @@ class CurriculumGenerator:
         """
         return self._load_prompt('curriculum_template.txt')
     
-    def generate_curriculum(self, learning_goal: str, output_path: Optional[Union[str, Path]] = None) -> str:
+    def generate_curriculum(
+        self,
+        learning_goal: str,
+        target_language: str = 'English',
+        cefr_level: str = 'A2',
+        days: int = 30,
+        transcript: Optional[str] = None,
+        output_path: Optional[Union[str, Path]] = None
+    ) -> Dict[str, Any]:
         """
-        Generate a curriculum based on the learning goal.
+        Generate a curriculum based on the learning goal and parameters.
         
         Args:
             learning_goal: The learning objective for the curriculum
+            target_language: The target language for the curriculum
+            cefr_level: CEFR level (A1, A2, B1, B2, C1, C2)
+            days: Number of days for the curriculum
+            transcript: Optional transcript of the target presentation
             output_path: Optional path to save the curriculum (defaults to CURRICULUM_PATH)
             
         Returns:
-            str: The generated curriculum text
+            Dict containing the generated curriculum data
             
         Raises:
             ValidationError: If the learning goal is invalid
@@ -142,34 +154,51 @@ class CurriculumGenerator:
         """
         self._validate_learning_goal(learning_goal)
         
-        try:
-            logger.info(f"Generating curriculum for goal: {learning_goal}")
+        # Validate CEFR level
+        cefr_level = cefr_level.upper()
+        if cefr_level not in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']:
+            raise ValidationError(f"Invalid CEFR level: {cefr_level}. Must be one of: A1, A2, B1, B2, C1, C2")
             
-            # Create the prompt with the correct number of days
+        # Validate days
+        if days < 1 or days > 365:  # Reasonable limits
+            raise ValidationError(f"Number of days must be between 1 and 365, got {days}")
+        
+        try:
+            # Format the prompt with all parameters
             prompt = self.curriculum_prompt.format(
                 goal=learning_goal,
-                num_days=self.config.num_days
+                language=target_language,
+                level=cefr_level,
+                num_days=days,
+                transcript=transcript or ""
             )
             
             # Get response from LLM
             try:
-                response = self.llm.get_response(
-                    prompt=prompt,
-                    response_type="curriculum"
-                )
+                response = self.llm.generate(prompt)
                 
-                # Validate the response structure
+                # Validate response format
                 if not response or 'choices' not in response or not response['choices']:
                     raise LLMError("Invalid response format from LLM")
                     
-                curriculum = response['choices'][0]['message']['content']
+                curriculum_content = response['choices'][0]['message']['content']
                 
-                # Validate the generated curriculum
-                self._validate_curriculum(curriculum)
+                # Create structured curriculum data
+                curriculum = {
+                    'learning_goal': learning_goal,
+                    'target_language': target_language,
+                    'cefr_level': cefr_level,
+                    'days': days,
+                    'content': curriculum_content,
+                    'metadata': {
+                        'generated_at': datetime.datetime.utcnow().isoformat(),
+                        'transcript_used': transcript is not None
+                    }
+                }
                 
                 # Save the curriculum
                 save_path = Path(output_path) if output_path else CURRICULUM_PATH
-                self._save_curriculum(curriculum, learning_goal, save_path)
+                self._save_curriculum(curriculum['content'], learning_goal, save_path)
                 
                 logger.info("Successfully generated and saved curriculum")
                 return curriculum
