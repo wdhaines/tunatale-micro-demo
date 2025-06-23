@@ -99,6 +99,9 @@ class ContentGenerator:
                 TARGET_LANGUAGE=params.language,
                 CEFR_LEVEL=params.cefr_level.value if isinstance(params.cefr_level, CEFRLevel) else params.cefr_level,
                 STORY_LENGTH=params.length,
+                NEW_VOCABULARY=", ".join(params.new_vocabulary) if params.new_vocabulary else "None",
+                RECYCLED_VOCABULARY=", ".join(params.recycled_vocabulary) if params.recycled_vocabulary else "None",
+                RECYCLED_COLLOCATIONS=", ".join(params.recycled_collocations) if params.recycled_collocations else "None",
                 PREVIOUS_STORY=previous_story
             )
             
