@@ -41,12 +41,42 @@ class CLI:
         # Generate curriculum command
         gen_parser = subparsers.add_parser(
             'generate',
-            help='Generate a new language learning curriculum'
+            help='Generate a new language learning curriculum',
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter
         )
         gen_parser.add_argument(
             'goal',
             type=str,
             help='Learning goal (e.g., "Ordering food in a restaurant")'
+        )
+        gen_parser.add_argument(
+            '--target-language',
+            type=str,
+            default='English',
+            help='Target language for the curriculum'
+        )
+        gen_parser.add_argument(
+            '--cefr-level',
+            type=str,
+            choices=['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
+            default='A2',
+            help='CEFR level for the curriculum'
+        )
+        gen_parser.add_argument(
+            '--days',
+            type=int,
+            default=30,
+            help='Number of days for the curriculum'
+        )
+        gen_parser.add_argument(
+            '--transcript',
+            type=str,
+            help='Path to the target presentation transcript file'
+        )
+        gen_parser.add_argument(
+            '--output',
+            type=str,
+            help='Output file path for the generated curriculum (default: curriculum.json)'
         )
         
         # Extract collocations command
@@ -203,13 +233,52 @@ class CLI:
     def _handle_generate(self, args: argparse.Namespace) -> int:
         """Handle the generate curriculum command."""
         print(f"Generating curriculum for: {args.goal}")
+        print(f"Target language: {args.target_language}")
+        print(f"CEFR Level: {args.cefr_level}")
+        print(f"Duration: {args.days} days")
+        
+        # Read transcript if provided
+        transcript = None
+        if args.transcript:
+            try:
+                with open(args.transcript, 'r') as f:
+                    transcript = f.read()
+                print(f"Using transcript from: {args.transcript}")
+            except OSError as e:  # Catches FileNotFoundError, PermissionError, etc.
+                print(f"Warning: Could not read transcript file: {e}", file=sys.stderr)
+                # Continue without transcript
+        
+        # Set default output path
+        output_path = Path(args.output) if args.output else Path('curriculum.json')
+        
+        # Generate the curriculum
         generator = CurriculumGenerator()
-        curriculum = generator.generate_curriculum(args.goal)
-        if curriculum:
-            print("\nCurriculum generated successfully!")
-            print("Run 'python main.py view curriculum' to see it.")
-            return 0
-        return 1
+        try:
+            curriculum = generator.generate_curriculum(
+                learning_goal=args.goal,
+                target_language=args.target_language,
+                cefr_level=args.cefr_level,
+                days=args.days,
+                transcript=transcript,
+                output_path=output_path
+            )
+            
+            if curriculum:
+                # Ensure the output directory exists
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                with open(output_path, 'w') as f:
+                    json.dump(curriculum, f, indent=2)
+                print(f"\nCurriculum generated successfully and saved to: {output_path}")
+                return 0
+            return 1
+            
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+        except IOError as e:
+            print(f"Error saving curriculum: {e}", file=sys.stderr)
+            return 1
     
     def _handle_extract(self, args: argparse.Namespace) -> int:
         """Handle the extract collocations command."""

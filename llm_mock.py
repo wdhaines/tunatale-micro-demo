@@ -22,6 +22,20 @@ class MockLLM:
         prompt_hash = hashlib.md5(prompt.encode('utf-8')).hexdigest()
         return self.cache_dir / f"{prompt_hash}.json"
     
+    def generate(self, prompt: str, **kwargs) -> Dict[str, Any]:
+        """
+        Generate a response using the mock LLM (compatibility method for CurriculumGenerator).
+        
+        Args:
+            prompt: The prompt to generate a response for
+            **kwargs: Additional arguments (ignored in mock implementation)
+            
+        Returns:
+            Dictionary containing the mock response in the expected format
+        """
+        # Delegate to get_response with 'curriculum' as the default response_type
+        return self.get_response(prompt, response_type="curriculum")
+    
     def get_response(self, prompt: str, response_type: str = "curriculum") -> Dict[str, Any]:
         """
         Get a mock response for the given prompt, either from cache or by prompting the user.
@@ -39,8 +53,30 @@ class MockLLM:
         if cache_path.exists():
             with open(cache_path, 'r') as f:
                 return json.load(f)
+                
+        # For curriculum responses, use our predefined template
+        if response_type == "curriculum":
+            try:
+                with open('prompts/30day_carnivorous_plants_curriculum.txt', 'r') as f:
+                    response_content = f.read()
+                print("Using predefined 30-day carnivorous plants curriculum template")
+                response = {
+                    "choices": [{
+                        "message": {
+                            "content": response_content,
+                            "role": "assistant"
+                        }
+                    }]
+                }
+                # Cache the response
+                with open(cache_path, 'w') as f:
+                    json.dump(response, f, indent=2)
+                return response
+            except Exception as e:
+                print(f"Error loading predefined curriculum: {e}")
+                # Fall through to manual input
         
-        # If not in cache, prompt the user to provide a response
+        # If not in cache and not using predefined curriculum, prompt the user
         print(f"\n=== MOCK LLM PROMPT ===")
         print(f"Type: {response_type}")
         print("-" * 30)

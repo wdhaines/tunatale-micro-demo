@@ -125,42 +125,49 @@ class SRSTracker:
                 # Slight increase in stability
                 colloc.stability *= 1.2
             else:
-                # New collocation
+                # New collocation - make it due on the current day
                 self.collocations[text] = CollocationStatus(
                     text=text,
                     first_seen_day=day,
                     last_seen_day=day,
                     appearances=[day],
-                    review_count=1,
-                    next_review_day=day + 1,  # First review after 1 day
+                    review_count=0,  # Start with 0 reviews
+                    next_review_day=day,  # Due immediately
                     stability=1.0
                 )
+                
+                # Ensure it's immediately due by setting next_review_day to the current day
+                self.collocations[text].next_review_day = day
         
         self._save_state()
 
-    def get_due_collocations(self, day: Optional[int] = None, max_items: int = 5) -> List[CollocationStatus]:
-        """Get collocations that are due for review.
+    def get_all_collocations(self) -> List[str]:
+        """Get all collocations in the tracker.
+        
+        Returns:
+            List of all collocation texts in the tracker
+        """
+        return list(self.collocations.keys())
+
+    def get_due_collocations(self, day: int, max_items: int = 5) -> List[str]:
+        """Get collocations that are due for review on the given day.
         
         Args:
-            day: Current day number. If None, uses current_day
+            day: The current day
             max_items: Maximum number of collocations to return
             
         Returns:
-            List of CollocationStatus objects that are due for review
+            List of collocation texts that are due for review
         """
-        if day is None:
-            day = self.current_day
-            
-        # Sort by next_review_day (earliest first) and then by stability (lowest first)
         due_collocations = [
-            colloc for colloc in self.collocations.values()
+            colloc for colloc in self.collocations.values() 
             if colloc.next_review_day <= day
         ]
-        
         # Sort by next_review_day (earliest first) and then by stability (lowest first)
         due_collocations.sort(key=lambda x: (x.next_review_day, x.stability))
         
-        return due_collocations[:max_items]
+        # Return just the text of the collocations
+        return [colloc.text for colloc in due_collocations[:max_items]]
 
     def __enter__(self):
         return self

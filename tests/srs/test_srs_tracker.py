@@ -84,40 +84,42 @@ class TestSRSTracker:
         colloc = tracker.collocations["test phrase"]
         assert colloc.first_seen_day == 1
         assert colloc.last_seen_day == 1
-        assert colloc.review_count == 1
-        assert colloc.next_review_day == 2  # First review after 1 day
+        assert colloc.review_count == 0  # New collocations start with 0 reviews
+        assert colloc.next_review_day == 1  # Due immediately on the current day
 
     def test_add_collocations_existing(self, tracker):
         """Test updating existing collocations."""
+        # First add - should be due on day 1
         tracker.add_collocations(["test phrase"], day=1)
+        
+        # Second add on day 3 - should update review count and next review day
         tracker.add_collocations(["test phrase"], day=3)  # Reviewing
         
         colloc = tracker.collocations["test phrase"]
-        assert colloc.review_count == 2
+        assert colloc.review_count == 1  # One review (the second add)
         assert colloc.last_seen_day == 3
-        assert colloc.next_review_day == 5  # Interval doubled from 2 to 4 days
+        assert colloc.next_review_day == 4  # Next review in 1 day (on day 4)
         assert abs(colloc.stability - 1.2) < 0.001  # Stability increased
 
     def test_get_due_collocations(self, tracker):
         """Test retrieving due collocations."""
+        # Add a collocation - should be due immediately on day 1
         tracker.add_collocations(["test phrase"], day=1)
         
-        # Not due yet on day 1 (just added)
+        # Should be due on day 1 (immediately)
         due = tracker.get_due_collocations(day=1)
-        assert len(due) == 0
+        assert len(due) == 1
+        assert due[0] == "test phrase"
+        
+        # Mark as reviewed on day 1 - next review on day 2
+        tracker.add_collocations(["test phrase"], day=1)
+        due = tracker.get_due_collocations(day=1)
+        assert len(due) == 0  # Not due again on day 1 after review
         
         # Due on day 2
         due = tracker.get_due_collocations(day=2)
         assert len(due) == 1
-        assert due[0].text == "test phrase"
-        
-        # After review, next due in 2 days (on day 4)
-        tracker.add_collocations(["test phrase"], day=2)
-        due = tracker.get_due_collocations(day=3)
-        assert len(due) == 0
-        
-        due = tracker.get_due_collocations(day=4)
-        assert len(due) == 1
+        assert due[0] == "test phrase"
 
     def test_save_and_load_state(self, temp_dir):
         """Test that state is properly saved and loaded."""

@@ -1,0 +1,11 @@
+{
+  "learning_goal": "Test Goal",
+  "target_language": "English",
+  "cefr_level": "A2",
+  "days": 30,
+  "content": "Generated curriculum content",
+  "metadata": {
+    "generated_at": "2023-01-01T00:00:00",
+    "transcript_used": false
+  }
+}

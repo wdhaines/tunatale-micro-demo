@@ -117,6 +117,16 @@ class ContentGenerator:
             # Save the story with phase number and learning objective
             story_path = self._save_story(story, params.phase, params.learning_objective)
             print(f"Story saved to: {story_path}")
+            
+            # Extract collocations from the story and add them to SRS
+            try:
+                collocations = self.collocation_extractor.extract_collocations(story)
+                if collocations:
+                    self.srs.add_collocations(collocations, day=params.phase)
+                    print(f"Added {len(collocations)} collocations to SRS")
+            except Exception as e:
+                print(f"Warning: Failed to extract collocations: {e}")
+                
             return story
             
         except IOError as e:
@@ -214,6 +224,19 @@ class ContentGenerator:
             # Get due collocations from SRS
             due_collocations = self.srs.get_due_collocations(day)
             
+            # Convert CollocationStatus objects to strings for the prompt
+            recycled_collocations = [c.text for c in due_collocations] if due_collocations else []
+            
+            # Get recycled vocabulary from previous stories
+            recycled_vocab = phase_data.get('recycled_vocabulary', [])
+            
+            print(f"\n--- SRS Status ---")
+            print(f"Due collocations for day {day}: {len(recycled_collocations)}")
+            if recycled_collocations:
+                print("Recycled collocations:", ", ".join(f'"{c}"' for c in recycled_collocations))
+            else:
+                print("No collocations due for review today")
+            
             # Create story parameters
             params = StoryParams(
                 learning_objective=phase_data.get('learning_objective', 'General Learning'),
@@ -221,9 +244,9 @@ class ContentGenerator:
                 cefr_level=phase_data.get('cefr_level', 'B1'),
                 phase=day,
                 length=phase_data.get('story_length', DEFAULT_STORY_LENGTH),
-                recycled_collocations=due_collocations,
+                recycled_collocations=recycled_collocations,
                 new_vocabulary=phase_data.get('new_vocabulary', []),
-                recycled_vocabulary=phase_data.get('recycled_vocabulary', [])
+                recycled_vocabulary=recycled_vocab
             )
             
             # Get previous story for continuity
@@ -240,7 +263,7 @@ class ContentGenerator:
             if collocations:
                 # Add new collocations to SRS
                 self.srs.add_collocations(
-                    collocations=list(collocations.keys()),
+                    collocations=collocations,
                     day=day
                 )
                 
