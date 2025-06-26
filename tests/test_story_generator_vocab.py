@@ -53,10 +53,11 @@ class TestStoryGeneratorVocab:
             
         assert prompt is not None, "Prompt was not passed to get_response"
         
-        # Check that all vocabulary sections are in the prompt
-        assert "NEW VOCABULARY TO INCLUDE: vocab1, vocab2" in prompt
-        assert "RECYCLED VOCABULARY FROM PREVIOUS DAYS: recycled1" in prompt
-        assert "COLLOCATIONS TO NATURALLY RECYCLE: collocation1, collocation2" in prompt
+        # Check that all vocabulary sections are in the prompt with the current format
+        assert "VOCABULARY CONTEXT:" in prompt
+        assert "- Focus on teaching: vocab1, vocab2" in prompt
+        assert "- Naturally recycle: collocation1, collocation2" in prompt
+        assert "2. Genre: adventure" in prompt  # Genre appears in the STORY REQUIREMENTS section
         
     @patch('story_generator.MockLLM')
     def test_generate_story_with_empty_vocabulary(self, mock_llm_class, tmp_path):
@@ -99,7 +100,8 @@ class TestStoryGeneratorVocab:
             
         assert prompt is not None, "Prompt was not passed to get_response"
         
-        # Check that vocabulary sections show "None" when empty
-        assert "NEW VOCABULARY TO INCLUDE: None" in prompt
-        assert "RECYCLED VOCABULARY FROM PREVIOUS DAYS: None" in prompt
-        assert "COLLOCATIONS TO NATURALLY RECYCLE: None" in prompt
+        # Check that vocabulary sections show "None" when empty in the current format
+        assert "VOCABULARY CONTEXT:" in prompt
+        assert "- Focus on teaching: None" in prompt
+        assert "- Naturally recycle: None" in prompt
+        assert "2. Genre: adventure" in prompt  # Genre appears in the STORY REQUIREMENTS section
