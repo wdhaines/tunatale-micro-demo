@@ -58,6 +58,20 @@ def mock_collocation_extractor():
     mock_extractor.return_value = mock_extractor  # For when it's instantiated
     return mock_extractor
 
+@pytest.fixture(autouse=True)
+def cleanup_generated_files():
+    """Fixture to clean up any generated files after each test."""
+    # This will run before each test
+    yield
+    # This will run after each test
+    generated_dir = Path('data/generated_content')
+    if generated_dir.exists():
+        for file in generated_dir.glob('story_*.txt'):
+            try:
+                file.unlink()
+            except Exception as e:
+                print(f"Warning: Could not delete {file}: {e}")
+
 class TestSRSIntegration:
     """Integration tests for SRS functionality."""
     

@@ -2,8 +2,8 @@ import json
 import spacy
 from collections import defaultdict
 from pathlib import Path
-from typing import List, Dict, Tuple, Set
-from config import CURRICULUM_PATH, COLLOCATIONS_PATH
+from typing import List, Dict, Tuple, Set, Any
+from config import CURRICULUM_PATH, COLLOCATIONS_PATH, DATA_DIR
 
 class CollocationExtractor:
     def __init__(self):
@@ -30,6 +30,11 @@ class CollocationExtractor:
             if "merge_noun_chunks" not in self.nlp.pipe_names:
                 self.nlp.add_pipe("merge_noun_chunks")
                 
+            # Load background vocabulary
+            with open(DATA_DIR / 'a2_vocabulary_set.json', 'r') as f:
+                self.background_vocabulary = set(json.load(f))
+            print(f"Loaded {len(self.background_vocabulary)} background vocabulary words")
+                
         except OSError as e:
             raise ImportError(
                 f"English language model not found or error loading: {e}\n"
@@ -41,22 +46,81 @@ class CollocationExtractor:
         if not CURRICULUM_PATH.exists():
             raise FileNotFoundError("Curriculum file not found. Generate a curriculum first.")
         
-        with open(CURRICULUM_PATH, 'r') as f:
+        with open(CURRICULUM_PATH, 'r', encoding='utf-8') as f:
             curriculum = json.load(f)
         
-        # Extract text from curriculum
-        text = curriculum['content']
-        return self.extract_collocations(text)
+        # Extract text from all phases in the curriculum
+        all_text = []
+        if 'phases' in curriculum and isinstance(curriculum['phases'], dict):
+            for phase_name, phase_data in curriculum['phases'].items():
+                if isinstance(phase_data, dict) and 'content' in phase_data:
+                    all_text.append(phase_data['content'])
+        
+        if not all_text:
+            # Fallback to old format if no phases found
+            if 'content' in curriculum:
+                all_text = [curriculum['content']]
+            else:
+                raise ValueError("Curriculum file format not recognized. Expected 'phases' dictionary or 'content' field.")
+        
+        # Combine all text with double newlines between sections
+        combined_text = '\n\n'.join(all_text)
+        return self.extract_collocations(combined_text)
     
-    def extract_collocations(self, text: str, min_words: int = 2, max_words: int = 4, debug: bool = True) -> Dict[str, int]:
+    def _is_valid_collocation(self, tokens):
+        """
+        Check if a sequence of tokens is a valid collocation.
+        
+        Args:
+            tokens: List of spaCy tokens
+            
+        Returns:
+            bool: True if valid, False otherwise
+        """
+        # For single words, check if it's in background knowledge
+        if len(tokens) == 1:
+            word = tokens[0].text.lower()
+            # Skip words the learner should already know
+            if word in self.background_vocabulary:
+                return False
+            # Only keep content words not in background
+            if tokens[0].pos_ not in ['NOUN', 'VERB', 'ADJ', 'ADV']:
+                return False
+            # Skip very short words
+            if len(word) < 3:
+                return False
+            return True
+            
+        # For multi-word phrases
+        words_lower = [t.text.lower() for t in tokens]
+        
+        # Skip if all words are in background vocabulary
+        if all(word in self.background_vocabulary for word in words_lower):
+            return False
+            
+        # Check for pronouns as whole words only
+        if any(pronoun in words_lower for pronoun in ['i', 'me', 'my', 'mine', 'myself']):
+            return False
+            
+        # Skip if it contains any single-letter words (except 'a' and 'i' which are valid)
+        if any(len(t.text) == 1 and t.text.lower() not in ['a', 'i'] for t in tokens):
+            return False
+            
+        # Skip if it contains punctuation
+        if any(t.text in ',.?!;:' for t in tokens):
+            return False
+            
+        return True
+        
+    def extract_collocations(self, text: str, min_words: int = 1, max_words: int = 4, debug: bool = True) -> Dict[str, int]:
         """
         Extract meaningful collocations from text.
         Returns a dictionary of collocations and their counts.
         
         Args:
             text: The input text to extract collocations from
-            min_words: Minimum number of words in a collocation
-            max_words: Maximum number of words in a collocation
+            min_words: Minimum number of words in a collocation (1 for single words)
+            max_words: Maximum number of words in a collocation (up to 4)
             debug: If True, print debug information
             
         Returns:
@@ -87,6 +151,16 @@ class CollocationExtractor:
         if debug:
             print(f"Debug: Found {len(noun_chunks)} noun chunks: {noun_chunks}")
             print(f"Debug: Found {len(entities)} entities: {entities}")
+            
+        # Process individual tokens for single-word collocations (1-grams)
+        if min_words == 1:
+            for sent in doc.sents:
+                for i in range(len(sent)):
+                    if self._is_valid_collocation([sent[i]]):
+                        word = sent[i].text.lower()
+                        collocations[word] += 1
+                        if debug:
+                            print(f"Debug: Added single word: {word}")
         
         # Process all noun chunks
         for chunk in doc.noun_chunks:
@@ -271,6 +345,140 @@ class CollocationExtractor:
         with open(COLLOCATIONS_PATH, 'w') as f:
             json.dump(collocations, f, indent=2)
     
+    def get_filtered_background_words(self, text: str) -> List[str]:
+        """
+        Return background words found in the text (for debugging).
+        
+        Args:
+            text: Input text to analyze
+            
+        Returns:
+            List of background vocabulary words found in the text
+        """
+        doc = self.nlp(text.lower())
+        background_words = []
+        
+        for token in doc:
+            if token.is_alpha:
+                word = token.text.lower()
+                if word in self.background_vocabulary:
+                    background_words.append(word)
+                    
+        return background_words
+        
+    def _is_meaningful_word(self, token) -> bool:
+        """Check if a token is a meaningful content word."""
+        # Skip short words, numbers, and punctuation
+        if len(token.text) < 2 or not token.is_alpha:
+            return False
+            
+        word = token.text.lower()
+        
+        # Skip common function words that might not be in our background vocab
+        common_function_words = {
+            'the', 'a', 'an', 'and', 'or', 'but', 'if', 'of', 'at', 'by',
+            'to', 'for', 'in', 'on', 'with', 'as', 'from', 'that', 'this',
+            'these', 'those', 'is', 'are', 'was', 'were', 'be', 'been', 'being'
+        }
+        
+        if word in common_function_words:
+            return False
+            
+        # Check if it's a content word (noun, verb, adjective, adverb, proper noun)
+        return token.pos_ in ['NOUN', 'VERB', 'ADJ', 'ADV', 'PROPN']
+    
+    def analyze_vocabulary_distribution(self, text: str) -> Dict[str, Any]:
+        """
+        Analyze how much of the text is background vs new vocabulary.
+        
+        Args:
+            text: The input text to analyze
+            
+        Returns:
+            Dictionary with analysis results including:
+            - total_words: Total number of words in the text
+            - background_words: Number of words in background vocabulary
+            - new_content_words: Number of new content words
+            - background_percentage: Percentage of background words
+            - unique_new_words: List of unique new words
+            - collocations: Extracted collocations (filtered)
+        """
+        # Clean the text to remove JSON artifacts and metadata
+        clean_text = ' '.join(line.strip() for line in text.split('\n') 
+                            if not any(term in line.lower() for term in 
+                                    ['"content":', 'cefr_level', 'learning_objective', 
+                                     'story_length', 'new_vocabulary', 'recycled_vocabulary',
+                                     'phase\d+']))
+        
+        doc = self.nlp(clean_text.lower())
+        
+        background_words = []
+        new_words = []
+        
+        # Extract collocations first to avoid duplicate processing
+        collocations = self.extract_collocations(clean_text, min_words=1, max_words=4, debug=False)
+        
+        # Filter collocations to remove noise
+        filtered_collocations = {}
+        for phrase, count in collocations.items():
+            # Skip phrases that look like JSON artifacts or metadata
+            if any(c in phrase for c in ['{', '}', '[', ']', ':', '"', '\'']):
+                continue
+                
+            # Skip phrases that are too common or not meaningful
+            words = phrase.split()
+            if len(words) == 1 and len(phrase) < 3:  # Skip single letters
+                continue
+                
+            # Skip phrases that are entirely numeric
+            if all(w.isdigit() for w in words):
+                continue
+                
+            filtered_collocations[phrase] = count
+        
+        # Sort collocations by frequency (descending)
+        sorted_collocations = dict(
+            sorted(filtered_collocations.items(), 
+                 key=lambda x: x[1], 
+                 reverse=True)
+        )
+        
+        # Analyze word distribution
+        for token in doc:
+            if not self._is_meaningful_word(token):
+                continue
+                
+            word = token.lemma_.lower()  # Use lemma for better grouping
+            
+            if word in self.background_vocabulary:
+                background_words.append(word)
+            else:
+                new_words.append(word)
+        
+        # Calculate statistics
+        total_words = len(background_words) + len(new_words)
+        unique_new_words = sorted(list(set(new_words)))
+        
+        # Sort new words by frequency
+        from collections import Counter
+        word_freq = Counter(word for word in new_words)
+        sorted_new_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
+        
+        # Get top 20 most frequent new words
+        top_new_words = [word for word, _ in sorted_new_words[:20]]
+        
+        return {
+            'total_words': total_words,
+            'background_words': len(background_words),
+            'new_content_words': len(new_words),
+            'background_percentage': (len(background_words) / total_words * 100) if total_words > 0 else 0,
+            'unique_new_words': unique_new_words,
+            'top_new_words': top_new_words,
+            'collocations': sorted_collocations,
+            'unique_words_count': len(set(background_words + new_words)),
+            'avg_word_length': sum(len(word) for word in background_words + new_words) / total_words if total_words > 0 else 0
+        }
+    
     def get_top_collocations(self, n: int = 10) -> List[Tuple[str, int]]:
         """Get the top N most frequent collocations."""
         if not COLLOCATIONS_PATH.exists():
@@ -278,5 +486,4 @@ class CollocationExtractor:
         
         with open(COLLOCATIONS_PATH, 'r') as f:
             collocations = json.load(f)
-        
         return list(collocations.items())[:n]

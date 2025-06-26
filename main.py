@@ -115,6 +115,51 @@ class CLI:
         )
         progress_parser.add_argument('--day', type=int, help='Show due collocations for day')
         
+        # Analyze command
+        analyze_parser = subparsers.add_parser(
+            "analyze",
+            help="Analyze vocabulary distribution in text, file, or by day number"
+        )
+        
+        # Make file_or_text optional since we can also use --day
+        input_group = analyze_parser.add_mutually_exclusive_group(required=True)
+        input_group.add_argument(
+            "file_or_text",
+            nargs="?",
+            default="",
+            help="File path or text to analyze"
+        )
+        input_group.add_argument(
+            "--day",
+            type=int,
+            help="Day number to analyze (e.g., 1 for day01)",
+            metavar="N"
+        )
+        
+        analyze_parser.add_argument(
+            "--min-word-len",
+            type=int,
+            default=3,
+            help="Minimum word length to include in analysis (default: 3)"
+        )
+        analyze_parser.add_argument(
+            "--top-words",
+            type=int,
+            default=20,
+            help="Number of top words to display (default: 20)"
+        )
+        analyze_parser.add_argument(
+            "--top-collocations",
+            type=int,
+            default=20,
+            help="Number of top collocations to display (default: 20)"
+        )
+        analyze_parser.add_argument(
+            "--verbose",
+            action="store_true",
+            help="Show detailed output including all unique words"
+        )
+        
         return parser
     
     def _setup_story_parser(self, parser: argparse.ArgumentParser) -> None:
@@ -228,10 +273,14 @@ class CLI:
                 handler=self._handle_progress,
                 help='View SRS progress and collocation tracking'
             ),
+            'analyze': Command(
+                handler=self._handle_analyze,
+                help='Analyze vocabulary distribution in a story'
+            ),
         }
-    
+
     def _handle_generate(self, args: argparse.Namespace) -> int:
-        """Handle the generate curriculum command."""
+        """Handle the generate command."""
         print(f"Generating curriculum for: {args.goal}")
         print(f"Target language: {args.target_language}")
         print(f"CEFR Level: {args.cefr_level}")
@@ -279,20 +328,32 @@ class CLI:
         except IOError as e:
             print(f"Error saving curriculum: {e}", file=sys.stderr)
             return 1
-    
-    def _handle_extract(self, args: argparse.Namespace) -> int:
-        """Handle the extract collocations command."""
-        print("Extracting collocations from curriculum...")
-        extractor = CollocationExtractor()
-        collocations = extractor.extract_from_curriculum()
-        print(f"\nExtracted {len(collocations)} collocations.")
-        print("Top collocations:")
-        for i, (colloc, count) in enumerate(list(collocations.items())[:10], 1):
-            print(f"{i}. {colloc} (x{count})")
-        return 0
-    
+
+    def _handle_generate_day(self, args: argparse.Namespace) -> int:
+        """Handle the generate-day command."""
+        from story_generator import ContentGenerator
+        from srs_tracker import SRSTracker
+        
+        if not 1 <= args.day <= 5:
+            print(f"Error: Day must be between 1 and 5, got {args.day}", file=sys.stderr)
+            return 1
+            
+        try:
+            generator = ContentGenerator()
+            result = generator.generate_story_for_day(args.day)
+            if result:
+                print(f"Successfully generated story for day {args.day}")
+                return 0
+            return 1
+        except Exception as e:
+            print(f"Error generating story for day {args.day}: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:  # Don't print traceback during tests
+                import traceback
+                traceback.print_exc()
+            return 1
+
     def _handle_story(self, args: argparse.Namespace) -> int:
-        """Handle the generate story command."""
+        """Handle the story command."""
         try:
             generator = ContentGenerator()
             
@@ -329,30 +390,198 @@ class CLI:
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             return 1
-    
-    def _handle_generate_day(self, args: argparse.Namespace) -> int:
-        """Handle the generate-day command."""
-        from story_generator import ContentGenerator
-        from srs_tracker import SRSTracker
+
+    def _handle_extract(self, args: argparse.Namespace) -> int:
+        """Handle the extract command."""
+        print("Extracting collocations from curriculum...")
+        extractor = CollocationExtractor()
         
-        if not 1 <= args.day <= 5:
-            print(f"Error: Day must be between 1 and 5, got {args.day}", file=sys.stderr)
+        # Check if we have a curriculum file
+        if not CURRICULUM_PATH.exists():
+            print("No curriculum found. Please generate one with 'python main.py generate <goal>'")
             return 1
             
         try:
-            generator = ContentGenerator()
-            result = generator.generate_story_for_day(args.day)
-            if result:
-                print(f"Successfully generated story for day {args.day}")
-                return 0
-            return 1
+            # Extract collocations from the curriculum
+            collocations = extractor.extract_from_curriculum()
+            
+            # Print some statistics
+            print(f"\nExtracted {len(collocations)} collocations.")
+            if collocations:
+                print("Top collocations:")
+                for i, (colloc, count) in enumerate(list(collocations.items())[:10], 1):
+                    print(f"{i}. {colloc} (x{count})")
+            
+            return 0
+            
         except Exception as e:
-            print(f"Error generating story for day {args.day}: {e}", file=sys.stderr)
+            print(f"Error extracting collocations: {e}", file=sys.stderr)
             if 'pytest' not in sys.modules:  # Don't print traceback during tests
                 import traceback
                 traceback.print_exc()
             return 1
-    
+
+    def _handle_analyze(self, args: argparse.Namespace) -> int:
+        """Handle the analyze command.
+        
+        Args:
+            args: Command line arguments
+            
+        Returns:
+            int: 0 on success, 1 on error
+        """
+        from pathlib import Path
+        from textwrap import fill
+        import time
+        import glob
+        
+        try:
+            start_time = time.time()
+            
+            # Handle day number if specified
+            if hasattr(args, 'day') and args.day is not None:
+                day_num = args.day
+                if day_num < 1:
+                    print(f"Error: Day number must be positive, got {day_num}", file=sys.stderr)
+                    return 1
+                    
+                # Look for matching day file
+                day_str = f"day{day_num:02d}"  # Format as day01, day02, etc.
+                matches = list(Path("data/generated_content").glob(f"*{day_str}*.txt"))
+                
+                if not matches:
+                    print(f"Error: No file found for day {day_num}", file=sys.stderr)
+                    return 1
+                    
+                if len(matches) > 1:
+                    print(f"Warning: Multiple files found for day {day_num}, using {matches[0].name}", 
+                          file=sys.stderr)
+                    
+                file_path = matches[0]
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    text = f.read()
+            # Handle file path or direct text
+            else:
+                file_path = Path(args.file_or_text) if args.file_or_text else None
+                if file_path and file_path.exists():
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        text = f.read()
+                    if not text.strip():
+                        print("Warning: File is empty, showing empty analysis", file=sys.stderr)
+                        text = ""  # Allow empty text to proceed to analysis
+                else:
+                    # Treat as direct text input
+                    text = args.file_or_text or ""
+                    if not text.strip():
+                        # Read from stdin if no input provided
+                        text = sys.stdin.read()
+                    if not text.strip():
+                        print("Error: No text to analyze", file=sys.stderr)
+                        return 1
+            
+            print(f"\n{'='*60}")
+            print(f"VOCABULARY ANALYSIS".center(60))
+            print(f"{'='*60}")
+            if hasattr(args, 'day') and args.day is not None:
+                file_info = f"Day {args.day} story"
+            else:
+                file_info = f"{min(50, len(text))} chars of provided text"
+            print(f"File/Text: {file_info}")
+            print(f"Minimum word length: {args.min_word_len}")
+            print(f"Top words to show: {args.top_words}")
+            print(f"Top collocations to show: {args.top_collocations}")
+            print(f"Verbose output: {'Yes' if args.verbose else 'No'}")
+            
+            print("\nLoading vocabulary analyzer...")
+            extractor = CollocationExtractor()
+            
+            print("Analyzing text...")
+            try:
+                analysis = extractor.analyze_vocabulary_distribution(text)
+                
+                # Calculate analysis time
+                analysis_time = time.time() - start_time
+                
+                # Print summary with consistent column alignment
+            except Exception as e:
+                print(f"Error during analysis: {e}", file=sys.stderr)
+                if 'pytest' not in sys.modules:  # Don't print traceback during tests
+                    import traceback
+                    traceback.print_exc()
+                return 1
+            col1_width = 30
+            col2_width = 20
+            
+            def print_stat(label, value, percentage=None):
+                value_str = f"{value:,}" if isinstance(value, int) else f"{value:.1f}"
+                if percentage is not None:
+                    value_str += f" ({percentage:.1f}%)"
+                print(f"{label:<{col1_width}}{value_str:>{col2_width}}")
+            
+            print("\n" + "="*60)
+            print("VOCABULARY ANALYSIS SUMMARY".center(60))
+            print("="*60)
+            
+            # Basic stats
+            print("\n" + "WORD STATISTICS".center(60))
+            print("-"*60)
+            print_stat("Total words:", analysis['total_words'])
+            print_stat("Unique words:", analysis['unique_words_count'])
+            print_stat("A2 background words:", 
+                      analysis['background_words'], 
+                      analysis['background_percentage'])
+            print_stat("New content words:", analysis['new_content_words'])
+            print_stat("Avg. word length (chars):", analysis['avg_word_length'])
+            
+            # Top new words
+            if analysis.get('top_new_words'):
+                print("\n" + "MOST FREQUENT NEW WORDS".center(60))
+                print("-"*60)
+                words_per_line = 5
+                top_words = analysis['top_new_words'][:args.top_words]
+                for i in range(0, len(top_words), words_per_line):
+                    line_words = top_words[i:i+words_per_line]
+                    print("  " + "  ".join(f"• {w:<12}" for w in line_words))
+            
+            # Collocations
+            if analysis['collocations']:
+                print("\n" + "TOP COLLOCATIONS".center(60))
+                print("-"*60)
+                max_collocs = min(args.top_collocations, len(analysis['collocations']))
+                colloc_items = list(analysis['collocations'].items())[:max_collocs]
+                
+                # Find the maximum width for alignment
+                max_colloc_len = max(len(c[0]) for c in colloc_items) if colloc_items else 0
+                max_count_len = max(len(str(c[1])) for c in colloc_items) if colloc_items else 0
+                
+                for i, (colloc, count) in enumerate(colloc_items, 1):
+                    print(f"{i:2}. {colloc:<{max_colloc_len + 2}} (x{count:>{max_count_len}})")
+            
+            # Full unique words list (if requested)
+            if args.verbose and analysis['unique_new_words']:
+                print("\n" + "="*60)
+                print(f"ALL UNIQUE NEW WORDS ({len(analysis['unique_new_words'])} total)".center(60))
+                print("="*60)
+                words_per_line = 6
+                sorted_words = sorted(analysis['unique_new_words'])
+                for i in range(0, len(sorted_words), words_per_line):
+                    line_words = sorted_words[i:i+words_per_line]
+                    print("  " + "  ".join(f"{w:<12}" for w in line_words))
+            
+            # Print analysis time
+            print(f"\n{'='*60}")
+            print(f"Analysis completed in {analysis_time:.2f} seconds")
+            print("="*60)
+            
+            return 0
+            
+        except Exception as e:
+            print(f"\nError during analysis: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:  # Don't print traceback during tests
+                import traceback
+                traceback.print_exc()
+            return 1
+
     def _handle_progress(self, args: argparse.Namespace) -> int:
         """Handle the progress command."""
         from srs_tracker import SRSTracker
