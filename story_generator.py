@@ -59,7 +59,7 @@ class StoryParams:
 class ContentGenerator:
     def __init__(self):
         self.llm = MockLLM()
-        self.story_prompt = self._load_prompt('story_template.txt')
+        self.story_prompt = self._load_prompt('story_prompt.txt')
         self.srs = SRSTracker()
         self._collocation_extractor = None
     
@@ -94,15 +94,15 @@ class ContentGenerator:
         """
         try:
             # Format the prompt with the provided parameters
+            cefr_level = params.cefr_level.value if isinstance(params.cefr_level, CEFRLevel) else params.cefr_level
+            new_vocab = ", ".join(params.new_vocabulary) if params.new_vocabulary else "None"
+            recycled_collocs = ", ".join(params.recycled_collocations) if params.recycled_collocations else "None"
+            
+            # Format the prompt according to story_prompt.txt structure
             prompt = self.story_prompt.format(
-                LEARNING_OBJECTIVE=params.learning_objective,
-                TARGET_LANGUAGE=params.language,
-                CEFR_LEVEL=params.cefr_level.value if isinstance(params.cefr_level, CEFRLevel) else params.cefr_level,
-                STORY_LENGTH=params.length,
-                NEW_VOCABULARY=", ".join(params.new_vocabulary) if params.new_vocabulary else "None",
-                RECYCLED_VOCABULARY=", ".join(params.recycled_vocabulary) if params.recycled_vocabulary else "None",
-                RECYCLED_COLLOCATIONS=", ".join(params.recycled_collocations) if params.recycled_collocations else "None",
-                PREVIOUS_STORY=previous_story
+                NEW_VOCABULARY=new_vocab,
+                RECYCLED_COLLOCATIONS=recycled_collocs,
+                GENRE="adventure"  # Default genre, can be made configurable if needed
             )
             
             # Get the story from the LLM
@@ -176,16 +176,106 @@ class ContentGenerator:
             clean_obj = f"phase{phase}_story"
         
         # Create the full filename with the required format
-        filename = f"story_phase{phase}_{clean_obj}.txt"
+        filename = f"story_day{phase}_{clean_obj}.txt"
         story_path = output_dir / filename
         
-        try:
-            with open(story_path, 'w', encoding='utf-8') as f:
-                f.write(story)
-            return str(story_path)
+    def _extract_title(self, story: str) -> str:
+        """Extract the title from the story content.
+        
+        Args:
+            story: The story content
             
+        Returns:
+            str: Extracted title or empty string if not found
+        """
+        # Look for a line that starts and ends with ** (markdown heading)
+        for line in story.split('\n'):
+            line = line.strip()
+            if line.startswith('**') and line.endswith('**'):
+                # Remove the ** markers and any leading/trailing whitespace
+                title = line[2:-2].strip()
+                if title:  # Only return if we actually found a title
+                    return title
+        return ''
+
+    def _clean_filename(self, text: str, max_length: int = 30) -> str:
+        """Clean and format text for use in a filename.
+        
+        Args:
+            text: The text to clean
+            max_length: Maximum length of the cleaned text
+            
+        Returns:
+            str: Cleaned text suitable for a filename
+        """
+        if not text:
+            return ''
+            
+        # Convert to lowercase and replace spaces with underscores
+        clean = text.lower().replace(' ', '_')
+        # Remove any remaining non-alphanumeric characters except underscores
+        clean = ''.join(c if c.isalnum() or c == '_' else '' for c in clean)
+        # Remove any leading/trailing underscores and consecutive underscores
+        clean = '_'.join(part for part in clean.split('_') if part)
+        # Truncate to max length
+        clean = clean[:max_length].rstrip('_')
+        
+        return clean
+
+    def _save_story(self, story: str, phase: int, learning_objective: str) -> str:
+        """Save the generated story to a file.
+        
+        Args:
+            story: The story content to save
+            phase: The learning phase number
+            learning_objective: The learning objective for the story (required)
+            
+        Returns:
+            str: Path to the saved story file
+            
+        Raises:
+            ValueError: If learning_objective is empty or None
+        """
+        if not learning_objective or not learning_objective.strip():
+            raise ValueError("learning_objective cannot be empty")
+            
+        # Create output directory and parent directories if they don't exist
+        output_dir = DATA_DIR / 'generated_content'
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Try to extract title from story content
+        title = self._extract_title(story)
+        if title:
+            clean_title = self._clean_filename(title)
+            if clean_title:
+                filename = f"story_day{phase}_{clean_title}.txt"
+                story_path = output_dir / filename
+                # Check if the file would be different from the learning_objective version
+                clean_obj = self._clean_filename(learning_objective)
+                if clean_obj and clean_obj != clean_title:
+                    # If different, make sure we're not overwriting an existing file
+                    if not story_path.exists():
+                        return self._write_story_file(story_path, story)
+                    
+        # Fall back to learning objective if no title found or if file exists
+        clean_obj = self._clean_filename(learning_objective)
+        if not clean_obj:  # Fallback if no valid characters remain
+            clean_obj = f"phase{phase}_story"
+            
+        # Create the full filename with the required format
+        filename = f"story_day{phase}_{clean_obj}.txt"
+        story_path = output_dir / filename
+        
+        return self._write_story_file(story_path, story)
+        
+    def _write_story_file(self, path: Path, content: str) -> str:
+        """Helper method to write story content to a file."""
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            return str(path)
         except IOError as e:
-            error_msg = f"Failed to save story to {story_path}: {e}"
+            error_msg = f"Failed to save story to {path}: {e}"
             print(f"Error: {error_msg}")
             raise IOError(error_msg) from e  
     def _load_curriculum(self) -> Dict[str, Any]:
@@ -221,11 +311,8 @@ class ContentGenerator:
                 print(f"No curriculum found for day {day}")
                 return None
                 
-            # Get due collocations from SRS
-            due_collocations = self.srs.get_due_collocations(day)
-            
-            # Convert CollocationStatus objects to strings for the prompt
-            recycled_collocations = [c.text for c in due_collocations] if due_collocations else []
+            # Get due collocations from SRS (already returns list of strings)
+            recycled_collocations = self.srs.get_due_collocations(day) or []
             
             # Get recycled vocabulary from previous stories
             recycled_vocab = phase_data.get('recycled_vocabulary', [])
@@ -268,9 +355,9 @@ class ContentGenerator:
                 )
                 
                 # Print summary
-                new_count = len([c for c in collocations if c not in due_collocations])
+                new_count = len([c for c in collocations if c not in recycled_collocations])
                 print(f"\n--- Collocation Summary ---")
-                print(f"Recycled collocations: {len(due_collocations)}")
+                print(f"Recycled collocations: {len(recycled_collocations)}")
                 print(f"New collocations found: {new_count}")
                 print(f"Total collocations: {len(collocations)}")
                 
