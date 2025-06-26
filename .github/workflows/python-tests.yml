@@ -27,6 +27,15 @@ jobs:
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
         python -m spacy download en_core_web_sm
+        
+    - name: Set up vocabulary files
+      run: |
+        # Create data directory if it doesn't exist
+        mkdir -p data
+        # Copy vocabulary files to data directory
+        cp vocabulary/*.json data/ || true
+        # Verify files were copied
+        ls -la data/
     
     - name: Run tests with pytest
       run: |
