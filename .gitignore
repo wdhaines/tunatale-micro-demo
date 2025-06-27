@@ -35,6 +35,7 @@ ENV/
 
 # Project specific
 data/*.json
+!data/a2_flat_vocabulary.json
 !data/generated_content/
 data/generated_content/*
 !data/generated_content/*.txt
