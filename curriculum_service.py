@@ -1,4 +1,5 @@
 import datetime
+from datetime import timezone
 import json
 import logging
 from dataclasses import dataclass, field
@@ -244,7 +245,7 @@ class CurriculumGenerator:
                 'presentation_length': 30,
                 'days': [],
                 'metadata': {
-                    'generated_at': str(datetime.datetime.now(datetime.UTC)),
+                    'generated_at': str(datetime.datetime.now(timezone.utc)),
                     'version': '1.0',
                 }
             }
@@ -377,7 +378,7 @@ class CurriculumGenerator:
                         'cefr_level': cefr_level,
                         'days': days,
                         'metadata': {
-                            'generated_at': datetime.datetime.now(datetime.UTC).isoformat(),
+                            'generated_at': datetime.datetime.now(timezone.utc).isoformat(),
                             'transcript_used': transcript is not None,
                             'format': 'json'
                         }
@@ -417,7 +418,7 @@ class CurriculumGenerator:
                         'days': days,
                         'content': curriculum_content,
                         'metadata': {
-                            'generated_at': datetime.datetime.now(datetime.UTC).isoformat(),
+                            'generated_at': datetime.datetime.now(timezone.utc).isoformat(),
                             'transcript_used': transcript is not None,
                             'format': 'text',
                             'error': str(e)
@@ -510,7 +511,7 @@ class CurriculumGenerator:
                 if 'metadata' not in curriculum_data:
                     curriculum_data['metadata'] = {}
                 curriculum_data['metadata'].update({
-                    'generated_at': str(datetime.datetime.now(datetime.UTC)),
+                    'generated_at': str(datetime.datetime.now(timezone.utc)),
                     'format': 'json'
                 })
             else:
@@ -526,7 +527,7 @@ class CurriculumGenerator:
                     "days": days,
                     "metadata": {
                         "num_days": len(days),
-                        "generated_at": str(datetime.datetime.now(datetime.UTC)),
+                        "generated_at": str(datetime.datetime.now(timezone.utc)),
                         "format": "text"
                     }
                 }
