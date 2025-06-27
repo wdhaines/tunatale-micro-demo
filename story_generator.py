@@ -306,10 +306,30 @@ class ContentGenerator:
         try:
             # Load curriculum and get phase data
             curriculum = self._load_curriculum()
-            phase_data = curriculum.get('phases', {}).get(f'phase{day}')
-            if not phase_data:
-                print(f"No curriculum found for day {day}")
-                return None
+            
+            # Try to get phase data from the new format (days array) first
+            if 'days' in curriculum and isinstance(curriculum['days'], list):
+                # Find the day with matching day number
+                day_data = next((d for d in curriculum['days'] if d.get('day') == day), None)
+                if day_data:
+                    phase_data = {
+                        'learning_objective': curriculum.get('learning_objective', 'Unknown'),
+                        'cefr_level': curriculum.get('learner_level', 'A2'),
+                        'story_length': 300,  # Default length
+                        'new_vocabulary': day_data.get('vocabulary', []),
+                        'recycled_vocabulary': []
+                    }
+                    # Add any additional fields from day_data to phase_data
+                    phase_data.update({k: v for k, v in day_data.items() if k not in ['vocabulary']})
+                else:
+                    print(f"No curriculum found for day {day} in days array")
+                    return None
+            else:
+                # Fall back to old format (phases dict)
+                phase_data = curriculum.get('phases', {}).get(f'phase{day}')
+                if not phase_data:
+                    print(f"No curriculum found for day {day}")
+                    return None
                 
             # Get due collocations from SRS (already returns list of strings)
             recycled_collocations = self.srs.get_due_collocations(day) or []
@@ -339,27 +359,49 @@ class ContentGenerator:
             # Get previous story for continuity
             previous_story = self.get_previous_story(day)
             
-            # Generate the story
+            # Initialize curriculum_collocations
+            curriculum_collocations = []
+            
+            # Handle both curriculum formats
+            if 'days' in curriculum and isinstance(curriculum['days'], list):
+                # New format with days array
+                day_data = next((d for d in curriculum['days'] if d.get('day') == day), {})
+                curriculum_collocations = day_data.get('collocations', [])
+                if not curriculum_collocations and 'content' in day_data:
+                    # If no collocations in day_data, try to extract them from content
+                    curriculum_collocations = self.collocation_extractor.extract_collocations(day_data['content'])
+            else:
+                # Old format with phases dict
+                phase_data = curriculum.get('phases', {}).get(f'phase{day}', {})
+                curriculum_collocations = phase_data.get('collocations', [])
+            
+            # Update params with collocations from curriculum
+            if curriculum_collocations:
+                print(f"Using {len(curriculum_collocations)} collocations from curriculum for day {day}")
+                params.recycled_collocations = curriculum_collocations
+            
+            # Generate a new story using the curriculum collocations
+            print(f"Generating new story for day {day} using curriculum collocations")
             story = self.generate_story(params, previous_story)
             if not story:
                 return None
                 
             # Extract collocations from the generated story
-            collocations = self.collocation_extractor.extract_collocations(story)
+            generated_collocations = self.collocation_extractor.extract_collocations(story)
             
-            if collocations:
+            if generated_collocations:
                 # Add new collocations to SRS
                 self.srs.add_collocations(
-                    collocations=collocations,
+                    collocations=generated_collocations,
                     day=day
                 )
                 
                 # Print summary
-                new_count = len([c for c in collocations if c not in recycled_collocations])
+                new_count = len([c for c in generated_collocations if c not in recycled_collocations])
                 print(f"\n--- Collocation Summary ---")
-                print(f"Recycled collocations: {len(recycled_collocations)}")
+                print(f"Curriculum collocations: {len(curriculum_collocations) if curriculum_collocations else 0}")
                 print(f"New collocations found: {new_count}")
-                print(f"Total collocations: {len(collocations)}")
+                print(f"Total collocations in story: {len(generated_collocations)}")
                 
             return story
             
