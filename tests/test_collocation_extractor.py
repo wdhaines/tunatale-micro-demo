@@ -4,8 +4,40 @@ from unittest.mock import MagicMock, patch, call, mock_open
 import spacy
 import json
 from pathlib import Path
+import os
 
 from collocation_extractor import CollocationExtractor
+
+# Minimal vocabulary for testing
+MINIMAL_VOCABULARY = [
+    "carnivorous", "plant", "venus", "flytrap", "pitcher", "sundew",
+    "insect", "trap", "leaf", "grow", "nutrient", "soil"
+]
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_vocabulary():
+    """Set up a minimal vocabulary file for testing."""
+    # Create a temporary directory for the vocabulary file
+    vocab_dir = Path("tests/test_data")
+    vocab_dir.mkdir(exist_ok=True)
+    
+    # Path to the vocabulary file
+    vocab_file = vocab_dir / "test_vocabulary.json"
+    
+    # Write the minimal vocabulary to the file
+    with open(vocab_file, 'w') as f:
+        json.dump(MINIMAL_VOCABULARY, f)
+    
+    # Set the VOCABULARY_PATH environment variable
+    os.environ["VOCABULARY_PATH"] = str(vocab_file)
+    
+    yield  # This is where the test runs
+    
+    # Clean up after tests
+    if vocab_file.exists():
+        vocab_file.unlink()
+    if vocab_dir.exists() and not any(vocab_dir.iterdir()):
+        vocab_dir.rmdir()
 
 # Sample test data
 SAMPLE_TEXT = """
@@ -21,7 +53,7 @@ class TestCollocationExtractor:
     """Tests for the CollocationExtractor class."""
 
     @pytest.fixture(autouse=True)
-    def setup(self, tmp_path):
+    def setup(self, tmp_path, setup_vocabulary):
         """Set up test environment with proper mocks."""
         # Create a temporary directory for test files
         self.temp_dir = tmp_path
@@ -53,6 +85,15 @@ class TestCollocationExtractor:
         self.mock_token.dep_ = "ROOT"
         self.mock_token.children = []
         self.mock_sent.__iter__.return_value = [self.mock_token]
+        
+        # Create a test vocabulary file
+        self.vocab_file = Path("tests/test_data/test_vocabulary.json")
+        self.vocab_file.parent.mkdir(exist_ok=True)
+        with open(self.vocab_file, 'w') as f:
+            json.dump(MINIMAL_VOCABULARY, f)
+        
+        # Set the VOCABULARY_PATH environment variable
+        os.environ["VOCABULARY_PATH"] = str(self.vocab_file)
         
         # Patch the config and spacy.load
         with patch('collocation_extractor.COLLOCATIONS_PATH', self.collocations_file), \
