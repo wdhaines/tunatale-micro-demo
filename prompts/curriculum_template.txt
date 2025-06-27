@@ -1,10 +1,145 @@
-Create a {num_days}-day language learning curriculum for the following goal: {goal}
+## Comprehensive Prompt Template for Claude 4 Opus with Few-Shot Examples
 
-For each day, include:
-1. Key phrases/concepts to learn (Topics)
-2. Grammar points
-3. Vocabulary focus
-4. Suggested practice activities
+```
+You are creating a 30-day story-based curriculum for TunaTale, an audio-first language learning app. Your task is to design a curriculum that helps a language learner prepare to give a presentation on a specific topic.
 
-Make it progressive, starting simple and building complexity.
-Focus on practical, conversational language.
+## Input Parameters
+   - Learning Objective: {learning_objective}
+   - Target Language: {target_language}
+   - Learner Level: {learner_level}
+   - Presentation Length: {presentation_length}
+   - Target Presentation Transcript: {presentation_transcript}
+
+## Critical Constraints
+1. Learner is currently at {learner_level} level
+2. Stories will be delivered via text-to-speech audio
+3. Each story should be 400-500 words (4-5 minutes audio)
+4. Goal: Enable learner to give a {presentation_length}-minute presentation on {learning_objective}
+
+## Pedagogical Requirements
+- Maximum 5 new collocations per story (3-5 word chunks)
+- Each collocation must appear 3-4 times naturally in the story
+- Sentence length appropriate for {learner_level} (A1: 5-7 words, A2: 5-10 words, B1: 8-15 words, etc.)
+- Use only vocabulary appropriate for {learner_level}
+- 60%+ dialogue for easier audio comprehension
+- Focus on presentation phrases needed for the final goal
+
+## Few-Shot Examples
+
+### ✅ GOOD Example - Phase 1 Story (A2 Level)
+**Topic: Carnivorous Plants**
+**Target collocations:** "plants that eat" / "very strange plants" / "live in wet places" / "need to eat"
+
+The Strange Garden
+
+Emma loved her grandmother's garden. She knew every flower and tree. But today, she found a new area behind the vegetables.
+
+"Grandma, why is this part so wet?" Emma asked.
+
+"This is my bog garden," Grandma smiled. "Special plants grow here. Plants that cannot grow in normal soil."
+
+Emma looked closely. The ground was like a small swamp. "Why not? Don't all plants like good soil?"
+
+"This soil is very poor," Grandma explained. "It has no food for plants. But these are very strange plants. They found a different way to live."
+
+"Different how?" Emma was curious.
+
+"These plants - they need to eat insects!"
+
+"Plants that eat bugs?" Emma's eyes grew wide. "That's impossible!"
+
+### ❌ BAD Example - Phase 1 Story
+**Why this fails:**
+- Uses complex sentences
+- Introduces too many concepts at once
+- Lacks dialogue
+- Doesn't repeat collocations naturally
+
+The botanical specimens classified as carnivorous exhibit heterotrophic nutritional supplementation through the consumption of small arthropods. These angiosperms have evolved specialized morphological adaptations enabling the capture, retention, digestion, and absorption of prey-derived nutrients, primarily nitrogen and phosphorus, which are typically limited in their native acidic, nutrient-poor bog habitats.
+
+### ✅ GOOD Example - Phase 4 Story (B1 Level)
+**Topic: Carnivorous Plants - Advanced Mechanisms**
+**Target collocations:** "evolved to survive" / "highly specialized leaves" / "trapping mechanism" / "digestive enzymes"
+
+The Science Fair Project
+
+Dr. Chen adjusted her glasses as she examined the students' projects. "Tell me about your experiment, Priya."
+
+"I tested how different foods affect Venus flytraps," Priya explained. "I wanted to see if they prefer certain insects."
+
+Dr. Chen nodded. "What did you find?"
+
+"Mealworms worked best! The plants grew fastest with them. But cheese and hamburger made them rot." She pointed to the blackened traps.
+
+"Excellent observation! The plant's digestive enzymes evolved to process insects, not dairy or meat. Their trapping mechanism is highly specialized."
+
+"Exactly! And look at these time-lapse photos." Priya flipped through her notebook. "The trap closes in under a second when triggered by two touches to the trigger hairs."
+
+### ❌ BAD Example - Phase 4 Story
+**Why this fails:**
+- Too technical for B1 level
+- Lacks engaging narrative
+- Doesn't model natural speech
+- Overwhelms with technical terms
+
+The plant enzyme production exceeds human capability," Dr. Williams explained. "This biochemical process evolved over millions of years."
+
+She demonstrated protein digestion using spectrometry. "Observe the evolutionary adaptation - plants developed enzyme production without animal organs."
+
+## Output Format
+
+Return a JSON object with the following structure:
+
+```json
+{{
+  "learning_objective": "string - The main learning objective",
+  "target_language": "string - The target language",
+  "learner_level": "string - CEFR level (A1, A2, B1, etc.)",
+  "presentation_length": "number - Target presentation length in minutes",
+  "days": [
+    {{
+      "day": "number - Day number (1-30)",
+      "title": "string - Short title for the day",
+      "focus": "string - Main focus for the day",
+      "collocations": ["string - 3-5 word chunks", "repeated 3-4 times"],
+      "story": "string - 400-500 word story with dialogue",
+      "presentation_phrases": ["string - Useful phrases for presentation", "string - Another useful phrase"]
+    }}
+  ],
+  "metadata": {{
+    "version": "string - Template version",
+    "generated_at": "string - ISO 8601 timestamp"
+  }}
+}}
+```
+
+## Additional Instructions
+
+1. Each story should:
+   - Be engaging and age-appropriate
+   - Include natural-sounding dialogue (60%+ of content)
+   - Repeat target collocations naturally throughout
+   - Model useful presentation language
+   - Gradually increase in complexity
+
+2. Presentation phrases should:
+   - Be immediately useful for the final presentation
+   - Include transition phrases, emphasis markers, and signposting language
+   - Be appropriate for the learner's level
+
+3. Collocations should:
+   - Be 3-5 word chunks that commonly occur together
+   - Be immediately useful for the topic
+   - Be repeated 3-4 times naturally in the story
+   - Be highlighted in the story with **asterisks**
+
+4. For each phase (1-4), adjust:
+   - Sentence complexity
+   - Vocabulary level
+   - Grammatical structures
+   - Speed of delivery (for audio)
+
+5. Include cultural notes where relevant to help with comprehension.
+
+6. Ensure all content is factually accurate and culturally appropriate.
+```

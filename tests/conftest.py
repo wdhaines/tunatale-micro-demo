@@ -4,8 +4,17 @@ from pathlib import Path
 from typing import Generator, Any, Dict
 from unittest.mock import MagicMock, mock_open, patch
 
+import warnings
 import pytest
-from _pytest.monkeypatch import MonkeyPatch
+from unittest.mock import Mock, patch
+
+# Suppress deprecation warnings from third-party libraries
+warnings.filterwarnings(
+    "ignore",
+    message=r"Importing 'parser.split_arg_string' is deprecated",
+    category=DeprecationWarning,
+    module=r'(spacy\.cli\._util|weasel\.util\.config)'
+)
 
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
 from llm_mock import MockLLM

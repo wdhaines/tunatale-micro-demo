@@ -1,4 +1,17 @@
-python-dotenv>=1.0.0
-nltk>=3.8.1
-spacy>=3.7.2
-# Install spaCy model separately with: python -m spacy download en_core_web_sm
+# Core Dependencies
+python-dotenv==1.1.1
+nltk==3.9.1
+spacy==3.8.7
+
+# Development Dependencies
+black==25.1.0
+flake8==7.3.0
+isort==6.0.1
+mypy==1.16.1
+pytest==8.4.1
+pytest-cov==6.2.1
+pytest-mock==3.14.1
+pytest-timeout==2.4.0
+
+# Install spaCy model separately with:
+# python -m spacy download en_core_web_sm

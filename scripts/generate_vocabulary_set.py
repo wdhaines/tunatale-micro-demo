@@ -3,10 +3,10 @@ from pathlib import Path
 
 def generate_vocabulary_set():
     # Path to the input vocabulary file
-    input_file = Path(__file__).parent.parent / 'vocabulary' / 'a2_background_vocabulary.json'
+    input_file = Path(__file__).parent.parent / 'vocabulary' / 'a2_categorized_vocabulary.json'
     
     # Path to the output file
-    output_file = Path(__file__).parent.parent / 'vocabulary' / 'a2_vocabulary_set.json'
+    output_file = Path(__file__).parent.parent / 'data' / 'a2_flat_vocabulary.json'
     
     # Read the input JSON file
     with open(input_file, 'r', encoding='utf-8') as f:

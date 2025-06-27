@@ -287,3 +287,47 @@ class TestCollocationExtractor:
             with pytest.raises(ImportError) as excinfo:
                 CollocationExtractor()
             assert "English language model not found" in str(excinfo.value)
+            
+    def test_analyze_vocabulary_distribution_saves_collocations(self, tmp_path):
+        """Test that analyze_vocabulary_distribution saves collocations to file."""
+        # Setup
+        test_text = "Carnivorous plants catch insects with specialized leaves."
+        expected_collocations = {
+            "carnivorous plants": 1,
+            "catch insects": 1,
+            "specialized leaves": 1
+        }
+        
+        # Create a temporary collocations file path
+        collocations_file = tmp_path / "test_collocations.json"
+        
+        # Mock the extract_collocations method and patch COLLOCATIONS_PATH
+        with patch('collocation_extractor.COLLOCATIONS_PATH', collocations_file), \
+             patch.object(self.real_extractor, 'extract_collocations', 
+                         return_value=expected_collocations) as mock_extract:
+            
+            # Call the method we're testing
+            result = self.real_extractor.analyze_vocabulary_distribution(test_text)
+            
+            # Verify extract_collocations was called with the right arguments
+            mock_extract.assert_called_once_with(test_text, min_words=1, max_words=4, debug=False)
+            
+            # Verify the result contains our collocations
+            assert 'collocations' in result
+            assert result['collocations'] == expected_collocations
+            
+            # Verify the collocations were saved to file
+            assert collocations_file.exists(), f"Collocations file was not created at {collocations_file}"
+            
+            # Read the saved collocations
+            with open(collocations_file, 'r') as f:
+                saved_collocations = json.load(f)
+                
+            # Verify the saved collocations match what we expect
+            assert saved_collocations == expected_collocations, \
+                f"Expected {expected_collocations}, got {saved_collocations}"
+                
+            # Verify the file was written with proper JSON formatting
+            with open(collocations_file, 'r') as f:
+                content = f.read()
+                json.loads(content)  # This will raise an exception if not valid JSON

@@ -48,8 +48,8 @@ def convert_curriculum(input_path: Path, output_path: Path) -> None:
 if __name__ == "__main__":
     # Define input and output paths
     base_dir = Path(__file__).parent.parent
-    input_path = base_dir / "prompts" / "curriculum_data.json"
-    output_path = base_dir / "data" / "curriculum.json"
+    input_path = base_dir / "data" / "curriculum_raw.json"
+    output_path = base_dir / "data" / "curriculum_processed.json"
     
     # Run the conversion
     convert_curriculum(input_path, output_path)
