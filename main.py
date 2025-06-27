@@ -108,6 +108,16 @@ class CLI:
         )
         story_day_parser.add_argument('day', type=int, help='Day number (1-5)')
         
+        # Comprehensive curriculum generation
+        comprehensive_parser = subparsers.add_parser(
+            'generate-comprehensive',
+            help='Generate curriculum using comprehensive prompt template'
+        )
+        comprehensive_parser.add_argument('objective', help='Learning objective')
+        comprehensive_parser.add_argument('--transcript', type=str, help='Target presentation transcript file')
+        comprehensive_parser.add_argument('--level', default='A2', help='Learner level (A1-C2)')
+        comprehensive_parser.add_argument('--days', type=int, default=30, help='Number of days (default: 30)')
+        
         # Progress command
         progress_parser = subparsers.add_parser(
             'progress', 
@@ -253,6 +263,14 @@ class CLI:
                 handler=self._handle_generate,
                 help='Generate a new language learning curriculum'
             ),
+            'generate-day': Command(
+                handler=self._handle_generate_day,
+                help='Generate story for specific curriculum day with SRS'
+            ),
+            'generate-comprehensive': Command(
+                handler=self._handle_comprehensive_generate,
+                help='Generate curriculum using comprehensive template'
+            ),
             'extract': Command(
                 handler=self._handle_extract,
                 help='Extract collocations from curriculum'
@@ -265,17 +283,9 @@ class CLI:
                 handler=self._handle_view,
                 help='View generated content'
             ),
-            'generate-day': Command(
-                handler=self._handle_generate_day,
-                help='Generate story for specific curriculum day with SRS'
-            ),
-            'progress': Command(
-                handler=self._handle_progress,
-                help='View SRS progress and collocation tracking'
-            ),
             'analyze': Command(
                 handler=self._handle_analyze,
-                help='Analyze vocabulary distribution in a story'
+                help='Analyze vocabulary distribution'
             ),
         }
 
@@ -347,6 +357,56 @@ class CLI:
             return 1
         except Exception as e:
             print(f"Error generating story for day {args.day}: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:  # Don't print traceback during tests
+                import traceback
+                traceback.print_exc()
+            return 1
+            
+    def _handle_comprehensive_generate(self, args: argparse.Namespace) -> int:
+        """Handle the generate-comprehensive command."""
+        print(f"Generating comprehensive curriculum for: {args.objective}")
+        print(f"Learner level: {args.level}")
+        print(f"Duration: {args.days} days")
+        
+        # Read transcript if provided
+        transcript = ""
+        if args.transcript:
+            try:
+                with open(args.transcript, 'r') as f:
+                    transcript = f.read()
+                print(f"Using transcript from: {args.transcript}")
+            except OSError as e:
+                print(f"Error reading transcript file: {e}", file=sys.stderr)
+                return 1
+        
+        try:
+            generator = CurriculumGenerator()
+            curriculum = generator.generate_comprehensive_curriculum(
+                learning_objective=args.objective,
+                presentation_transcript=transcript,
+                learner_level=args.level,
+                presentation_length=args.days
+            )
+            
+            if curriculum:
+                print("\nComprehensive curriculum generated successfully!")
+                print("\nCurriculum Overview:")
+                print(f"- Learning Objective: {curriculum.get('learning_objective', 'N/A')}")
+                print(f"- Target Language: {curriculum.get('target_language', 'English')}")
+                print(f"- CEFR Level: {curriculum.get('cefr_level', args.level)}")
+                print(f"- Number of Days: {len(curriculum.get('days', []))}")
+                
+                # Save curriculum to file
+                output_file = Path(f'comprehensive_curriculum_{args.level.lower()}.json')
+                with open(output_file, 'w') as f:
+                    json.dump(curriculum, f, indent=2)
+                print(f"\nCurriculum saved to: {output_file}")
+                
+                return 0
+            return 1
+            
+        except Exception as e:
+            print(f"Error generating comprehensive curriculum: {e}", file=sys.stderr)
             if 'pytest' not in sys.modules:  # Don't print traceback during tests
                 import traceback
                 traceback.print_exc()

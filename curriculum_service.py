@@ -1,4 +1,5 @@
 import datetime
+from datetime import timezone
 import json
 import logging
 from dataclasses import dataclass, field
@@ -71,32 +72,217 @@ class CurriculumGenerator:
         self.config = config if config is not None else CurriculumConfig()
         self.curriculum_prompt = self._load_prompt('curriculum_template.txt')
     
-    def _load_prompt(self, filename: str) -> str:
+    def _load_prompt(self, filename: str, allow_default: bool = True) -> str:
         """
-        Load a prompt template from file, creating a default if it doesn't exist.
+        Load a prompt template from file.
         
         Args:
             filename: Name of the prompt file to load
+            allow_default: If True and file doesn't exist, return default prompt without writing to disk.
+                          If False, raise FileNotFoundError.
             
         Returns:
-            str: The loaded or created prompt template
+            str: The loaded prompt template or default prompt if allow_default is True
             
         Raises:
-            FileNotFoundError: If the prompt file doesn't exist and can't be created
-            IOError: If there's an error reading or writing the prompt file
+            FileNotFoundError: If the prompt file doesn't exist and allow_default is False
+            IOError: If there's an error reading the prompt file
         """
         prompt_path = PROMPTS_DIR / filename
         
-        # If file exists, try to read it
-        if prompt_path.exists():
+        try:
+            # Try to read the existing file
+            with open(prompt_path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if content:  # Only return if file has content
+                    return content
+                
+                # File exists but is empty
+                logger.warning(f"Prompt file {prompt_path} is empty")
+                if not allow_default:
+                    raise IOError(f"Prompt file {prompt_path} is empty")
+                    
+        except FileNotFoundError:
+            if not allow_default:
+                raise
+            logger.info(f"Prompt file {prompt_path} not found, using default"
+                      )
+        except IOError as e:
+            logger.error(f"Error reading prompt file {prompt_path}: {e}")
+            if not allow_default:
+                raise
+                
+        # Return default prompt without writing to disk
+        return self.config.default_prompt
+    
+    def generate_comprehensive_curriculum(
+        self, 
+        learning_objective: str, 
+        presentation_transcript: str = "",
+        learner_level: str = "A2",
+        presentation_length: int = 30,
+        output_path: Optional[Union[str, Path]] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate a comprehensive curriculum using the detailed template.
+        
+        Args:
+            learning_objective: The main learning objective/topic
+            presentation_transcript: Optional transcript of the target presentation
+            learner_level: CEFR level (A1, A2, B1, etc.)
+            presentation_length: Target presentation length in minutes
+            output_path: Optional path to save the curriculum
+            
+        Returns:
+            Dict containing the generated curriculum data
+            
+        Raises:
+            ValidationError: If the learning goal is invalid
+            LLMError: If there's an error generating the curriculum
+            ParserError: If there's an error parsing the LLM response
+        """
+        try:
+            # Validate inputs
+            if not learning_objective or not isinstance(learning_objective, str):
+                raise ValidationError("Learning objective must be a non-empty string")
+                
+            # Load the comprehensive template
+            template = self._load_prompt('curriculum_template.txt')
+            if not template:
+                raise FileNotFoundError("Comprehensive curriculum template not found")
+            
+            # Format the prompt with parameters
+            prompt = template.format(
+                learning_objective=learning_objective,
+                target_language="English",
+                learner_level=learner_level,
+                presentation_length=presentation_length,
+                presentation_transcript=presentation_transcript,
+                # Add any additional parameters from the template
+                num_days=30,  # Default 30-day curriculum
+            )
+            
+            # Generate the curriculum using the LLM
+            logger.info("Generating comprehensive curriculum...")
+            response = self.llm.get_response(prompt, response_type="comprehensive_curriculum")
+            
+            # Log the raw response for debugging
+            logger.debug(f"Raw LLM response: {json.dumps(response, indent=2)[:1000]}...")
+            
+            # Extract content from the response structure
             try:
-                with open(prompt_path, 'r', encoding='utf-8') as f:
-                    content = f.read().strip()
-                    if content:  # Only return if file has content
-                        return content
-            except IOError as e:
-                logger.warning(f"Error reading prompt file {prompt_path}: {e}")
-                # Continue to create a new file
+                if not response or 'choices' not in response or not response['choices']:
+                    raise LLMError("Invalid response format from LLM: missing or empty 'choices'")
+                    
+                # Get the first choice's message content
+                message = response['choices'][0].get('message', {})
+                content = message.get('content', '')
+                
+                if not content:
+                    raise LLMError("Empty content in LLM response")
+                    
+                logger.debug(f"Extracted content from LLM response (first 200 chars): {content[:200]}...")
+                
+                # Parse the response into the expected format
+                curriculum = self._parse_comprehensive_response(content)
+                
+            except (KeyError, IndexError, TypeError) as e:
+                logger.error(f"Error processing LLM response: {e}")
+                raise LLMError(f"Failed to process LLM response: {e}")
+                
+            # Save the curriculum if output path is provided
+            if output_path:
+                output_path = Path(output_path)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    json.dump(curriculum, f, indent=2, ensure_ascii=False)
+                logger.info(f"Saved comprehensive curriculum to {output_path}")
+            
+            return curriculum
+            
+        except Exception as e:
+            logger.error(f"Error generating comprehensive curriculum: {e}")
+            if not isinstance(e, (ValidationError, LLMError, ParserError)):
+                raise LLMError(f"Unexpected error generating curriculum: {e}") from e
+            raise
+    
+    def _parse_comprehensive_response(self, response_text: str) -> Dict[str, Any]:
+        """
+        Parse the LLM response into a structured curriculum format.
+        
+        Args:
+            response_text: Raw text response from the LLM
+            
+        Returns:
+            Dict containing the structured curriculum data
+            
+        Raises:
+            ParserError: If the response cannot be parsed
+        """
+        try:
+            # First, try to find a JSON block in the response
+            import re
+            
+            # Look for a JSON block in the response
+            json_match = re.search(r'```(?:json)?\n({.*})\n```', response_text, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group(1))
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse JSON block: {e}")
+            
+            # If no JSON block found, try to parse the entire response as JSON
+            try:
+                return json.loads(response_text)
+            except json.JSONDecodeError:
+                pass
+            
+            # If we get here, try to extract the curriculum from the text format
+            curriculum = {
+                'learning_objective': "",
+                'target_language': "English",
+                'learner_level': "A2",
+                'presentation_length': 30,
+                'days': [],
+                'metadata': {
+                    'generated_at': str(datetime.datetime.now(timezone.utc)),
+                    'version': '1.0',
+                }
+            }
+            
+            # Try to extract the learning objective from the response
+            objective_match = re.search(r'# TunaTale 30-Day Curriculum: (.+)', response_text)
+            if objective_match:
+                curriculum['learning_objective'] = objective_match.group(1).strip()
+            
+            # Extract days
+            day_sections = re.split(r'## Day (\d+)', response_text)[1:]
+            for i in range(0, len(day_sections), 2):
+                if i + 1 >= len(day_sections):
+                    break
+                    
+                day_num = int(day_sections[i])
+                day_content = day_sections[i+1].strip()
+                
+                # Extract story if present
+                story_match = re.search(r'\*\*Word count\*\*: \d+\n\n([\s\S]+?)(?=\n\n## Day|\Z)', day_content, re.IGNORECASE)
+                story = story_match.group(1).strip() if story_match else ""
+                
+                # Extract collocations if present
+                collocations_match = re.search(r'\*\*Target collocations\*\*: ([^\n]+)', day_content)
+                collocations = [c.strip('"\' ') for c in collocations_match.group(1).split('/')] if collocations_match else []
+                
+                curriculum['days'].append({
+                    'day': day_num,
+                    'content': day_content,
+                    'story': story,
+                    'collocations': collocations
+                })
+            
+            return curriculum
+            
+        except Exception as e:
+            raise ParserError(f"Failed to parse curriculum response: {e}") from e
         
         # If we get here, either file doesn't exist or was empty
         logger.info(f"Creating default prompt at {prompt_path}")
@@ -117,13 +303,13 @@ class CurriculumGenerator:
         This is a convenience wrapper around _load_prompt for the curriculum template.
         
         Returns:
-            str: The loaded prompt template
+            str: The loaded prompt template or default content if not found
             
-        Raises:
-            FileNotFoundError: If the prompt file doesn't exist and can't be created
-            IOError: If there's an error reading or writing the prompt file
+        Note:
+            This method will not create or modify any files on disk.
+            It will return the default prompt template if the file doesn't exist.
         """
-        return self._load_prompt('curriculum_template.txt')
+        return self._load_prompt('curriculum_template.txt', allow_default=True)
     
     def generate_curriculum(
         self,
@@ -164,13 +350,13 @@ class CurriculumGenerator:
             raise ValidationError(f"Number of days must be between 1 and 365, got {days}")
         
         try:
-            # Format the prompt with all parameters
+            # Format the prompt with all parameters (using uppercase to match template placeholders)
             prompt = self.curriculum_prompt.format(
-                goal=learning_goal,
-                language=target_language,
-                level=cefr_level,
-                num_days=days,
-                transcript=transcript or ""
+                LEARNING_GOAL=learning_goal,
+                TARGET_LANGUAGE=target_language,
+                LEARNER_LEVEL=cefr_level,
+                PRESENTATION_LENGTH=days,
+                TARGET_PRESENTATION_TRANSCRIPT=transcript or ""
             )
             
             # Get response from LLM
@@ -183,18 +369,61 @@ class CurriculumGenerator:
                     
                 curriculum_content = response['choices'][0]['message']['content']
                 
-                # Create structured curriculum data
-                curriculum = {
-                    'learning_goal': learning_goal,
-                    'target_language': target_language,
-                    'cefr_level': cefr_level,
-                    'days': days,
-                    'content': curriculum_content,
-                    'metadata': {
-                        'generated_at': datetime.datetime.utcnow().isoformat(),
-                        'transcript_used': transcript is not None
+                # Parse the JSON response if it's a string
+                try:
+                    # First, ensure we have a properly structured curriculum dict
+                    curriculum = {
+                        'learning_goal': learning_goal,
+                        'target_language': target_language,
+                        'cefr_level': cefr_level,
+                        'days': days,
+                        'metadata': {
+                            'generated_at': datetime.datetime.now(timezone.utc).isoformat(),
+                            'transcript_used': transcript is not None,
+                            'format': 'json'
+                        }
                     }
-                }
+                    
+                    # Try to parse the LLM response as JSON
+                    try:
+                        response_data = json.loads(curriculum_content)
+                        if isinstance(response_data, dict):
+                            # Update with any fields from the response
+                            curriculum.update({
+                                'learning_goal': response_data.get('learning_goal', learning_goal),
+                                'target_language': response_data.get('target_language', target_language),
+                                'cefr_level': response_data.get('cefr_level', cefr_level),
+                                'days': response_data.get('days', days),
+                                'content': json.dumps(response_data, indent=2)  # Store the JSON as a string
+                            })
+                            
+                            # Update metadata if present in response
+                            if 'metadata' in response_data and isinstance(response_data['metadata'], dict):
+                                curriculum['metadata'].update(response_data['metadata'])
+                        else:
+                            # If response is not a dict, store it as content
+                            curriculum['content'] = curriculum_content
+                    except (json.JSONDecodeError, ValueError):
+                        # If parsing fails, store the raw content
+                        curriculum['content'] = curriculum_content
+                        curriculum['metadata']['format'] = 'text'
+                        
+                except Exception as e:
+                    logger.error(f"Error processing LLM response: {e}")
+                    # Fall back to a minimal valid structure
+                    curriculum = {
+                        'learning_goal': learning_goal,
+                        'target_language': target_language,
+                        'cefr_level': cefr_level,
+                        'days': days,
+                        'content': curriculum_content,
+                        'metadata': {
+                            'generated_at': datetime.datetime.now(timezone.utc).isoformat(),
+                            'transcript_used': transcript is not None,
+                            'format': 'text',
+                            'error': str(e)
+                        }
+                    }
                 
                 # Save the curriculum
                 save_path = Path(output_path) if output_path else CURRICULUM_PATH
@@ -254,12 +483,12 @@ class CurriculumGenerator:
             if f"Day {day}:" not in curriculum:
                 raise ValidationError(f"Missing Day {day} in generated curriculum")
     
-    def _save_curriculum(self, curriculum: str, learning_goal: str, output_path: Optional[Union[str, Path]] = None) -> None:
+    def _save_curriculum(self, curriculum: Union[str, dict], learning_goal: str, output_path: Optional[Union[str, Path]] = None) -> None:
         """
         Save the generated curriculum to a file.
         
         Args:
-            curriculum: The curriculum text to save
+            curriculum: The curriculum content to save (can be a string or a dict)
             learning_goal: The learning goal for the curriculum
             output_path: Path to save the curriculum (defaults to CURRICULUM_PATH)
             
@@ -274,22 +503,34 @@ class CurriculumGenerator:
             # Ensure the directory exists
             output_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # Parse the curriculum into days
-            try:
-                days = self._parse_curriculum_days(curriculum)
-            except Exception as e:
-                raise ParserError(f"Error parsing curriculum: {e}") from e
-            
             # Prepare the data to save
-            curriculum_data = {
-                "learning_goal": learning_goal,
-                "content": curriculum,
-                "days": days,
-                "metadata": {
-                    "num_days": len(days),
-                    "generated_at": str(datetime.datetime.utcnow())
+            if isinstance(curriculum, dict):
+                # If curriculum is already a dict, use it directly
+                curriculum_data = curriculum
+                curriculum_data['learning_goal'] = learning_goal
+                if 'metadata' not in curriculum_data:
+                    curriculum_data['metadata'] = {}
+                curriculum_data['metadata'].update({
+                    'generated_at': str(datetime.datetime.now(timezone.utc)),
+                    'format': 'json'
+                })
+            else:
+                # For string content, parse it into days
+                try:
+                    days = self._parse_curriculum_days(curriculum)
+                except Exception as e:
+                    raise ParserError(f"Error parsing curriculum: {e}") from e
+                
+                curriculum_data = {
+                    "learning_goal": learning_goal,
+                    "content": curriculum,
+                    "days": days,
+                    "metadata": {
+                        "num_days": len(days),
+                        "generated_at": str(datetime.datetime.now(timezone.utc)),
+                        "format": "text"
+                    }
                 }
-            }
             
             # Write to a temporary file first, then rename (atomic write)
             temp_path = output_path.with_suffix('.tmp')
@@ -337,11 +578,15 @@ class CurriculumGenerator:
             
         except json.JSONDecodeError as e:
             logger.error(f"Error parsing curriculum JSON: {e}")
-            raise
+            raise ParserError(f"Invalid JSON in curriculum file: {e}") from e
             
-    def _validate_curriculum_structure(self, curriculum_text: str) -> None:
+    def _validate_curriculum_structure(self, curriculum_text: str) -> bool:
         """
         Validate the structure of the curriculum content.
+        
+        This method checks for either:
+        1. Daily format: "Day 1:", "Day 2:", etc.
+        2. Weekly format: "Week 1 (Days 1-7)", etc.
         
         Args:
             curriculum_text: The curriculum text to validate
@@ -352,44 +597,45 @@ class CurriculumGenerator:
         if not curriculum_text:
             raise ValueError("Empty curriculum content")
             
-        # Check for required day sections
-        days = {}
-        current_day = None
+        # Check for weekly format first (e.g., "Week 1 (Days 1-7)")
+        has_weekly_format = any(
+            f"Week {i} (Days " in curriculum_text or 
+            f"Week {i}:" in curriculum_text
+            for i in range(1, (self.config.num_days // 7) + 2)  # +2 to be safe with partial weeks
+        )
         
-        for day_num in range(1, self.config.num_days + 1):
-            day_header = f"Day {day_num}:"
-            if day_header.lower() not in curriculum_text.lower():
-                raise ValueError(f"Missing {day_header} in curriculum")
-        
-        # Check for required sections in each day
-        lines = curriculum_text.split('\n')
-        current_day = None
-        
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-                
-            if line.lower().startswith('day '):
-                current_day = line.split(':')[0].strip()
+        # If not weekly format, check for daily format
+        if not has_weekly_format:
+            # Check for at least some day headers to validate daily format
+            has_daily_format = any(
+                f"Day {i}:" in curriculum_text or 
+                f"Day {i} " in curriculum_text
+                for i in range(1, min(8, self.config.num_days + 1))  # Check first 7 days
+            )
             
-            # Check for required sections if we're in a day section
-            if current_day:
-                if any(section.lower() in line.lower() for section in self.config.required_sections):
-                    continue
+            if not has_daily_format:
+                raise ValueError(
+                    "Invalid curriculum format. Expected either:"
+                    "\n- Daily format (e.g., 'Day 1:', 'Day 2:'...)'"
+                    "\n- Weekly format (e.g., 'Week 1 (Days 1-7):', 'Week 2 (Days 8-14):'...)"
+                )
         
-        # If we get here, all validations passed
+        # If we get here, the structure is valid
         return True
             
     def _parse_curriculum_days(self, curriculum_text: str) -> Dict[str, List[str]]:
         """
         Parse the curriculum text into structured day-by-day content.
         
+        Handles both daily and weekly formats:
+        - Daily: "Day 1:", "Day 2:", etc.
+        - Weekly: "Week 1 (Days 1-7):", "Week 2 (Days 8-14):", etc.
+        
         Args:
             curriculum_text: The raw curriculum text to parse
             
         Returns:
-            Dict mapping day names to lists of content lines
+            Dict mapping day/week names to lists of content lines
             
         Raises:
             ParserError: If there's an error in the curriculum format
@@ -403,37 +649,53 @@ class CurriculumGenerator:
         except ValueError as e:
             raise ParserError(str(e)) from e
             
+        # Check which format we're dealing with
+        is_weekly_format = any(
+            f"Week {i} (Days " in curriculum_text or 
+            f"Week {i}:" in curriculum_text
+            for i in range(1, (self.config.num_days // 7) + 2)
+        )
+        
         days = {}
-        current_day = None
+        current_section = None
+        current_content = []
         
         for line in curriculum_text.split('\n'):
             line = line.strip()
             if not line:
+                if current_section and current_content:
+                    days[current_section] = current_content
+                    current_content = []
                 continue
                 
-            # Check for day header (e.g., "Day 1:" or "Day 1 - Monday:")
-            if line.lower().startswith('day '):
-                # Extract just the day part (e.g., "Day 1" from "Day 1: Introduction")
-                day_parts = line.split(':')
-                current_day = day_parts[0].strip()
-                days[current_day] = []
-                
-                # Add the rest of the line if it contains content
-                if len(day_parts) > 1 and day_parts[1].strip():
-                    days[current_day].append(day_parts[1].strip())
+            # Check for weekly section headers
+            if is_weekly_format and (
+                line.lower().startswith('week ') and 
+                ('(days ' in line.lower() or ':' in line)
+            ):
+                if current_section and current_content:
+                    days[current_section] = current_content
+                current_section = line.split(':', 1)[0].strip()
+                current_content = [line]
+            # Check for daily section headers
+            elif line.lower().startswith('day ') and ':' in line:
+                if current_section and current_content:
+                    days[current_section] = current_content
+                current_section = line.split(':', 1)[0].strip()
+                current_content = [line]
+            # Content lines
+            elif current_section:
+                current_content.append(line)
+        
+        # Add the last section
+        if current_section and current_content:
+            days[current_section] = current_content
             
-            # Add content to the current day
-            elif current_day:
-                # Skip list markers like "1.", "-", "*" at the start of lines
-                line = line.lstrip('*- ').lstrip('0123456789.').strip()
-                if line:  # Only add non-empty lines
-                    days[current_day].append(line)
-        
-        # Validate that we found all required days
-        expected_days = [f"Day {i+1}" for i in range(self.config.num_days)]
-        missing_days = [day for day in expected_days if day not in days]
-        
-        if missing_days:
-            raise ParserError(f"Missing content for days: {', '.join(missing_days)}")
+        # If we're in daily format, validate that we have all required days
+        if not is_weekly_format:
+            expected_days = [f"Day {i}" for i in range(1, self.config.num_days + 1)]
+            missing_days = [day for day in expected_days if day not in days]
+            if missing_days:
+                raise ParserError(f"Missing content for days: {', '.join(missing_days)}")
         
         return days

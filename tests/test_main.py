@@ -52,7 +52,8 @@ def test_cli_story_command_required_params(mock_stdout) -> None:
     # Verify the help text contains expected sections
     assert "Generate a story for language learning" in help_text
     assert "positional arguments:" in help_text
-    assert "optional arguments:" in help_text
+    # In Python 3.13+, the help text uses 'options:' instead of 'optional arguments:'
+    assert ("options:" in help_text) or ("optional arguments:" in help_text)
     assert "--language" in help_text
     assert "--level" in help_text
     assert "--phase" in help_text

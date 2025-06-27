@@ -21,5 +21,5 @@ MOCK_RESPONSES_DIR.mkdir(exist_ok=True)
 DEFAULT_STORY_LENGTH = int(os.getenv('DEFAULT_STORY_LENGTH', '500'))  # Default to 500 words if not set
 
 # File paths
-CURRICULUM_PATH = DATA_DIR / 'curriculum.json'
+CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
 COLLOCATIONS_PATH = DATA_DIR / 'collocations.json'

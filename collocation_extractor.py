@@ -31,9 +31,16 @@ class CollocationExtractor:
                 self.nlp.add_pipe("merge_noun_chunks")
                 
             # Load background vocabulary
-            with open(DATA_DIR / 'a2_vocabulary_set.json', 'r') as f:
-                self.background_vocabulary = set(json.load(f))
-            print(f"Loaded {len(self.background_vocabulary)} background vocabulary words")
+            import os
+            vocab_path = os.environ.get('VOCABULARY_PATH', str(DATA_DIR / 'a2_flat_vocabulary.json'))
+            try:
+                with open(vocab_path, 'r') as f:
+                    self.background_vocabulary = set(json.load(f))
+                print(f"Loaded {len(self.background_vocabulary)} background vocabulary words from {vocab_path}")
+            except FileNotFoundError as e:
+                # If the vocabulary file is not found, use an empty set
+                self.background_vocabulary = set()
+                print(f"Warning: Vocabulary file not found at {vocab_path}. Using empty vocabulary.")
                 
         except OSError as e:
             raise ImportError(
@@ -408,7 +415,7 @@ class CollocationExtractor:
                             if not any(term in line.lower() for term in 
                                     ['"content":', 'cefr_level', 'learning_objective', 
                                      'story_length', 'new_vocabulary', 'recycled_vocabulary',
-                                     'phase\d+']))
+                                     r'phase\d+']))
         
         doc = self.nlp(clean_text.lower())
         
@@ -442,6 +449,10 @@ class CollocationExtractor:
                  key=lambda x: x[1], 
                  reverse=True)
         )
+        
+        # Save the collocations to file
+        if sorted_collocations:
+            self._save_collocations(sorted_collocations)
         
         # Analyze word distribution
         for token in doc:

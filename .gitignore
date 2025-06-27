@@ -35,7 +35,15 @@ ENV/
 
 # Project specific
 data/*.json
-data/generated_content/*.txt
+!data/a2_flat_vocabulary.json
+!data/generated_content/
+data/generated_content/*
+!data/generated_content/*.txt
+!data/generated_content/.gitkeep
+
+# Mock responses
+data/mock_responses/*
+!data/mock_responses/.gitkeep
 
 # OS generated files
 .DS_Store

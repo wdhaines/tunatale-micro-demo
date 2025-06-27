@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9"]
+        python-version: ["3.13.5"]
 
     steps:
     - uses: actions/checkout@v3
@@ -28,13 +28,15 @@ jobs:
         pip install -r requirements-dev.txt
         python -m spacy download en_core_web_sm
         
-    - name: Set up vocabulary files
+    - name: Generate vocabulary file
       run: |
         # Create data directory if it doesn't exist
         mkdir -p data
-        # Copy vocabulary files to data directory
-        cp vocabulary/*.json data/ || true
-        # Verify files were copied
+        # Generate a minimal vocabulary file for testing
+        echo '["carnivorous", "plant", "venus", "flytrap", "pitcher", "sundew", "insect", "trap", "leaf", "grow", "nutrient", "soil"]' > data/test_vocabulary.json
+        # Set the VOCABULARY_PATH environment variable
+        echo "VOCABULARY_PATH=data/test_vocabulary.json" >> $GITHUB_ENV
+        # Verify the file was created
         ls -la data/
     
     - name: Run tests with pytest

@@ -137,7 +137,11 @@ def main():
             }
         }
         
-        output_path = curriculum_path.parent / 'curriculum_data.json'
+        # Ensure data directory exists
+        data_dir = curriculum_path.parent.parent / 'data'
+        data_dir.mkdir(exist_ok=True)
+        output_path = data_dir / 'curriculum_raw.json'
+        
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(output, f, indent=2)
         print(f"\nExtracted data saved to: {output_path}")

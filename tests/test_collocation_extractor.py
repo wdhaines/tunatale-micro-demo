@@ -4,8 +4,40 @@ from unittest.mock import MagicMock, patch, call, mock_open
 import spacy
 import json
 from pathlib import Path
+import os
 
 from collocation_extractor import CollocationExtractor
+
+# Minimal vocabulary for testing
+MINIMAL_VOCABULARY = [
+    "carnivorous", "plant", "venus", "flytrap", "pitcher", "sundew",
+    "insect", "trap", "leaf", "grow", "nutrient", "soil"
+]
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_vocabulary():
+    """Set up a minimal vocabulary file for testing."""
+    # Create a temporary directory for the vocabulary file
+    vocab_dir = Path("tests/test_data")
+    vocab_dir.mkdir(exist_ok=True)
+    
+    # Path to the vocabulary file
+    vocab_file = vocab_dir / "test_vocabulary.json"
+    
+    # Write the minimal vocabulary to the file
+    with open(vocab_file, 'w') as f:
+        json.dump(MINIMAL_VOCABULARY, f)
+    
+    # Set the VOCABULARY_PATH environment variable
+    os.environ["VOCABULARY_PATH"] = str(vocab_file)
+    
+    yield  # This is where the test runs
+    
+    # Clean up after tests
+    if vocab_file.exists():
+        vocab_file.unlink()
+    if vocab_dir.exists() and not any(vocab_dir.iterdir()):
+        vocab_dir.rmdir()
 
 # Sample test data
 SAMPLE_TEXT = """
@@ -21,7 +53,7 @@ class TestCollocationExtractor:
     """Tests for the CollocationExtractor class."""
 
     @pytest.fixture(autouse=True)
-    def setup(self, tmp_path):
+    def setup(self, tmp_path, setup_vocabulary):
         """Set up test environment with proper mocks."""
         # Create a temporary directory for test files
         self.temp_dir = tmp_path
@@ -53,6 +85,15 @@ class TestCollocationExtractor:
         self.mock_token.dep_ = "ROOT"
         self.mock_token.children = []
         self.mock_sent.__iter__.return_value = [self.mock_token]
+        
+        # Create a test vocabulary file
+        self.vocab_file = Path("tests/test_data/test_vocabulary.json")
+        self.vocab_file.parent.mkdir(exist_ok=True)
+        with open(self.vocab_file, 'w') as f:
+            json.dump(MINIMAL_VOCABULARY, f)
+        
+        # Set the VOCABULARY_PATH environment variable
+        os.environ["VOCABULARY_PATH"] = str(self.vocab_file)
         
         # Patch the config and spacy.load
         with patch('collocation_extractor.COLLOCATIONS_PATH', self.collocations_file), \
@@ -287,3 +328,47 @@ class TestCollocationExtractor:
             with pytest.raises(ImportError) as excinfo:
                 CollocationExtractor()
             assert "English language model not found" in str(excinfo.value)
+            
+    def test_analyze_vocabulary_distribution_saves_collocations(self, tmp_path):
+        """Test that analyze_vocabulary_distribution saves collocations to file."""
+        # Setup
+        test_text = "Carnivorous plants catch insects with specialized leaves."
+        expected_collocations = {
+            "carnivorous plants": 1,
+            "catch insects": 1,
+            "specialized leaves": 1
+        }
+        
+        # Create a temporary collocations file path
+        collocations_file = tmp_path / "test_collocations.json"
+        
+        # Mock the extract_collocations method and patch COLLOCATIONS_PATH
+        with patch('collocation_extractor.COLLOCATIONS_PATH', collocations_file), \
+             patch.object(self.real_extractor, 'extract_collocations', 
+                         return_value=expected_collocations) as mock_extract:
+            
+            # Call the method we're testing
+            result = self.real_extractor.analyze_vocabulary_distribution(test_text)
+            
+            # Verify extract_collocations was called with the right arguments
+            mock_extract.assert_called_once_with(test_text, min_words=1, max_words=4, debug=False)
+            
+            # Verify the result contains our collocations
+            assert 'collocations' in result
+            assert result['collocations'] == expected_collocations
+            
+            # Verify the collocations were saved to file
+            assert collocations_file.exists(), f"Collocations file was not created at {collocations_file}"
+            
+            # Read the saved collocations
+            with open(collocations_file, 'r') as f:
+                saved_collocations = json.load(f)
+                
+            # Verify the saved collocations match what we expect
+            assert saved_collocations == expected_collocations, \
+                f"Expected {expected_collocations}, got {saved_collocations}"
+                
+            # Verify the file was written with proper JSON formatting
+            with open(collocations_file, 'r') as f:
+                content = f.read()
+                json.loads(content)  # This will raise an exception if not valid JSON
