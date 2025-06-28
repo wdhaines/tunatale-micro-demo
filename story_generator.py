@@ -179,47 +179,7 @@ class ContentGenerator:
             traceback.print_exc()
             return None
     
-    def _save_story(self, story: str, phase: int, learning_objective: str) -> str:
-        """Save the generated story to a file.
-        
-        Args:
-            story: The story content to save
-            phase: The learning phase number
-            learning_objective: The learning objective for the story (required)
-            
-        Returns:
-            str: Path to the saved story file
-            
-        Raises:
-            ValueError: If learning_objective is empty or None
-        """
-        if not learning_objective or not learning_objective.strip():
-            raise ValueError("learning_objective cannot be empty")
-            
-        # Create output directory and parent directories if they don't exist
-        data_dir = Path(DATA_DIR) if isinstance(DATA_DIR, str) else DATA_DIR
-        output_dir = data_dir / 'generated_content'
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Generate a clean filename from the objective
-        clean_obj = learning_objective.strip().lower()
-        # Replace any non-alphanumeric character with underscore
-        clean_obj = ''.join(c if c.isalnum() else '_' for c in clean_obj)
-        # Remove any leading/trailing underscores and consecutive underscores
-        clean_obj = '_'.join(part for part in clean_obj.split('_') if part)
-        # Truncate to ensure the total filename stays within reasonable limits
-        # Keep it under 30 chars to match the test expectation
-        clean_obj = clean_obj[:30]
-        # Ensure we don't end with an underscore after truncation
-        clean_obj = clean_obj.rstrip('_')
-        
-        if not clean_obj:  # Fallback if no valid characters remain
-            clean_obj = f"phase{phase}_story"
-        
-        # Create the full filename with the required format
-        filename = f"story_day{phase}_{clean_obj}.txt"
-        story_path = output_dir / filename
-        
+
     def _extract_title(self, story: str) -> str:
         """Extract the title from the story content.
         

@@ -14,7 +14,10 @@ SAMPLE_COLLOCATIONS = ["special plants", "heavy rain", "strong coffee"]
 @pytest.fixture
 def tracker(tmp_path):
     """Fixture providing an SRSTracker with a temporary data directory."""
-    return SRSTracker(data_dir=str(tmp_path), filename='test_srs.json')
+    # Create a temporary directory for SRSTracker data
+    srs_dir = tmp_path / 'srs_data'
+    srs_dir.mkdir(exist_ok=True)
+    return SRSTracker(data_dir=str(srs_dir), filename='test_srs.json')
 class TestCollocationStatus:
     """Tests for CollocationStatus class."""
     
@@ -62,8 +65,12 @@ class TestSRSTracker:
     
     def test_initialization_new_file(self, tmp_path):
         """Test initializing with a new file."""
-        test_file = tmp_path / 'test_srs.json'
-        tracker = SRSTracker(data_dir=str(tmp_path), filename='test_srs.json')
+        # Create a temporary directory for SRSTracker data
+        srs_dir = tmp_path / 'srs_data'
+        srs_dir.mkdir(exist_ok=True)
+        test_file = srs_dir / 'test_srs.json'
+        
+        tracker = SRSTracker(data_dir=str(srs_dir), filename='test_srs.json')
         assert tracker.current_day == 1
         assert len(tracker.collocations) == 0
         assert test_file.exists()
@@ -116,9 +123,13 @@ class TestSRSTracker:
 
     def test_save_and_load_state(self, tmp_path):
         """Test that state is properly saved and loaded."""
+        # Create a temporary directory for SRSTracker data
+        srs_dir = tmp_path / 'srs_data'
+        srs_dir.mkdir(exist_ok=True)
+        test_file = srs_dir / 'test_srs.json'
+        
         # Create and save state
-        test_file = tmp_path / 'test_srs.json'
-        tracker1 = SRSTracker(data_dir=str(tmp_path), filename='test_srs.json')
+        tracker1 = SRSTracker(data_dir=str(srs_dir), filename='test_srs.json')
         tracker1.add_collocations(["test phrase"], day=1)
         tracker1.current_day = 5
         tracker1._save_state()
@@ -127,7 +138,7 @@ class TestSRSTracker:
         assert test_file.exists()
         
         # Load in a new tracker
-        tracker2 = SRSTracker(data_dir=str(tmp_path), filename='test_srs.json')
+        tracker2 = SRSTracker(data_dir=str(srs_dir), filename='test_srs.json')
         
         assert tracker2.current_day == 5
         assert "test phrase" in tracker2.collocations
@@ -135,19 +146,27 @@ class TestSRSTracker:
 
     def test_corrupted_file_handling(self, tmp_path):
         """Test handling of corrupted JSON file."""
-        test_file = tmp_path / 'test_srs.json'
+        # Create a temporary directory for SRSTracker data
+        srs_dir = tmp_path / 'srs_data'
+        srs_dir.mkdir(exist_ok=True)
+        test_file = srs_dir / 'test_srs.json'
+        
         # Create a corrupted JSON file
         test_file.write_text('{invalid json')
         
         # Should not raise exception
-        tracker = SRSTracker(data_dir=str(tmp_path), filename='test_srs.json')
+        tracker = SRSTracker(data_dir=str(srs_dir), filename='test_srs.json')
         assert len(tracker.collocations) == 0
         assert tracker.current_day == 1
 
     def test_context_manager(self, tmp_path):
         """Test that context manager properly saves on exit."""
-        test_file = tmp_path / 'test_srs.json'
-        with SRSTracker(data_dir=str(tmp_path), filename='test_srs.json') as tracker:
+        # Create a temporary directory for SRSTracker data
+        srs_dir = tmp_path / 'srs_data'
+        srs_dir.mkdir(exist_ok=True)
+        test_file = srs_dir / 'test_srs.json'
+        
+        with SRSTracker(data_dir=str(srs_dir), filename='test_srs.json') as tracker:
             tracker.add_collocations(["test phrase"], day=1)
         
         # Check that file was saved

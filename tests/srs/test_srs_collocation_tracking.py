@@ -3,6 +3,9 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
+import json
+import os
+from pathlib import Path
 
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
 from curriculum_models import Curriculum, CurriculumDay
@@ -49,13 +52,24 @@ def srs_tracker(tmp_path):
     
     # Save the initial state to the test directory
     tracker._save_state()
-    return tracker
+    
+    # Ensure the file exists and is in the temp directory
+    srs_file = data_dir / "test_srs.json"
+    assert srs_file.exists(), f"SRS file not created at {srs_file}"
+    
+    yield tracker
+    
+    # Clean up the test file after the test
+    if srs_file.exists():
+        srs_file.unlink()
 
-@pytest.mark.allow_data_dir
 class TestSRSCollocationTracking:
     """Tests for SRS collocation tracking and prioritization."""
     
-    def test_get_due_collocations_prioritization(self, srs_tracker):
+    def test_get_due_collocations_prioritization(self, srs_tracker, tmp_path):
+        """Test that get_due_collocations returns collocations in correct priority order."""
+        # Ensure we're using the temporary directory
+        assert 'test_data' in str(srs_tracker.data_dir) or 'pytest' in str(srs_tracker.data_dir)
         """Test that get_due_collocations returns collocations in correct priority order."""
         # Collocations due on day 1: 'venus flytrap' (new), 'tiny hairs' (new)
         due = srs_tracker.get_due_collocations(day=1, min_items=2, max_items=5)
@@ -73,7 +87,10 @@ class TestSRSCollocationTracking:
     @patch.object(ContentGenerator, '_load_prompt', return_value='test prompt')
     def test_collocation_tracking_in_story_generation(self, mock_load_prompt, srs_tracker, tmp_path):
         """Test that story generation properly tracks collocations in SRS."""
-        # Setup mock curriculum
+        # Ensure we're using the temporary directory
+        assert 'test_data' in str(srs_tracker.data_dir) or 'pytest' in str(srs_tracker.data_dir)
+        
+        # Create a curriculum with some collocations
         curriculum = Curriculum(
             target_language="English",
             learner_level=CEFRLevel.A2.value,
@@ -82,8 +99,6 @@ class TestSRSCollocationTracking:
             learning_objective="Test Learning Objective",
             metadata={"title": "Test Curriculum"}
         )
-        
-        # Add a day with some collocations
         day_data = CurriculumDay(
             day=1,
             title="Carnivorous Plants",
@@ -105,13 +120,39 @@ class TestSRSCollocationTracking:
         mock_extractor = MagicMock()
         mock_extractor.extract_collocations.return_value = SAMPLE_COLLOCATIONS
         
-        # Create content generator with our mocks
+        # Import ContentGenerator here to avoid circular imports
+        from story_generator import ContentGenerator
+            
+        # Create a mock for SRSTracker that returns our test instance
+        def mock_srs_tracker(data_dir='data', filename='srs_status.json'):
+            return srs_tracker
+            
+        # Mock the _load_prompt method to avoid file I/O
+        def mock_load_prompt(self, filename):
+            return "Test prompt content"
+            
+        # Save the original __init__
+        original_init = ContentGenerator.__init__
+        
+        # Create a mock __init__ that sets up the test environment
+        def mock_init(self, *args, **kwargs):
+            original_init(self, *args, **kwargs)
+            self.story_prompt = "Test story prompt"
+            self.srs = srs_tracker
+        
+        # Patch the imports and SRSTracker
         with patch('story_generator.Curriculum.load', return_value=curriculum), \
              patch('story_generator.MockLLM', return_value=mock_llm), \
-             patch('story_generator.CollocationExtractor', return_value=mock_extractor):
+             patch('story_generator.CollocationExtractor', return_value=mock_extractor), \
+             patch('story_generator.SRSTracker', mock_srs_tracker), \
+             patch('story_generator.ContentGenerator.__init__', new=mock_init), \
+             patch('story_generator.ContentGenerator._load_prompt', new=mock_load_prompt):
             
+            # Import here to ensure our patches are in place
+            from story_generator import ContentGenerator
+            
+            # Create content generator - it will use our mocked SRSTracker
             gen = ContentGenerator()
-            gen.srs = srs_tracker
             
             # Generate story for day 1
             result = gen.generate_story_for_day(1)
@@ -134,15 +175,17 @@ class TestSRSCollocationTracking:
             assert srs_tracker.collocations["venus flytrap"].review_count >= 1
             assert srs_tracker.collocations["carnivorous plant"].review_count >= 1
     
-    @patch.object(ContentGenerator, '_load_prompt', return_value='test prompt')
-    def test_collocation_categorization(self, mock_load_prompt, srs_tracker):
+    def test_collocation_categorization(self, srs_tracker):
         """Test that collocations are properly categorized during story generation."""
         # Test collocation categorization
         new_collocation = "new collocation"
         learning_collocation = "learning collocation"
         reviewing_collocation = "reviewing collocation"
         mastered_collocation = "mastered collocation"
-        
+    
+        # Import ContentGenerator here to avoid circular imports
+        from story_generator import ContentGenerator
+    
         # Add test collocations with different review states
         srs_tracker.collocations[new_collocation] = CollocationStatus(
             text=new_collocation,
@@ -153,7 +196,7 @@ class TestSRSCollocationTracking:
             next_review_day=1,
             stability=0.5
         )
-        
+    
         srs_tracker.collocations[learning_collocation] = CollocationStatus(
             text=learning_collocation,
             first_seen_day=1,
@@ -163,7 +206,7 @@ class TestSRSCollocationTracking:
             next_review_day=1,
             stability=1.5
         )
-        
+    
         srs_tracker.collocations[reviewing_collocation] = CollocationStatus(
             text=reviewing_collocation,
             first_seen_day=1,
@@ -173,7 +216,7 @@ class TestSRSCollocationTracking:
             next_review_day=1,
             stability=3.0
         )
-        
+    
         srs_tracker.collocations[mastered_collocation] = CollocationStatus(
             text=mastered_collocation,
             first_seen_day=1,
@@ -183,16 +226,51 @@ class TestSRSCollocationTracking:
             next_review_day=100,  # Far in the future
             stability=10.0
         )
+    
+        # Create a mock for SRSTracker that returns our test instance
+        def mock_srs_tracker(data_dir='data', filename='srs_status.json'):
+            return srs_tracker
+    
+        # Mock the _load_prompt method to avoid file I/O
+        def mock_load_prompt(self, filename):
+            return "Test prompt content"
+            
+        # Create a mock collocation extractor
+        mock_extractor = MagicMock()
+        mock_extractor.extract_collocations.return_value = SAMPLE_COLLOCATIONS
+    
+        # Create a mock __init__ that sets up the test environment
+        def create_mock_init(extractor):
+            def mock_init(self, *args, **kwargs):
+                # Don't call original_init to avoid file operations
+                # Set up required attributes directly
+                self.story_prompt = "Test story prompt"
+                self.srs = srs_tracker
+                # Add any other required attributes that would normally be set in __init__
+                self.llm = None  # Will be set later in the test
+                self._collocation_extractor = extractor  # Use the provided extractor
+                self.data_dir = Path("test_data")  # Set up a test data directory
+            return mock_init
         
-        # Create a ContentGenerator instance to ensure the mock is used
-        generator = ContentGenerator()
+        # Create the mock_init with the mock_extractor
+        mock_init = create_mock_init(mock_extractor)
         
-        # Test categorization
-        assert srs_tracker._categorize_collocation(new_collocation, 1) == "new"
-        assert srs_tracker._categorize_collocation(learning_collocation, 1) == "learning"
-        assert srs_tracker._categorize_collocation(reviewing_collocation, 1) == "reviewing"
-        assert srs_tracker._categorize_collocation(mastered_collocation, 1) == "mastered"
-        
+        # Patch the SRSTracker import and _load_prompt
+        with patch('story_generator.SRSTracker', mock_srs_tracker), \
+             patch('story_generator.ContentGenerator.__init__', new=mock_init), \
+             patch('story_generator.ContentGenerator._load_prompt', new=mock_load_prompt):
+            # Import here to ensure our patches are in place
+            from story_generator import ContentGenerator
+    
+            # Create content generator - it will use our mocked SRSTracker
+            generator = ContentGenerator()
+    
+            # Test categorization
+            assert srs_tracker._categorize_collocation(new_collocation, 1) == "new"
+            assert srs_tracker._categorize_collocation(learning_collocation, 1) == "learning"
+            assert srs_tracker._categorize_collocation(reviewing_collocation, 1) == "reviewing"
+            assert srs_tracker._categorize_collocation(mastered_collocation, 1) == "mastered"
+    
         # Setup mock curriculum
         curriculum = Curriculum(
             target_language="English",
@@ -202,7 +280,7 @@ class TestSRSCollocationTracking:
             learning_objective="Test Learning Objective",
             metadata={"title": "Test Curriculum"}
         )
-        
+    
         # Add a day with some collocations
         day_data = CurriculumDay(
             day=1,
@@ -214,28 +292,32 @@ class TestSRSCollocationTracking:
             story_guidance=""
         )
         curriculum.days.append(day_data)
-        
-        # Mock the LLM and collocation extractor
+    
+        # Mock the LLM
         mock_llm = MagicMock()
         mock_llm.get_response.return_value = {
             "choices": [{"message": {"content": SAMPLE_STORY, "role": "assistant"}}]
         }
-        
-        # Mock the collocation extractor to return known collocations
-        mock_extractor = MagicMock()
-        mock_extractor.extract_collocations.return_value = SAMPLE_COLLOCATIONS
-        
+    
+        # Create a new mock_init for the second part of the test
+        mock_init = create_mock_init(mock_extractor)
+    
         # Create content generator with our mocks
         with patch('story_generator.Curriculum.load', return_value=curriculum), \
              patch('story_generator.MockLLM', return_value=mock_llm), \
-             patch('story_generator.CollocationExtractor', return_value=mock_extractor):
-            
+             patch('story_generator.CollocationExtractor', return_value=mock_extractor), \
+             patch('story_generator.ContentGenerator.__init__', new=mock_init), \
+             patch('story_generator.ContentGenerator._load_prompt', new=mock_load_prompt):
+    
+            # Create the generator and set up required attributes
             gen = ContentGenerator()
-            gen.srs = srs_tracker
-            
+            gen.llm = mock_llm  # Ensure the mock LLM is used
+            gen.srs = srs_tracker  # Ensure our test tracker is used
+            gen._collocation_extractor = mock_extractor  # Ensure the mock extractor is used
+    
             # Generate story for day 1 and get the collocation report
             result = gen.generate_day_story(1)
-            
+    
             # Verify we got a result
             assert result is not None
             story, collocation_report = result

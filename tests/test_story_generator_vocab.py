@@ -16,8 +16,19 @@ class TestStoryGeneratorVocab:
         }
         mock_llm_class.return_value = mock_llm
         
-        generator = ContentGenerator()
-        generator.llm = mock_llm
+        # Create a temporary directory for SRSTracker
+        srs_dir = tmp_path / 'srs_data'
+        srs_dir.mkdir()
+        
+        # Patch SRSTracker to use the temporary directory
+        with patch('story_generator.SRSTracker') as mock_srs_class:
+            mock_srs = Mock()
+            mock_srs.get_due_collocations.return_value = []
+            mock_srs_class.return_value = mock_srs
+            
+            generator = ContentGenerator()
+            generator.llm = mock_llm
+            generator.srs = mock_srs  # Use the mocked SRSTracker
         
         # Create test parameters with vocabulary
         params = StoryParams(
@@ -68,8 +79,19 @@ class TestStoryGeneratorVocab:
         }
         mock_llm_class.return_value = mock_llm
         
-        generator = ContentGenerator()
-        generator.llm = mock_llm
+        # Create a temporary directory for SRSTracker
+        srs_dir = tmp_path / 'srs_data'
+        srs_dir.mkdir()
+        
+        # Patch SRSTracker to use the temporary directory
+        with patch('story_generator.SRSTracker') as mock_srs_class:
+            mock_srs = Mock()
+            mock_srs.get_due_collocations.return_value = []
+            mock_srs_class.return_value = mock_srs
+            
+            generator = ContentGenerator()
+            generator.llm = mock_llm
+            generator.srs = mock_srs  # Use the mocked SRSTracker
         
         # Create test parameters with empty vocabulary
         params = StoryParams(

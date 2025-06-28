@@ -85,6 +85,18 @@ def setup_test_environment(tmp_path, monkeypatch, request):
     config.DATA_DIR = test_data_dir
     config.MOCK_RESPONSES_DIR = test_data_dir / "mock_responses"
     
+    # Ensure the DATA_DIR is properly patched in all modules
+    import sys
+    import importlib
+    
+    # Patch the config module in sys.modules
+    sys.modules['config'].DATA_DIR = test_data_dir
+    
+    # Reload modules that might have imported DATA_DIR
+    for module_name in ['story_generator', 'collocation_extractor', 'srs_tracker']:
+        if module_name in sys.modules:
+            importlib.reload(sys.modules[module_name])
+    
     # Track original files in the data directory
     original_files = set()
     if original_data_dir.exists():
@@ -239,29 +251,39 @@ def content_generator(mocker, tmp_path):
     vocab_file = test_output_dir / 'a2_flat_vocabulary.json'
     vocab_file.write_text('{"test": 1}')  # Minimal valid vocabulary
     
+    # Create a temporary directory for SRSTracker
+    srs_data_dir = tmp_path / 'srs_data'
+    srs_data_dir.mkdir(exist_ok=True)
+    
     # Create empty SRS and collocations files in the test directory
-    srs_file = test_output_dir / 'srs_status.json'
+    srs_file = srs_data_dir / 'srs_status.json'
     srs_file.write_text('{"current_day": 1, "collocations": {}}')
     
     collocations_file = test_output_dir / 'collocations.json'
     collocations_file.write_text('[]')
     
+    # Create a real SRSTracker with the test directory
+    from srs_tracker import SRSTracker
+    srs_tracker = SRSTracker(data_dir=str(srs_data_dir), filename='srs_status.json')
+    
+    # Patch the SRSTracker to use our test instance
+    mocker.patch('story_generator.SRSTracker', return_value=srs_tracker)
+    
     # Create a prompts directory and a test prompt file
     test_prompts_dir = test_output_dir / 'prompts'
     test_prompts_dir.mkdir(exist_ok=True)
     
-    # Create a test prompt file
+    # Create a test prompt file with the expected format
     test_prompt_file = test_prompts_dir / 'story_prompt.txt'
     test_prompt_file.write_text("""
-    Learning Objective: {LEARNING_OBJECTIVE}
+    VOCABULARY CONTEXT:
+    - Focus on teaching: {NEW_VOCABULARY}
+    - Naturally recycle: {RECYCLED_COLLOCATIONS}
+    - Genre: {GENRE}
     
-    Write a short story in {LANGUAGE} at the {CEFR_LEVEL} CEFR level.
-    The story should be about {TOPIC}.
-    
-    Include these collocations:
-    {COLLOCATIONS}
-    
-    The story should be engaging and appropriate for language learning.
+    Write a short, engaging story that teaches the new vocabulary
+    while naturally incorporating the recycled collocations.
+    The story should be appropriate for language learning.
     """)
     
     # Mock the DATA_DIR and PROMPTS_DIR to use our test directories
@@ -269,18 +291,20 @@ def content_generator(mocker, tmp_path):
     mocker.patch('story_generator.PROMPTS_DIR', test_prompts_dir)
     mocker.patch('collocation_extractor.DATA_DIR', test_output_dir)
     
-    # Create a mock SRSTracker
-    mock_srs = mocker.MagicMock()
-    mock_srs.get_due_collocations.return_value = []
-    mock_srs.add_collocation = mocker.MagicMock()
-    mock_srs.mark_reviewed = mocker.MagicMock()
+    # Create a temporary directory for SRSTracker data if it doesn't exist
+    srs_data_dir = tmp_path / 'srs_data'
+    srs_data_dir.mkdir(exist_ok=True)
+    
+    # Create a real SRSTracker with the test directory
+    from srs_tracker import SRSTracker
+    srs_tracker = SRSTracker(data_dir=str(srs_data_dir), filename='test_srs.json')
     
     # Create a mock CollocationExtractor
     mock_extractor = mocker.MagicMock()
     mock_extractor.extract_collocations.return_value = ["test collocation"]
     
-    # Patch the SRSTracker and CollocationExtractor to return our mocks
-    mocker.patch('story_generator.SRSTracker', return_value=mock_srs)
+    # Patch the SRSTracker and CollocationExtractor to return our instances
+    mocker.patch('story_generator.SRSTracker', return_value=srs_tracker)
     mocker.patch('story_generator.CollocationExtractor', return_value=mock_extractor)
     
     # Create a mock for the LLM with a default response

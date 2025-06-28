@@ -48,25 +48,38 @@ class SRSTracker:
             data_dir: Directory to store the status file
             filename: Name of the status file
         """
+        import sys
+        from pathlib import Path
+        
+        self._is_test = 'pytest' in sys.modules
         self.data_dir = Path(data_dir)
-        self.data_dir.mkdir(exist_ok=True)
-        self.status_file = self.data_dir / filename
-        
-        # Initialize with default values
-        self.current_day: int = 1
+        self.filename = filename
+        self.filepath = self.data_dir / filename
         self.collocations: Dict[str, CollocationStatus] = {}
+        self.current_day = 1
         
-        # Create empty state file if it doesn't exist
-        if not self.status_file.exists():
+        # In test mode, ensure we're not using the main data directory
+        if self._is_test:
+            # Verify we're not writing to the main data directory
+            main_data_dir = Path('data').resolve()
+            if self.data_dir.resolve() == main_data_dir:
+                raise RuntimeError(
+                    "Attempted to write to main data directory in test mode. "
+                    "Use a temporary directory for tests."
+                )
+        
+        # Always create directory and initialize state, even in test mode
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        if self.filepath.exists():
+            self._load_state()
+        else:
             self._save_state()
-            
-        self._load_state()
 
     def _load_state(self) -> None:
         """Load the tracker state from JSON file."""
         try:
-            if self.status_file.exists():
-                with open(self.status_file, 'r', encoding='utf-8') as f:
+            if self.filepath.exists():
+                with open(self.filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 self.current_day = data.get('current_day', 1)
                 self.collocations = {
@@ -89,10 +102,16 @@ class SRSTracker:
                     for colloc in self.collocations.values()
                 }
             }
-            with open(self.status_file, 'w', encoding='utf-8') as f:
+            # In test mode, ensure the directory exists before writing
+            if self._is_test:
+                self.data_dir.mkdir(parents=True, exist_ok=True)
+                
+            with open(self.filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except IOError as e:
-            print(f"Error saving SRS state: {e}")
+            if not self._is_test:  # Only log errors in non-test mode
+                print(f"Error saving SRS state: {e}")
+            raise  # Re-raise the exception to fail tests
 
     def add_collocations(self, collocations: List[str], day: Optional[int] = None) -> None:
         """Add new collocations or update existing ones.
