@@ -7,6 +7,7 @@ from typing import Dict, Any
 import pytest
 
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
+from curriculum_models import Curriculum, CurriculumDay
 
 # Test data paths
 TEST_DATA_DIR = Path(__file__).parent / 'test_data'
@@ -341,21 +342,27 @@ def test_generate_story_uses_prompt_template(content_generator: ContentGenerator
 
 def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp_path):
     """Test successful story generation for a specific day."""
-    # Setup test data
-    test_curriculum = {
-        'phases': {
-            'phase2': {
-                'learning_objective': 'Test Learning',
-                'cefr_level': 'A2',
-                'story_length': 200,
-                'new_vocabulary': ['test', 'vocabulary'],
-                'recycled_vocabulary': ['recycled', 'words']
-            }
-        },
-        'language': 'English'
-    }
+    # Setup test data using new curriculum models
+    test_day = CurriculumDay(
+        day=2,
+        title='Test Day',
+        focus='Testing',
+        collocations=['test collocation', 'vocabulary usage'],
+        presentation_phrases=['test phrase', 'example usage'],
+        learning_objective='Test Learning',
+        story_guidance='This is a test story'
+    )
     
-    # Mock the prompt with only the placeholders that the code actually uses
+    test_curriculum = Curriculum(
+        learning_objective='Test Learning',
+        target_language='English',
+        learner_level='A2',
+        presentation_length=10,  # minutes
+        days=[test_day],
+        metadata={'version': 'test'}
+    )
+    
+    # Mock the prompt with placeholders that match the implementation
     content_generator.story_prompt = """
     VOCABULARY CONTEXT:
     - Focus on teaching: {NEW_VOCABULARY}
@@ -367,6 +374,7 @@ def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp
     test_story = """**The Test Story**
     
     This is a test story for day 2.
+    It includes test collocation and vocabulary usage.
     """
 
     
@@ -400,8 +408,8 @@ def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp
         # Verify the LLM was called with the correct prompt
         content_generator.llm.get_response.assert_called_once()
         
-        # Verify curriculum was loaded
-        content_generator._load_curriculum.assert_called_once()
+        # Verify curriculum was loaded (called twice: once in generate_story_for_day and once in generate_day_story)
+        assert content_generator._load_curriculum.call_count == 2
         
         # Verify SRS interactions
         content_generator.srs.get_due_collocations.assert_called_once()
@@ -413,12 +421,21 @@ def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp
         last_call = content_generator.srs.add_collocations.call_args
         assert last_call[1]['day'] == 2  # Verify the day parameter
         
-        # Verify story was saved with correct parameters
-        mock_save_story.assert_called_once()
-        call_args = mock_save_story.call_args[0]
-        assert call_args[0] == test_story  # story content
-        assert call_args[1] == 2  # phase
-        assert call_args[2] == "Test Learning"  # learning_objective
+        # Verify story was saved - check it was called twice (once in generate_story_for_day and once in generate_day_story)
+        assert mock_save_story.call_count == 2
+        
+        # Get all calls and check their arguments
+        calls = mock_save_story.call_args_list
+        
+        # First call (from generate_story_for_day)
+        assert calls[0][0][0] == test_story  # story content
+        assert calls[0][0][1] == 2  # phase
+        assert calls[0][0][2] == 'Test Learning'  # learning_objective
+        
+        # Second call (from generate_day_story)
+        assert calls[1][1]['story'] == test_story
+        assert calls[1][1]['phase'] == 2
+        assert calls[1][1]['learning_objective'] == 'Test Learning'
 
 
 def test_generate_story_for_day_missing_curriculum(content_generator: ContentGenerator):
