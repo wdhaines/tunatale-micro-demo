@@ -1,11 +1,36 @@
+"""Story generation functionality for TunaTale."""
 import json
 import logging
+import os
 from pathlib import Path
 from typing import List, Dict, Optional, Union, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
-from config import DATA_DIR, PROMPTS_DIR, DEFAULT_STORY_LENGTH, MOCK_RESPONSES_DIR, CURRICULUM_PATH
+# Try to import config values, with fallbacks for testing
+# This makes the module more resilient to missing config during testing
+try:
+    from config import (
+        DATA_DIR, 
+        PROMPTS_DIR, 
+        DEFAULT_STORY_LENGTH, 
+        MOCK_RESPONSES_DIR, 
+        CURRICULUM_PATH
+    )
+except ImportError:
+    # Fallback values for testing
+    TEST_DIR = Path(__file__).parent.parent / 'tests'
+    DATA_DIR = TEST_DIR / 'test_data'
+    PROMPTS_DIR = TEST_DIR / 'prompts'
+    MOCK_RESPONSES_DIR = DATA_DIR / 'mock_responses'
+    CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
+    DEFAULT_STORY_LENGTH = 500
+
+    # Ensure test directories exist
+    DATA_DIR.mkdir(exist_ok=True, parents=True)
+    PROMPTS_DIR.mkdir(exist_ok=True, parents=True)
+    MOCK_RESPONSES_DIR.mkdir(exist_ok=True, parents=True)
+
 from llm_mock import MockLLM
 from srs_tracker import SRSTracker
 from collocation_extractor import CollocationExtractor
@@ -46,17 +71,30 @@ class StoryParams:
         """Validate the CEFR level after initialization."""
         valid_levels = {level.value for level in CEFRLevel}
         
-        # Convert to string if it's a CEFRLevel enum
-        level_str = self.cefr_level.value if isinstance(self.cefr_level, CEFRLevel) else str(self.cefr_level).upper()
-        
-        if level_str not in valid_levels:
-            raise ValueError(
-                f"Invalid CEFR level: '{self.cefr_level}'. "
-                f"Must be one of: {', '.join(valid_levels)}"
-            )
-        
-        # Ensure cefr_level is stored as the enum value
-        self.cefr_level = CEFRLevel(level_str)
+        # Handle different input types for cefr_level
+        if isinstance(self.cefr_level, CEFRLevel):
+            # Already a valid CEFRLevel enum, nothing to do
+            pass
+        elif isinstance(self.cefr_level, str):
+            # Convert string to CEFRLevel enum
+            level_str = self.cefr_level.upper()
+            if level_str in valid_levels:
+                self.cefr_level = CEFRLevel(level_str)
+            else:
+                raise ValueError(
+                    f"Invalid CEFR level: '{self.cefr_level}'. "
+                    f"Must be one of: {', '.join(sorted(valid_levels))}"
+                )
+        else:
+            # For any other type, try to convert to string and validate
+            level_str = str(self.cefr_level).upper()
+            if level_str in valid_levels:
+                self.cefr_level = CEFRLevel(level_str)
+            else:
+                raise ValueError(
+                    f"Invalid CEFR level: '{self.cefr_level}'. "
+                    f"Must be one of: {', '.join(sorted(valid_levels))}"
+                )
 
 class ContentGenerator:
     def __init__(self):
@@ -159,7 +197,8 @@ class ContentGenerator:
             raise ValueError("learning_objective cannot be empty")
             
         # Create output directory and parent directories if they don't exist
-        output_dir = DATA_DIR / 'generated_content'
+        data_dir = Path(DATA_DIR) if isinstance(DATA_DIR, str) else DATA_DIR
+        output_dir = data_dir / 'generated_content'
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Generate a clean filename from the objective
@@ -242,7 +281,8 @@ class ContentGenerator:
             raise ValueError("learning_objective cannot be empty")
             
         # Create output directory and parent directories if they don't exist
-        output_dir = DATA_DIR / 'generated_content'
+        data_dir = Path(DATA_DIR) if isinstance(DATA_DIR, str) else DATA_DIR
+        output_dir = data_dir / 'generated_content'
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Try to extract title from story content
@@ -252,12 +292,7 @@ class ContentGenerator:
             if clean_title:
                 filename = f"story_day{phase}_{clean_title}.txt"
                 story_path = output_dir / filename
-                # Check if the file would be different from the learning_objective version
-                clean_obj = self._clean_filename(learning_objective)
-                if clean_obj and clean_obj != clean_title:
-                    # If different, make sure we're not overwriting an existing file
-                    if not story_path.exists():
-                        return self._write_story_file(story_path, story)
+                return self._write_story_file(story_path, story)
                     
         # Fall back to learning objective if no title found or if file exists
         clean_obj = self._clean_filename(learning_objective)

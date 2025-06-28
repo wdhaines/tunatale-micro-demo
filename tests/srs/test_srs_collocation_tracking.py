@@ -18,9 +18,15 @@ the leaves snap shut. This is how the plant gets its nutrients.
 SAMPLE_COLLOCATIONS = ["venus flytrap", "carnivorous plant", "special leaves", "tiny hairs", "snap shut"]
 
 @pytest.fixture
-def srs_tracker():
-    """Create an SRS tracker for testing."""
-    tracker = SRSTracker()
+def srs_tracker(tmp_path):
+    """Create an SRS tracker for testing with isolated temporary directory."""
+    # Create a temporary directory for the test
+    data_dir = tmp_path / "test_data"
+    data_dir.mkdir(exist_ok=True)
+    
+    # Create tracker with the temporary directory
+    tracker = SRSTracker(data_dir=str(data_dir), filename="test_srs.json")
+    
     # Add some collocations with different review states
     collocations = [
         ("venus flytrap", 1, 1.0),     # New, never reviewed
@@ -40,8 +46,12 @@ def srs_tracker():
             next_review_day=days_until_due,
             stability=stability
         )
+    
+    # Save the initial state to the test directory
+    tracker._save_state()
     return tracker
 
+@pytest.mark.allow_data_dir
 class TestSRSCollocationTracking:
     """Tests for SRS collocation tracking and prioritization."""
     
@@ -60,7 +70,8 @@ class TestSRSCollocationTracking:
         # 'special leaves' should not be included as it's not due yet (next_review_day=10)
         assert 'special leaves' not in due
     
-    def test_collocation_tracking_in_story_generation(self, srs_tracker, tmp_path):
+    @patch.object(ContentGenerator, '_load_prompt', return_value='test prompt')
+    def test_collocation_tracking_in_story_generation(self, mock_load_prompt, srs_tracker, tmp_path):
         """Test that story generation properly tracks collocations in SRS."""
         # Setup mock curriculum
         curriculum = Curriculum(
@@ -123,9 +134,66 @@ class TestSRSCollocationTracking:
             assert srs_tracker.collocations["venus flytrap"].review_count >= 1
             assert srs_tracker.collocations["carnivorous plant"].review_count >= 1
     
-    def test_collocation_categorization(self, srs_tracker):
+    @patch.object(ContentGenerator, '_load_prompt', return_value='test prompt')
+    def test_collocation_categorization(self, mock_load_prompt, srs_tracker):
         """Test that collocations are properly categorized during story generation."""
-        # Setup mock curriculum with known collocations
+        # Test collocation categorization
+        new_collocation = "new collocation"
+        learning_collocation = "learning collocation"
+        reviewing_collocation = "reviewing collocation"
+        mastered_collocation = "mastered collocation"
+        
+        # Add test collocations with different review states
+        srs_tracker.collocations[new_collocation] = CollocationStatus(
+            text=new_collocation,
+            first_seen_day=1,
+            last_seen_day=1,
+            appearances=[1],
+            review_count=0,
+            next_review_day=1,
+            stability=0.5
+        )
+        
+        srs_tracker.collocations[learning_collocation] = CollocationStatus(
+            text=learning_collocation,
+            first_seen_day=1,
+            last_seen_day=1,
+            appearances=[1],
+            review_count=2,
+            next_review_day=1,
+            stability=1.5
+        )
+        
+        srs_tracker.collocations[reviewing_collocation] = CollocationStatus(
+            text=reviewing_collocation,
+            first_seen_day=1,
+            last_seen_day=1,
+            appearances=[1],
+            review_count=5,
+            next_review_day=1,
+            stability=3.0
+        )
+        
+        srs_tracker.collocations[mastered_collocation] = CollocationStatus(
+            text=mastered_collocation,
+            first_seen_day=1,
+            last_seen_day=1,
+            appearances=[1],
+            review_count=10,
+            next_review_day=100,  # Far in the future
+            stability=10.0
+        )
+        
+        # Create a ContentGenerator instance to ensure the mock is used
+        generator = ContentGenerator()
+        
+        # Test categorization
+        assert srs_tracker._categorize_collocation(new_collocation, 1) == "new"
+        assert srs_tracker._categorize_collocation(learning_collocation, 1) == "learning"
+        assert srs_tracker._categorize_collocation(reviewing_collocation, 1) == "reviewing"
+        assert srs_tracker._categorize_collocation(mastered_collocation, 1) == "mastered"
+        
+        # Setup mock curriculum
         curriculum = Curriculum(
             target_language="English",
             learner_level=CEFRLevel.A2.value,

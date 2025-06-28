@@ -27,16 +27,17 @@ class TestCLI:
         """Test that the --help flag shows help text."""
         with patch('sys.argv', ['main.py', '--help']), \
              patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            with pytest.raises(SystemExit) as exc_info:
-                CLI().run()
-            assert exc_info.value.code == 0
+            # The help flag should not raise SystemExit in the new implementation
+            result = CLI().run()
+            assert result == 0
             output = mock_stdout.getvalue()
             # Check for the actual help text that's displayed
-            assert "TunaTale Micro-Demo 0.1" in output
+            assert "TunaTale - A language learning tool" in output
             assert "positional arguments:" in output
             assert "generate" in output
             assert "extract" in output
-            assert "story" in output
+            assert "generate-day" in output
+            assert "continue" in output
             assert "view" in output
 
 
@@ -410,12 +411,12 @@ class TestErrorHandling:
         assert any(msg.lower() in error_output.lower() 
                   for msg in ["permission", "error"])
 
-    @patch('main.CLI._handle_story', side_effect=KeyboardInterrupt)
+    @patch('main.CLI._handle_generate', side_effect=KeyboardInterrupt)
     @patch('sys.stderr', new_callable=io.StringIO)
     @patch('sys.stdout', new_callable=io.StringIO)
     def test_keyboard_interrupt(self, mock_stdout, mock_stderr, mock_handler):
         """Test handling of keyboard interrupt."""
-        with patch('sys.argv', ['main.py', 'story', 'test_objective']):
+        with patch('sys.argv', ['main.py', 'generate', 'test_goal']):
             # The KeyboardInterrupt should be caught by the CLI and return 1
             result = CLI().run()
             
@@ -423,8 +424,13 @@ class TestErrorHandling:
         assert result == 1
         # Verify that the handler was called
         mock_handler.assert_called_once()
-        # Verify that an error message was printed to stderr
-        error_output = mock_stderr.getvalue()
-        assert any(msg in error_output 
-                 for msg in ["Error:", "Unexpected error:", "Operation cancelled"]), \
-               f"Expected error message not found in: {error_output}"
+        # Check both stdout and stderr for the error message
+        stdout_output = mock_stdout.getvalue()
+        stderr_output = mock_stderr.getvalue()
+        
+        # The error message should be in either stdout or stderr
+        expected_message = "Operation cancelled by user."
+        assert (expected_message in stdout_output or expected_message in stderr_output), \
+               f"Expected error message '{expected_message}' not found in stdout or stderr\n" \
+               f"stdout: {stdout_output}\n" \
+               f"stderr: {stderr_output}"

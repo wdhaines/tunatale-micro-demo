@@ -1,0 +1,13 @@
+Write a short story in {target_language} at the {cefr_level} level.
+
+Learning Objective: {learning_objective}
+
+Include these collocations naturally in the story:
+{formatted_collocations}
+
+Story Requirements:
+- Length: {story_length} words
+- Include dialogue
+- Use simple, clear language
+- Focus on practical vocabulary
+- Keep the story engaging and relevant to the learning objective

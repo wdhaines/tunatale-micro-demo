@@ -1,0 +1,16 @@
+{
+  "current_day": 5,
+  "collocations": {
+    "test phrase": {
+      "text": "test phrase",
+      "first_seen_day": 1,
+      "last_seen_day": 1,
+      "appearances": [
+        1
+      ],
+      "review_count": 0,
+      "next_review_day": 1,
+      "stability": 1.0
+    }
+  }
+}

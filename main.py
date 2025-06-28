@@ -1,14 +1,29 @@
+"""Command Line Interface for TunaTale language learning application."""
 import sys
 import json
+import os
 import argparse
 from pathlib import Path
 from typing import Dict, Callable, Any, Optional, Tuple
 from dataclasses import dataclass
 
+# Try to import config values, with fallbacks for testing
+try:
+    from config import CURRICULUM_PATH, COLLOCATIONS_PATH, DATA_DIR, DEFAULT_STORY_LENGTH
+except ImportError:
+    # Fallback values for testing
+    TEST_DIR = Path(__file__).parent.parent / 'tests'
+    DATA_DIR = TEST_DIR / 'test_data'
+    CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
+    COLLOCATIONS_PATH = DATA_DIR / 'collocations.json'
+    DEFAULT_STORY_LENGTH = 500
+    
+    # Ensure test directories exist
+    DATA_DIR.mkdir(exist_ok=True, parents=True)
+
 from curriculum_service import CurriculumGenerator
 from collocation_extractor import CollocationExtractor
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
-from config import CURRICULUM_PATH, COLLOCATIONS_PATH, DATA_DIR, DEFAULT_STORY_LENGTH
 
 
 @dataclass
@@ -27,16 +42,44 @@ class CLI:
         self._setup_commands()
     
     def _create_parser(self) -> argparse.ArgumentParser:
-        """Create and configure the argument parser."""
+        """Create and configure the argument parser with workflow information."""
+        # Main parser with workflow information
         parser = argparse.ArgumentParser(
-            description='TunaTale Micro-Demo 0.1',
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter
+            description='''
+            TunaTale - A language learning tool that uses stories and spaced repetition.
+            
+            Workflow:
+              1. generate    - Create a new curriculum
+              2. extract     - Extract collocations from the curriculum
+              3. generate-day X - Generate content for a specific day
+              4. continue    - Continue to the next day's content
+              
+            View progress with: view, analyze
+            ''',
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            add_help=False  # We'll add help manually to control formatting
         )
+        
+        # Add help option manually to control its position
+        parser.add_argument(
+            '-h', '--help', 
+            action='store_true',
+            help='Show this help message and exit'
+        )
+        
         subparsers = parser.add_subparsers(
             dest='command',
-            required=True,
             help='Available commands (use <command> -h for help)'
         )
+        
+        # Custom help handler that shows workflow first
+        def print_help(args):
+            parser.print_help()
+            print('\nFor help on a specific command, use: <command> -h')
+            sys.exit(0)
+            
+        help_parser = subparsers.add_parser('help', help='Show this help message')
+        help_parser.set_defaults(func=print_help)
         
         # Generate curriculum command
         gen_parser = subparsers.add_parser(
@@ -261,31 +304,31 @@ class CLI:
         self.commands = {
             'generate': Command(
                 handler=self._handle_generate,
-                help='Generate a new language learning curriculum'
-            ),
-            'generate-day': Command(
-                handler=self._handle_generate_day,
-                help='Generate story for specific curriculum day with SRS'
-            ),
-            'generate-comprehensive': Command(
-                handler=self._handle_comprehensive_generate,
-                help='Generate curriculum using comprehensive template'
+                help='Generate a new language learning curriculum (first step)'
             ),
             'extract': Command(
                 handler=self._handle_extract,
-                help='Extract collocations from curriculum'
+                help='Extract collocations from curriculum (second step)'
             ),
-            'story': Command(
-                handler=self._handle_story,
-                help='Generate a story for language learning'
+            'generate-day': Command(
+                handler=self._handle_generate_day,
+                help='Generate story for specific curriculum day with SRS (third step)'
+            ),
+            'continue': Command(
+                handler=self._handle_continue,
+                help='Continue to the next day, generating content and updating SRS'
+            ),
+            'generate-comprehensive': Command(
+                handler=self._handle_comprehensive_generate,
+                help='Generate curriculum using comprehensive template (advanced)'
             ),
             'view': Command(
                 handler=self._handle_view,
-                help='View generated content'
+                help='View generated content and progress'
             ),
             'analyze': Command(
                 handler=self._handle_analyze,
-                help='Analyze vocabulary distribution'
+                help='Analyze vocabulary distribution and learning progress'
             ),
         }
 
@@ -343,20 +386,61 @@ class CLI:
         """Handle the generate-day command."""
         from story_generator import ContentGenerator
         from srs_tracker import SRSTracker
+        from curriculum_models import Curriculum
         
         if not 1 <= args.day <= 5:
             print(f"Error: Day must be between 1 and 5, got {args.day}", file=sys.stderr)
             return 1
+        
+        # Check if curriculum exists
+        if not CURRICULUM_PATH.exists():
+            print("Error: No curriculum found. Please generate a curriculum first using 'generate' command.", 
+                  file=sys.stderr)
+            print("\nWorkflow: generate -> extract -> generate-day -> continue...")
+            return 1
             
         try:
+            # Load the curriculum to verify the requested day exists
+            curriculum = Curriculum.load(CURRICULUM_PATH)
+            if args.day > len(curriculum.days):
+                print(f"Error: Day {args.day} is not in the curriculum (max day: {len(curriculum.days)})", 
+                      file=sys.stderr)
+                return 1
+                
+            print(f"Generating content for day {args.day}...")
             generator = ContentGenerator()
-            result = generator.generate_story_for_day(args.day)
-            if result:
-                print(f"Successfully generated story for day {args.day}")
-                return 0
-            return 1
+            
+            # Generate the day's content
+            result = generator.generate_day_content(args.day)
+            if not result:
+                print(f"Failed to generate content for day {args.day}", file=sys.stderr)
+                return 1
+                
+            # Unpack the result (story, collocation_report, srs_update)
+            story, collocation_report, srs_update = result
+            
+            # Display collocation information
+            print("\n=== Collocations ===")
+            if collocation_report.get('new'):
+                print(f"\nNew collocations introduced:")
+                for colloc in collocation_report['new']:
+                    print(f"- {colloc}")
+                    
+            if collocation_report.get('reviewed'):
+                print(f"\nCollocations reviewed:")
+                for colloc in collocation_report['reviewed']:
+                    print(f"- {colloc}")
+                    
+            if collocation_report.get('bonus'):
+                print(f"\nBonus collocations found:")
+                for colloc in collocation_report['bonus']:
+                    print(f"- {colloc}")
+            
+            print(f"\nSuccessfully generated content for day {args.day}")
+            return 0
+            
         except Exception as e:
-            print(f"Error generating story for day {args.day}: {e}", file=sys.stderr)
+            print(f"Error generating content for day {args.day}: {e}", file=sys.stderr)
             if 'pytest' not in sys.modules:  # Don't print traceback during tests
                 import traceback
                 traceback.print_exc()
@@ -449,6 +533,101 @@ class CLI:
             return 1
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
+            return 1
+
+    def _handle_continue(self, args: argparse.Namespace) -> int:
+        """Continue to the next day, generating content and updating SRS."""
+        from story_generator import ContentGenerator
+        from curriculum_models import Curriculum
+        import os
+        
+        print("Continuing to the next day...")
+        
+        # Check if curriculum exists
+        if not CURRICULUM_PATH.exists():
+            print("Error: No curriculum found. Please generate a curriculum first using 'generate' command.", 
+                  file=sys.stderr)
+            print("\nWorkflow: generate -> extract -> generate-day -> continue...")
+            return 1
+            
+        try:
+            # Load the curriculum
+            curriculum = Curriculum.load(CURRICULUM_PATH)
+            
+            # Find the last generated day
+            content_dir = Path("data/generated_content")
+            generated_days = []
+            
+            if content_dir.exists():
+                for f in content_dir.glob("story_day*.txt"):
+                    try:
+                        day_num = int(f.stem.split('_')[1][3:])  # Extract day number from filename
+                        generated_days.append(day_num)
+                    except (IndexError, ValueError):
+                        continue
+            
+            # Determine the next day
+            if not generated_days:
+                next_day = 1
+                print("No previous content found. Starting from day 1.")
+            else:
+                next_day = max(generated_days) + 1
+                print(f"Last generated day: {max(generated_days)}")
+            
+            # Check if we've reached the end of the curriculum
+            if next_day > len(curriculum.days):
+                print(f"\n🎉 Congratulations! You've completed all {len(curriculum.days)} days of the curriculum!")
+                print("Consider generating a new curriculum to continue learning.")
+                return 0
+            
+            print(f"Generating content for day {next_day}...")
+            
+            # Generate the day's content
+            generator = ContentGenerator()
+            result = generator.generate_day_content(next_day)
+            if not result:
+                print(f"Failed to generate content for day {next_day}", file=sys.stderr)
+                return 1
+            
+            # Unpack the result
+            story, collocation_report, srs_update = result
+            
+            # Display collocation information
+            print("\n=== Learning Progress ===")
+            print(f"Day {next_day}: {curriculum.days[next_day-1].title}")
+            
+            if collocation_report.get('new'):
+                print(f"\n📚 New collocations:")
+                for colloc in collocation_report['new']:
+                    print(f"  • {colloc}")
+                    
+            if collocation_report.get('reviewed'):
+                print(f"\n🔄 Reviewed collocations:")
+                for colloc in collocation_report['reviewed']:
+                    print(f"  • {colloc}")
+                    
+            if collocation_report.get('bonus'):
+                print(f"\n🎁 Bonus collocations found in context:")
+                for colloc in collocation_report['bonus']:
+                    print(f"  • {colloc}")
+            
+            # Show SRS status
+            if hasattr(generator, 'srs'):
+                total_collocations = len(generator.srs.collocations)
+                due_count = len([c for c in generator.srs.collocations.values() 
+                               if c.next_review_day <= next_day])
+                print(f"\n📊 SRS Status: {total_collocations} collocations in system")
+                print(f"   - {due_count} due for review")
+            
+            print(f"\n✅ Successfully generated content for day {next_day}")
+            print(f"\nTo continue tomorrow, run: tunatale continue")
+            return 0
+            
+        except Exception as e:
+            print(f"Error generating content: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:  # Don't print traceback during tests
+                import traceback
+                traceback.print_exc()
             return 1
 
     def _handle_extract(self, args: argparse.Namespace) -> int:
@@ -767,20 +946,33 @@ class CLI:
         """Run the CLI application."""
         try:
             args = self.parser.parse_args()
-            handler = self.commands[args.command].handler
-            return handler(args)
-        except KeyboardInterrupt:
-            print("\nOperation cancelled by user", file=sys.stderr)
-            return 1
-        except argparse.ArgumentError as e:
-            print(f"Error: {e}", file=sys.stderr)
-            return 2
-        except KeyError as e:
-            print(f"Error: Unknown command: {e}", file=sys.stderr)
+            
+            # Handle help flag
+            if hasattr(args, 'help') and args.help:
+                self.parser.print_help()
+                print('\nFor help on a specific command, use: <command> -h')
+                return 0
+                
+            # Handle help command
+            if hasattr(args, 'func') and args.func:
+                return args.func(args)
+                
+            # Handle regular commands
+            if hasattr(args, 'command') and args.command in self.commands:
+                return self.commands[args.command].handler(args)
+                
+            # No command provided
             self.parser.print_help()
-            return 2
+            return 1
+            
+        except KeyboardInterrupt:
+            print("\nOperation cancelled by user.")
+            return 1
         except Exception as e:
-            print(f"Unexpected error: {e}", file=sys.stderr)
+            print(f"\nAn error occurred: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:  # Don't print traceback during tests
+                import traceback
+                traceback.print_exc()
             return 1
 
 

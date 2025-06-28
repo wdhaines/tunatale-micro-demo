@@ -1,11 +1,26 @@
+"""Curriculum generation and management service for TunaTale."""
 import datetime
 from datetime import timezone
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Type, TypeVar
-from config import PROMPTS_DIR, CURRICULUM_PATH
+
+# Try to import config values, with fallbacks for testing
+try:
+    from config import PROMPTS_DIR, CURRICULUM_PATH
+except ImportError:
+    # Fallback values for testing
+    TEST_DIR = Path(__file__).parent.parent / 'tests'
+    PROMPTS_DIR = TEST_DIR / 'prompts'
+    CURRICULUM_PATH = TEST_DIR / 'test_data' / 'curriculum_processed.json'
+    
+    # Ensure test directories exist
+    PROMPTS_DIR.mkdir(exist_ok=True, parents=True)
+    CURRICULUM_PATH.parent.mkdir(exist_ok=True, parents=True)
+
 from llm_mock import MockLLM
 
 # Type variable for generic type hints

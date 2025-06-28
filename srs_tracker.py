@@ -148,6 +148,39 @@ class SRSTracker:
             List of all collocation texts in the tracker
         """
         return list(self.collocations.keys())
+        
+    def _categorize_collocation(self, collocation: str, current_day: int) -> str:
+        """Categorize a collocation based on its review status.
+        
+        Args:
+            collocation: The collocation text to categorize
+            current_day: The current day in the curriculum
+            
+        Returns:
+            str: One of "new", "learning", "reviewing", or "mastered"
+            
+        Raises:
+            KeyError: If the collocation is not found in the tracker
+        """
+        if collocation not in self.collocations:
+            raise KeyError(f"Collocation '{collocation}' not found in tracker")
+            
+        colloc = self.collocations[collocation]
+        
+        # A collocation is "new" if it has 0 reviews
+        if colloc.review_count == 0:
+            return "new"
+            
+        # A collocation is "mastered" if its next review is far in the future
+        if colloc.next_review_day > current_day + 7:  # More than a week away
+            return "mastered"
+            
+        # A collocation is in "reviewing" if it has 3 or more reviews
+        if colloc.review_count >= 3:
+            return "reviewing"
+            
+        # Otherwise, it's still in the "learning" phase
+        return "learning"
 
     def get_due_collocations(self, day: int, min_items: int = 3, max_items: int = 5) -> List[str]:
         """Get collocations that are due for review on the given day.

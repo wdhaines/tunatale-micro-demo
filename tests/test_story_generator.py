@@ -49,15 +49,17 @@ def test_story_params_invalid_cefr_level() -> None:
         )
 
 
-@patch('builtins.open', mock_open(read_data='test prompt'))
 def test_content_generator_init_loads_prompts() -> None:
     """Test that ContentGenerator loads prompts on init."""
-    generator = ContentGenerator()
-    assert hasattr(generator, 'story_prompt')
-    assert generator.story_prompt == 'test prompt'
+    with patch.object(ContentGenerator, '_load_prompt', return_value='test prompt') as mock_load_prompt:
+        generator = ContentGenerator()
+        mock_load_prompt.assert_called_once_with('story_prompt.txt')
+        assert hasattr(generator, 'story_prompt')
+        assert generator.story_prompt == 'test prompt'
 
 
-def test_generate_story_creates_output_dir(content_generator: ContentGenerator, tmp_path: Path) -> None:
+@patch.object(ContentGenerator, '_load_prompt', return_value='test prompt')
+def test_generate_story_creates_output_dir(mock_load_prompt, content_generator: ContentGenerator, tmp_path: Path) -> None:
     """Test that generate_story creates output directory if it doesn't exist."""
     # Setup test parameters
     test_output_dir = tmp_path / "test_output"
@@ -66,7 +68,9 @@ def test_generate_story_creates_output_dir(content_generator: ContentGenerator, 
         language="English",
         cefr_level=CEFRLevel.A2,
         phase=1,
-        length=200
+        length=200,
+        new_vocabulary=["test", "vocabulary"],
+        recycled_collocations=["test collocation"]
     )
     
     # Create a test story with a title
@@ -75,31 +79,33 @@ def test_generate_story_creates_output_dir(content_generator: ContentGenerator, 
     This is a test story.
     """
     
-    # Mock the LLM response
+    # Create a test output directory in the temporary path
+    test_output_dir = tmp_path / "generated_content"
+    
+    # Mock the LLM response with the expected structure
     mock_response = {
-        "choices": [{
-            "message": {
-                "content": test_story,
-                "role": "assistant"
+        'choices': [{
+            'message': {
+                'content': "This is a test story about carnivorous plants.",
+                'role': 'assistant'
             }
         }]
     }
     
-    # Create a new mock for the LLM
-    mock_llm = MagicMock()
-    mock_llm.get_response.return_value = mock_response
-    
     # Create a new ContentGenerator with the mock LLM
     generator = ContentGenerator()
-    generator.llm = mock_llm
-    
-    # Mock the prompt to avoid needing the actual file
-    generator.story_prompt = "Test prompt with {NEW_VOCABULARY} and {RECYCLED_COLLOCATIONS}"
+    generator.llm = MagicMock()
+    generator.llm.get_response.return_value = mock_response
     
     # Create a mock for the _save_story method that matches the actual method signature
     def save_story_impl(story: str, phase: int, learning_objective: str) -> str:
-        # Just return a test path, don't actually write to disk
-        return str(test_output_dir / "generated_content" / f'story_day{phase}_test.txt')
+        # Create the output directory if it doesn't exist
+        output_dir = test_output_dir / f'day_{phase}'
+        output_dir.mkdir(parents=True, exist_ok=True)
+        # Create a test file path
+        story_path = output_dir / f'story_day{phase}.txt'
+        story_path.write_text(story)
+        return str(story_path)
     
     # Create a MagicMock that wraps our implementation but tracks calls
     mock_save_story = MagicMock(wraps=save_story_impl)
@@ -113,15 +119,15 @@ def test_generate_story_creates_output_dir(content_generator: ContentGenerator, 
         
         # Verify the result is not None and matches our mock response
         assert result is not None, "Result should not be None"
-        assert result.strip() == test_story.strip(), "Should return the generated story"
+        assert result.strip() == "This is a test story about carnivorous plants.", "Should return the generated story"
         
         # Verify the LLM was called with the correct prompt
-        mock_llm.get_response.assert_called_once()
+        generator.llm.get_response.assert_called_once()
         
         # Verify save_story was called with the correct parameters
         mock_save_story.assert_called_once()
         call_args = mock_save_story.call_args[0]
-        assert call_args[0] == test_story  # story content
+        assert call_args[0] == "This is a test story about carnivorous plants."  # story content from mock LLM
         assert call_args[1] == 1  # phase
         assert call_args[2] == "test objective"  # learning_objective
 
@@ -171,47 +177,69 @@ def test_generate_story_handles_ioerror(content_generator: ContentGenerator) -> 
 
 def test_extract_title() -> None:
     """Test that _extract_title correctly extracts title from story content."""
-    generator = ContentGenerator()
-    
-    # Test with title in markdown format
-    story_with_title = """**The Secret Garden**
-    
-    Once upon a time...
-    """
-    assert generator._extract_title(story_with_title) == "The Secret Garden"
-    
-    # Test with no title
-    story_without_title = "Once upon a time..."
-    assert generator._extract_title(story_without_title) == ""
-    
-    # Test with multiple lines and title in the middle
-    story_multiline = """
-    Some text
-    **The Hidden Treasure**
-    More text
-    """
-    assert generator._extract_title(story_multiline) == "The Hidden Treasure"
+    with patch.object(ContentGenerator, '_load_prompt', return_value='test prompt'):
+        generator = ContentGenerator()
+        
+        # Test with title in markdown format
+        story_with_title = """**The Secret Garden**
+        
+        Once upon a time...
+        """
+        assert generator._extract_title(story_with_title) == "The Secret Garden"
+        
+        # Test with no title
+        story_without_title = "Once upon a time..."
+        assert generator._extract_title(story_without_title) == ""
+        
+        # Test with multiple lines and title in the middle
+        story_multiline = """
+        Some text
+        **The Hidden Treasure**
+        More text
+        """
+        assert generator._extract_title(story_multiline) == "The Hidden Treasure"
 
 
 def test_clean_filename() -> None:
     """Test that _clean_filename creates valid filenames."""
-    generator = ContentGenerator()
-    
-    # Test basic cleaning
-    assert generator._clean_filename("My Story: Adventure Time!") == "my_story_adventure_time"
-    
-    # Test with special characters
-    assert generator._clean_filename("Test & Test @ Home") == "test_test_home"
-    
-    # Test with length limit
-    assert generator._clean_filename("A Very Long Story Title That Should Be Truncated", 15) == "a_very_long_sto"
+    with patch.object(ContentGenerator, '_load_prompt', return_value='test prompt'):
+        generator = ContentGenerator()
+        
+        # Test basic cleaning
+        assert generator._clean_filename("My Story: Adventure Time!") == "my_story_adventure_time"
+        
+        # Test with special characters
+        assert generator._clean_filename("Test & Test @ Home") == "test_test_home"
+        
+        # Test with length limit
+        assert generator._clean_filename("A Very Long Story Title That Should Be Truncated", 15) == "a_very_long_sto"
     
     # Test with empty string
     assert generator._clean_filename("") == ""
 
 
-def test_save_story_creates_valid_filename(content_generator: ContentGenerator, tmp_path) -> None:
+def test_save_story_creates_valid_filename(tmp_path, mocker) -> None:
     """Test that _save_story creates a valid filename from the story title or objective."""
+    # Create test directories
+    test_data_dir = tmp_path / 'test_data'
+    test_output_dir = test_data_dir / 'generated_content'
+    test_output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create a test prompt file
+    test_prompts_dir = test_data_dir / 'prompts'
+    test_prompts_dir.mkdir(exist_ok=True)
+    (test_prompts_dir / 'story_prompt.txt').write_text("Test prompt content")
+    
+    # Patch the necessary paths and imports
+    mocker.patch('story_generator.DATA_DIR', test_data_dir)
+    mocker.patch('story_generator.PROMPTS_DIR', test_prompts_dir)
+    
+    # Import after patching
+    from story_generator import ContentGenerator
+    
+    # Create a new ContentGenerator instance
+    generator = ContentGenerator()
+    
     # Test with a story that has a title
     test_story_with_title = """**The Secret Garden**
     
@@ -220,64 +248,77 @@ def test_save_story_creates_valid_filename(content_generator: ContentGenerator, 
     
     # Test with a story that doesn't have a title (should fall back to learning objective)
     test_story_without_title = "Once upon a time..."
-    
     test_objective = "Test Objective with Spaces & Special!@#"
     
-    # Patch the DATA_DIR to use a temporary directory for testing
-    with patch('story_generator.DATA_DIR', tmp_path / 'test_data'):
-        # Test with story that has a title
-        with patch('builtins.open', mock_open()) as mock_file:
-            saved_path = content_generator._save_story(
-                story=test_story_with_title,
-                phase=1,
-                learning_objective=test_objective
-            )
-            
-            # Check the filename is sanitized and uses the title
-            assert isinstance(saved_path, str), "Saved path should be a string"
-            path = Path(saved_path)
-            assert "the_secret_garden" in path.name.lower(), "Filename should use the story title"
-            
-        # Test with story that doesn't have a title (should fall back to learning objective)
-        with patch('builtins.open', mock_open()) as mock_file:
-            saved_path = content_generator._save_story(
-                story=test_story_without_title,
-                phase=2,
-                learning_objective=test_objective
-            )
-            
-            # Check the filename is sanitized and uses the learning objective
-            assert isinstance(saved_path, str), "Saved path should be a string"
-            path = Path(saved_path)
-            assert path.name.startswith("story_day2_"), "Filename should start with 'story_day2_'"
-            assert "test_objective_with_spaces" in path.name.lower(), "Filename should use the learning objective"
+    # Test with story that has a title
+    saved_path = generator._save_story(
+        story=test_story_with_title,
+        phase=1,
+        learning_objective=test_objective
+    )
+    
+    # Check the filename is sanitized and uses the title
+    assert isinstance(saved_path, str), "Saved path should be a string"
+    path = Path(saved_path)
+    assert path.name.startswith("story_day1_"), f"Filename '{path.name}' should start with 'story_day1_'"
+    assert "the_secret_garden" in path.name.lower(), f"Filename '{path.name}' should include 'the_secret_garden'"
+    
+    # Test with story that doesn't have a title (should fall back to learning objective)
+    saved_path = generator._save_story(
+        story=test_story_without_title,
+        phase=2,
+        learning_objective=test_objective
+    )
+    
+    # Check the filename is sanitized and uses the learning objective
+    assert isinstance(saved_path, str), "Saved path should be a string"
+    path = Path(saved_path)
+    assert path.name.startswith("story_day2_"), f"Filename '{path.name}' should start with 'story_day2_'"
+    assert "test_objective_with_spaces" in path.name.lower(), f"Filename '{path.name}' should include 'test_objective_with_spaces'"
 
 
-def test_save_story_with_empty_objective(content_generator: ContentGenerator, tmp_path) -> None:
+def test_save_story_with_empty_objective(tmp_path, mocker) -> None:
     """Test that _save_story raises ValueError when learning_objective is empty."""
+    # Create test directories
+    test_data_dir = tmp_path / 'test_data'
+    test_output_dir = test_data_dir / 'generated_content'
+    test_output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create a test prompt file
+    test_prompts_dir = test_data_dir / 'prompts'
+    test_prompts_dir.mkdir(exist_ok=True)
+    (test_prompts_dir / 'story_prompt.txt').write_text("Test prompt content")
+    
+    # Patch the necessary paths and imports
+    mocker.patch('story_generator.DATA_DIR', test_data_dir)
+    mocker.patch('story_generator.PROMPTS_DIR', test_prompts_dir)
+    
+    # Import after patching
+    from story_generator import ContentGenerator
+    
+    # Create the generator
+    generator = ContentGenerator()
     test_story = "Test story content"
     
-    # Patch the DATA_DIR to use a temporary directory for testing
-    with patch('story_generator.DATA_DIR', tmp_path / 'test_data'):
-        # Test that ValueError is raised when learning_objective is empty
-        with pytest.raises(ValueError, match="learning_objective cannot be empty"):
-            content_generator._save_story(
-                story=test_story,
-                phase=1,
-                learning_objective=""
-            )
-        
-        # Test that ValueError is raised when learning_objective is None
-        with pytest.raises(ValueError, match="learning_objective cannot be empty"):
-            content_generator._save_story(
-                story=test_story,
-                phase=1,
-                learning_objective=None
-            )
-        
-        # Test that ValueError is raised when learning_objective is whitespace
-        with pytest.raises(ValueError, match="learning_objective cannot be empty"):
-            content_generator._save_story(
+    # Test that ValueError is raised when learning_objective is empty
+    with pytest.raises(ValueError, match="learning_objective cannot be empty"):
+        generator._save_story(
+            story=test_story,
+            phase=1,
+            learning_objective=""
+        )
+    
+    # Test that ValueError is raised when learning_objective is None
+    with pytest.raises(ValueError, match="learning_objective cannot be empty"):
+        generator._save_story(
+            story=test_story,
+            phase=1,
+            learning_objective=None
+        )
+    
+    # Test that ValueError is raised when learning_objective is whitespace
+    with pytest.raises(ValueError, match="learning_objective cannot be empty"):
+            generator._save_story(
                 story=test_story,
                 phase=1,
                 learning_objective="   "
