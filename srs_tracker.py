@@ -149,25 +149,36 @@ class SRSTracker:
         """
         return list(self.collocations.keys())
 
-    def get_due_collocations(self, day: int, max_items: int = 5) -> List[str]:
+    def get_due_collocations(self, day: int, min_items: int = 3, max_items: int = 5) -> List[str]:
         """Get collocations that are due for review on the given day.
         
         Args:
             day: The current day
+            min_items: Minimum number of collocations to return if available
             max_items: Maximum number of collocations to return
             
         Returns:
-            List of collocation texts that are due for review
+            List of collocation texts that are due for review, prioritized by:
+            1. Most overdue (days since due)
+            2. Stability score (least stable first)
         """
-        due_collocations = [
-            colloc for colloc in self.collocations.values() 
-            if colloc.next_review_day <= day
-        ]
-        # Sort by next_review_day (earliest first) and then by stability (lowest first)
-        due_collocations.sort(key=lambda x: (x.next_review_day, x.stability))
+        due_collocations = []
         
-        # Return just the text of the collocations
-        return [colloc.text for colloc in due_collocations[:max_items]]
+        # First get all due collocations with days overdue and sort
+        for colloc in self.collocations.values():
+            if colloc.next_review_day <= day:
+                days_overdue = day - colloc.next_review_day
+                due_collocations.append((days_overdue, colloc.stability, colloc.text, colloc))
+        
+        if not due_collocations:
+            return []
+            
+        # Sort by most overdue first, then by stability (least stable first)
+        due_collocations.sort(key=lambda x: (-x[0], x[1]))
+        
+        # Take up to max_items, but at least min_items if available
+        result_count = min(max(min_items, len(due_collocations)), max_items)
+        return [colloc[2] for colloc in due_collocations[:result_count]]
 
     def __enter__(self):
         return self

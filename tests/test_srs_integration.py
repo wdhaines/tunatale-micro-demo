@@ -6,6 +6,7 @@ from unittest.mock import patch, mock_open, MagicMock
 import pytest
 
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
+from curriculum_models import Curriculum, CurriculumDay
 from srs_tracker import SRSTracker
 from collocation_extractor import CollocationExtractor
 
@@ -142,19 +143,25 @@ class TestSRSIntegration:
             
     def test_generate_story_for_day_integrates_srs(self, temp_dir, mock_llm, mock_collocation_extractor):
         """Test that generate_story_for_day integrates with SRS correctly."""
-        # Setup test curriculum data
-        curriculum_data = {
-            'phases': {
-                'phase1': {
-                    'learning_objective': 'Learn about carnivorous plants',
-                    'cefr_level': 'A2',
-                    'story_length': 100,
-                    'new_vocabulary': ['carnivorous', 'nutrients'],
-                    'recycled_vocabulary': ['plant', 'leaves']
-                }
-            },
-            'language': 'English'
-        }
+        # Setup test curriculum data using new models
+        day1 = CurriculumDay(
+            day=1,
+            title='Carnivorous Plants',
+            focus='Plant Biology',
+            collocations=['venus flytrap', 'carnivorous plant'],
+            presentation_phrases=['eats insects', 'special leaves', 'nutrient absorption'],
+            learning_objective='Learn about carnivorous plants',
+            story_guidance='Focus on how the plant catches and digests insects'
+        )
+        
+        curriculum_data = Curriculum(
+            learning_objective='Learn about carnivorous plants',
+            target_language='English',
+            learner_level='A2',
+            presentation_length=10,  # minutes
+            days=[day1],
+            metadata={'version': '1.0'}
+        )
         
         # Setup mocks
         with patch('story_generator.MockLLM', return_value=mock_llm), \
@@ -196,6 +203,9 @@ class TestSRSIntegration:
                     # Debug output
                     print(f"All collocations in SRS: {all_collocations}")
                     print(f"Due collocations: {due_collocations}")
+                    
+                    # Verify at least some collocations were added to SRS
+                    assert len(all_collocations) > 0, "No collocations were added to SRS"
                     
                     # Print detailed status of each collocation
                     print("\n--- Collocation Statuses ---")
