@@ -1,0 +1,42 @@
+**Story Generation Request**
+
+**Learning Objective:** {learning_objective}
+**Theme/Focus:** {focus}
+**Target CEFR Level:** {learner_level}
+
+**New Collocations to Teach:**
+{new_collocations}
+
+**Review Collocations to Include:**
+{review_collocations}
+
+**Story Guidance:**
+{story_guidance}
+
+**Instructions:**
+1. Create an engaging, coherent story that naturally incorporates ALL provided collocations.
+2. For each new collocation, use it 3-4 times throughout the story.
+3. For each review collocation, use it 1-2 times in the story.
+4. Mark new collocations with **double asterisks** like this: **new collocation**
+5. Mark review collocations with *single asterisks* like this: *review collocation*
+6. Maintain a word count between 400-500 words.
+7. Keep the language and content appropriate for {learner_level} level learners.
+
+**Story Structure Guidelines:**
+- Use 60% or more dialogue to make it engaging for audio.
+- Keep paragraphs short (2-3 sentences max).
+- Use simple, clear language appropriate for the level.
+- Ensure the story has a clear beginning, middle, and end.
+- Make the story interesting and relatable.
+
+**Formatting Notes:**
+- Include a title at the top (without the word "Title:")
+- Use blank lines between paragraphs
+- Use proper punctuation and capitalization
+- Use present tense for better immediacy
+- Keep sentences relatively short and clear
+
+**Example of marked collocations in text:**
+"I think we should **make a decision** soon," said Maria. "Remember when we had to *deal with* something similar last month?"
+
+**Your Story:**
