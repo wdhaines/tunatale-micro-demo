@@ -42,6 +42,17 @@ def client(monkeypatch, tmp_path):
     test_mock_responses_dir.mkdir(parents=True, exist_ok=True)
     test_upload_dir.mkdir(parents=True, exist_ok=True)
     
+    # Create a test templates directory and copy template files
+    test_templates_dir = tmp_path / "templates"
+    test_templates_dir.mkdir(exist_ok=True)
+    
+    # Copy template files from the project's templates directory
+    import shutil
+    project_templates = project_root / "templates"
+    if project_templates.exists():
+        for template_file in project_templates.glob("*.html"):
+            shutil.copy2(template_file, test_templates_dir / template_file.name)
+    
     # Create a test config dictionary
     test_config = {
         'TESTING': True,
@@ -54,11 +65,15 @@ def client(monkeypatch, tmp_path):
         'UPLOAD_FOLDER': str(test_upload_dir),
         'DATA_DIR': str(test_data_dir),
         'SECRET_KEY': 'test-secret-key',
-        'MAX_CONTENT_LENGTH': 16 * 1024 * 1024  # 16MB max file size
+        'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,  # 16MB max file size
+        'TEMPLATE_FOLDER': str(test_templates_dir)  # Explicitly set template folder for tests
     }
     
     # Create the app with test config
     app = create_app(test_config)
+    
+    # Ensure the app is using the correct template folder
+    app.template_folder = str(test_templates_dir)
     
     # Create test client with application context
     with app.test_client() as test_client:

@@ -43,25 +43,30 @@ Format the response as a JSON object with the following structure:
 
 def create_app(test_config=None):
     """Create and configure the Flask application."""
+    # Create default config
+    default_config = {
+        'SECRET_KEY': os.urandom(24),
+        'CURRICULA_DIR': str(CURRICULA_DIR),
+        'STORIES_DIR': str(STORIES_DIR),
+        'SRS_DIR': str(SRS_DIR),
+        'MOCK_RESPONSES_DIR': str(MOCK_RESPONSES_DIR),
+        'DATA_DIR': str(DATA_DIR),
+        'UPLOAD_FOLDER': str(UPLOAD_DIR),
+        'TEMPLATES_AUTO_RELOAD': True,
+        'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,  # 16MB max file size
+        'TEMPLATE_FOLDER': str(BASE_DIR / 'templates')
+    }
+    
+    # Create the app with default template folder
     app = Flask(
         __name__,
         instance_relative_config=True,
-        template_folder=str(BASE_DIR / 'templates'),
+        template_folder=default_config['TEMPLATE_FOLDER'],
         static_folder=str(BASE_DIR / 'static')
     )
     
-    # Default configuration
-    app.config.from_mapping(
-        SECRET_KEY=os.urandom(24),
-        CURRICULA_DIR=str(CURRICULA_DIR),
-        STORIES_DIR=str(STORIES_DIR),
-        SRS_DIR=str(SRS_DIR),
-        MOCK_RESPONSES_DIR=str(MOCK_RESPONSES_DIR),
-        DATA_DIR=str(DATA_DIR),
-        UPLOAD_FOLDER=str(UPLOAD_DIR),
-        TEMPLATES_AUTO_RELOAD=True,
-        MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB max file size
-    )
+    # Apply default configuration
+    app.config.from_mapping(default_config)
     
     # Override with test config if provided
     if test_config is not None:
