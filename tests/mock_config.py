@@ -15,16 +15,26 @@ TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Base directory structure matching the original config
 BASE_DIR = PROJECT_ROOT  # Point to project root for test environment
-DATA_DIR = TEST_DATA_DIR
-# Point to the prompts directory in the tests directory for test prompts
-PROMPTS_DIR = TEST_DIR / "prompts"
-MOCK_RESPONSES_DIR = TEST_DATA_DIR / "mock_responses"
+INSTANCE_DIR = TEST_DATA_DIR / 'instance'
+DATA_DIR = INSTANCE_DIR / 'data'
+
+# Application data directories
+CURRICULA_DIR = DATA_DIR / 'curricula'
+STORIES_DIR = DATA_DIR / 'stories'  # Directory for storing generated stories
+SRS_DIR = DATA_DIR / 'srs'  # Directory for Spaced Repetition System data
+MOCK_RESPONSES_DIR = DATA_DIR / 'mock_responses'  # Directory for mock LLM responses
+UPLOAD_DIR = DATA_DIR / 'uploads'  # Directory for user uploads (e.g., transcripts)
+PROMPTS_DIR = TEST_DIR / "prompts"  # Keep prompts in test directory for tests
 
 # Create necessary directories
-DATA_DIR.mkdir(exist_ok=True)
-PROMPTS_DIR.mkdir(exist_ok=True)
-MOCK_RESPONSES_DIR.mkdir(exist_ok=True)
-(DATA_DIR / 'generated_content').mkdir(exist_ok=True)
+INSTANCE_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+CURRICULA_DIR.mkdir(parents=True, exist_ok=True)
+STORIES_DIR.mkdir(parents=True, exist_ok=True)
+SRS_DIR.mkdir(parents=True, exist_ok=True)
+MOCK_RESPONSES_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Default configuration matching the original config
 DEFAULT_STORY_LENGTH = int(os.getenv('DEFAULT_STORY_LENGTH', '500'))  # Match original default
@@ -34,10 +44,10 @@ DEFAULT_NUM_DAYS = 30
 DEFAULT_PRESENTATION_LENGTH = 30  # minutes
 
 # File paths from the original config
-CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
-COLLOCATIONS_PATH = DATA_DIR / 'collocations.json'
-SRS_STATUS_PATH = DATA_DIR / 'srs_status.json'
-VOCABULARY_PATH = DATA_DIR / 'a2_flat_vocabulary.json'
+CURRICULUM_PATH = CURRICULA_DIR / 'curriculum_processed.json'
+COLLOCATIONS_PATH = DATA_DIR / 'collocations.json'  # Keeping in root for backward compatibility
+SRS_STATUS_PATH = SRS_DIR / 'srs_status.json'
+VOCABULARY_PATH = DATA_DIR / 'a2_flat_vocabulary.json'  # This should eventually be moved to a vocab directory
 
 # Create empty files if they don't exist
 for path in [CURRICULUM_PATH, COLLOCATIONS_PATH, SRS_STATUS_PATH, VOCABULARY_PATH]:
