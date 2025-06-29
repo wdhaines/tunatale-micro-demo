@@ -6,14 +6,21 @@ from datetime import datetime
 from pathlib import Path
 from config import CURRICULA_DIR, STORIES_DIR, SRS_DIR, MOCK_RESPONSES_DIR, DATA_DIR, UPLOAD_DIR
 
-app = Flask(__name__)
+# Get the base directory of the package
+BASE_DIR = Path(__file__).parent.absolute()
+
+app = Flask(__name__, 
+           template_folder=str(BASE_DIR / 'templates'),
+           static_folder=str(BASE_DIR / 'static'))
 
 # Configure app with directory paths
 app.config.update(
     CURRICULA_DIR=str(CURRICULA_DIR),
     STORIES_DIR=str(STORIES_DIR),
     SRS_DIR=str(SRS_DIR),
-    MOCK_RESPONSES_DIR=str(MOCK_RESPONSES_DIR)
+    MOCK_RESPONSES_DIR=str(MOCK_RESPONSES_DIR),
+    # Ensure templates are auto-reloaded
+    TEMPLATES_AUTO_RELOAD=True
 )
 
 # Default template for the LLM prompt
