@@ -15,7 +15,8 @@ try:
         PROMPTS_DIR, 
         DEFAULT_STORY_LENGTH, 
         MOCK_RESPONSES_DIR, 
-        CURRICULUM_PATH
+        CURRICULUM_PATH,
+        STORIES_DIR
     )
 except ImportError:
     # Fallback values for testing
@@ -99,7 +100,7 @@ class StoryParams:
 class ContentGenerator:
     def __init__(self):
         self.llm = MockLLM()
-        self.story_prompt = self._load_prompt('story_prompt.txt')
+        self.story_prompt = self._load_prompt('story_prompt_template.txt')
         self.srs = SRSTracker()
         self._collocation_extractor = None
     
@@ -138,7 +139,7 @@ class ContentGenerator:
             new_vocab = ", ".join(params.new_vocabulary) if params.new_vocabulary else "None"
             recycled_collocs = ", ".join(params.recycled_collocations) if params.recycled_collocations else "None"
             
-            # Format the prompt according to story_prompt.txt structure
+            # Format the prompt according to story_prompt_template.txt structure
             prompt = self.story_prompt.format(
                 NEW_VOCABULARY=new_vocab,
                 RECYCLED_COLLOCATIONS=recycled_collocs,
@@ -240,9 +241,8 @@ class ContentGenerator:
         if not learning_objective or not learning_objective.strip():
             raise ValueError("learning_objective cannot be empty")
             
-        # Create output directory and parent directories if they don't exist
-        data_dir = Path(DATA_DIR) if isinstance(DATA_DIR, str) else DATA_DIR
-        output_dir = data_dir / 'generated_content'
+        # Ensure STORIES_DIR exists
+        output_dir = Path(STORIES_DIR) if isinstance(STORIES_DIR, str) else STORIES_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Try to extract title from story content
@@ -470,7 +470,7 @@ class ContentGenerator:
             return ""
             
         prev_day = day_number - 1
-        story_path = DATA_DIR / 'generated_content' / f'day{prev_day}_story.txt'
+        story_path = Path(STORIES_DIR) / f'day{prev_day}_story.txt'
         
         if story_path.exists():
             with open(story_path, 'r') as f:

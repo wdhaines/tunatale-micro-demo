@@ -17,4 +17,5 @@ MOCK_RESPONSES_DIR = TEST_DATA_DIR / "mock_responses"
 DATA_DIR.mkdir(exist_ok=True)
 PROMPTS_DIR.mkdir(exist_ok=True)
 MOCK_RESPONSES_DIR.mkdir(exist_ok=True)
-(DATA_DIR / 'generated_content').mkdir(exist_ok=True)
+STORIES_DIR = DATA_DIR / 'stories'
+STORIES_DIR.mkdir(exist_ok=True)

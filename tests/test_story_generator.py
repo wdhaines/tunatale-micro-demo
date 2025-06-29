@@ -91,7 +91,7 @@ def test_generate_story_creates_output_dir(content_generator: ContentGenerator, 
     """
     
     # Get the test output directory from the fixture
-    test_output_dir = tmp_path / "generated_content"
+    test_output_dir = tmp_path / "stories"
     
     # Mock the LLM response with the expected structure
     mock_response = {
@@ -232,7 +232,7 @@ def test_save_story_creates_valid_filename(content_generator, tmp_path) -> None:
     generator = content_generator
     
     # Set up test output directory
-    test_output_dir = tmp_path / "generated_content"
+    test_output_dir = tmp_path / "stories"
     test_output_dir.mkdir(exist_ok=True)
     
     # Test with a story that has a title
@@ -394,7 +394,7 @@ def test_generate_story_uses_prompt_template(content_generator: ContentGenerator
     # Create a mock for the _save_story method that matches the actual method signature
     def save_story_impl(story: str, phase: int, learning_objective: str) -> str:
         # Just return a test path, don't actually write to disk
-        return str(tmp_path / 'test_data' / 'generated_content' / f'story_day{phase}_test.txt')
+        return str(tmp_path / 'test_data' / 'stories' / f'story_day{phase}_test.txt')
     
     # Create a MagicMock that wraps our implementation but tracks calls
     mock_save_story = MagicMock(wraps=save_story_impl)
@@ -477,7 +477,7 @@ def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp
     
     # Create a mock for the _save_story method
     def save_story_impl(story: str, phase: int, learning_objective: str) -> str:
-        return str(tmp_path / 'test_data' / 'generated_content' / f'story_day{phase}_test.txt')
+        return str(tmp_path / 'test_data' / 'stories' / f'story_day{phase}_test.txt')
     
     mock_save_story = MagicMock(wraps=save_story_impl)
     

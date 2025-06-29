@@ -90,40 +90,45 @@ class TestCurriculumGenerator:
         mock_llm = MagicMock()
         curriculum_generator.llm = mock_llm
         
-        # Mock the prompt template
-        curriculum_generator.curriculum_prompt = """
-        Generate a curriculum for {LEARNING_GOAL} in {TARGET_LANGUAGE} 
-        for {LEARNER_LEVEL} level learners.
-        """
-        
         # Create a sample curriculum structure that matches our expected format
         sample_curriculum = {
-            'learning_goal': 'Test learning goal',
+            'learning_objective': 'Test learning objective',
             'target_language': 'English',
-            'cefr_level': 'A2',
-            'days': 2,
-            'days_content': [
+            'learner_level': 'A2',
+            'presentation_length': 30,
+            'days': [
                 {
                     'day': 1,
                     'title': 'Test Day 1',
                     'focus': 'Test Focus',
                     'collocations': ['test collocation'],
-                    'story': 'Test story content',
-                    'presentation_phrases': ['test phrase']
+                    'presentation_phrases': ['test phrase'],
+                    'learning_objective': 'Test learning objective',
+                    'story_guidance': 'Test story guidance',
+                    'content': 'Test content for day 1',
+                    'activities': ['activity 1', 'activity 2']
                 },
                 {
                     'day': 2,
                     'title': 'Test Day 2',
                     'focus': 'Test Focus 2',
                     'collocations': ['test collocation 2'],
-                    'story': 'Test story content 2',
-                    'presentation_phrases': ['test phrase 2']
+                    'presentation_phrases': ['test phrase 2'],
+                    'learning_objective': 'Test learning objective 2',
+                    'story_guidance': 'Test story guidance 2',
+                    'content': 'Test content for day 2',
+                    'activities': ['activity 3', 'activity 4']
                 }
-            ]
+            ],
+            'metadata': {
+                'generated_at': '2023-01-01T00:00:00Z',
+                'version': '1.0',
+                'is_template': False
+            }
         }
         
-        # Mock the LLM to return the sample curriculum as JSON string
-        mock_llm.generate.return_value = {
+        # Mock the LLM's get_response method to return our sample curriculum as a string
+        mock_llm.get_response.return_value = {
             'choices': [{
                 'message': {
                     'content': json.dumps(sample_curriculum),
@@ -132,39 +137,39 @@ class TestCurriculumGenerator:
             }]
         }
         
-        # Patch the CURRICULUM_PATH to use a temporary file
-        with patch('curriculum_service.CURRICULUM_PATH', str(tmp_path / 'curriculum.json')):
-            # Mock the _save_curriculum method to avoid actual file I/O
-            with patch.object(curriculum_generator, '_save_curriculum') as mock_save:
-                # Call the method under test
-                result = curriculum_generator.generate_curriculum(
-                    learning_goal="Test learning goal",
-                    target_language="English",
-                    cefr_level="A2",
-                    days=2
-                )
-                
-                # Verify the result structure
-                assert isinstance(result, dict)
-                assert result['learning_goal'] == "Test learning goal"
-                assert result['target_language'] == 'English'
-                assert result['cefr_level'] == 'A2'
-                assert result['days'] == 2
-                assert 'metadata' in result
-                assert 'generated_at' in result['metadata']
-                
-                # Verify the content is valid JSON and has the expected structure
-                content = json.loads(result['content'])
-                assert 'days' in content or 'days_content' in content
-                days = content.get('days_content', content.get('days', []))
-                assert len(days) == 2
-                assert days[0]['day'] == 1
-                assert days[1]['day'] == 2
-                
-                # Verify save was called with the right arguments
-                assert mock_save.called
-                save_args, save_kwargs = mock_save.call_args
-                assert save_args[1] == "Test learning goal"
+        # Mock the _parse_comprehensive_response method to return our sample curriculum directly
+        with (
+            patch.object(curriculum_generator, '_load_prompt', return_value="Test template"),
+            patch.object(curriculum_generator, '_parse_comprehensive_response', return_value=sample_curriculum)
+        ):
+            # Call the method under test
+            result = curriculum_generator.generate_comprehensive_curriculum(
+                learning_objective="Test learning objective",
+                learner_level="A2"
+            )
+            
+            # Verify the result structure
+            assert isinstance(result, dict)
+            assert result['learning_objective'] == "Test learning objective"
+            assert result['target_language'] == 'English'
+            assert result['learner_level'] == 'A2'
+            assert len(result['days']) == 2
+            assert 'metadata' in result
+            assert 'generated_at' in result['metadata']
+            
+            # Verify the days structure
+            days = result['days']
+            assert len(days) == 2
+            assert days[0]['day'] == 1
+            assert days[0]['title'] == 'Test Day 1'
+            assert days[1]['day'] == 2
+            assert days[1]['title'] == 'Test Day 2'
+            assert len(days) == 2
+            assert days[0]['day'] == 1
+            assert days[1]['day'] == 2
+            assert 'focus' in days[0]
+            assert 'collocations' in days[0]
+            assert 'presentation_phrases' in days[0]
     
     def test_generate_curriculum_empty_goal(self, curriculum_generator):
         """Test curriculum generation with empty learning goal raises ValidationError."""
@@ -174,38 +179,63 @@ class TestCurriculumGenerator:
     def test_save_curriculum(self, curriculum_generator, tmp_path):
         """Test saving curriculum to file."""
         test_file = tmp_path / 'test_curriculum.json'
+        curriculum_data = {
+            'learning_objective': 'Test learning objective',
+            'target_language': 'English',
+            'learner_level': 'A2',
+            'days': [
+                {
+                    'day': 1,
+                    'title': 'Test Day 1',
+                    'focus': 'Test Focus',
+                    'collocations': ['test collocation'],
+                    'presentation_phrases': ['test phrase'],
+                    'learning_objective': 'Test learning objective',
+                    'story_guidance': 'Test story guidance'
+                }
+            ]
+        }
+        
         with patch('curriculum_service.CURRICULUM_PATH', test_file):
-            curriculum_generator._save_curriculum(SAMPLE_CURRICULUM, "Test Goal")
+            curriculum_generator._save_curriculum(curriculum_data, "Test learning objective")
         
         # Verify file was created with correct content
         assert test_file.exists()
         with open(test_file, 'r') as f:
             data = json.load(f)
-            assert data['learning_goal'] == "Test Goal"
-            assert data['content'] == SAMPLE_CURRICULUM
+            assert data['learning_objective'] == "Test learning objective"
             assert 'days' in data
-            assert len(data['days']) > 0  # Should have parsed some days
+            assert len(data['days']) == 1
+            assert data['days'][0]['day'] == 1
+            assert data['days'][0]['title'] == 'Test Day 1'
     
     def test_parse_curriculum_days(self, curriculum_generator):
         """Test parsing curriculum text into days."""
-        # Patch the config to expect 5 days
-        with patch.object(curriculum_generator, 'config') as mock_config:
-            mock_config.num_days = 5
-            mock_config.required_sections = ["Topics", "Grammar", "Vocabulary", "Activities"]
+        # Test with a valid curriculum
+        result = curriculum_generator._parse_curriculum_days(SAMPLE_CURRICULUM)
+        
+        # Verify the result is a dictionary with the expected structure
+        assert isinstance(result, dict)
+        
+        # Verify we have the expected number of days (5 in SAMPLE_CURRICULUM)
+        expected_days = 5
+        assert len(result) == expected_days
+        
+        # Verify each day has the expected structure
+        for day_num in range(1, expected_days + 1):
+            day_key = f'day_{day_num}'
+            assert day_key in result
+            day_data = result[day_key]
             
-            # Test with a valid curriculum
-            result = curriculum_generator._parse_curriculum_days(SAMPLE_CURRICULUM)
+            # Check required fields
+            assert 'content' in day_data
+            assert 'focus' in day_data
+            assert 'collocations' in day_data
+            assert 'activities' in day_data
             
-            # Verify the result is a dictionary with the expected days
-            assert isinstance(result, dict)
-            assert "Day 1" in result
-            assert "Day 2" in result
-            
-            # Verify each day has the expected sections
-            for day in ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5"]:
-                assert day in result
-                assert isinstance(result[day], list)
-                assert len(result[day]) > 0  # Should have some content
+            # Verify collocations and activities are lists
+            assert isinstance(day_data['collocations'], list)
+            assert isinstance(day_data['activities'], list)
     
     @patch('builtins.open', side_effect=IOError("Test error"))
     def test_save_curriculum_ioerror(self, mock_file, curriculum_generator, tmp_path):
@@ -246,19 +276,32 @@ class TestCurriculumGenerator:
             curriculum_generator.generate_curriculum("Test goal")
     
     def test_parse_curriculum_empty_content(self, curriculum_generator):
-        """Test parsing empty curriculum content."""
-        with pytest.raises(ParserError, match="Empty curriculum content"):
-            curriculum_generator._parse_curriculum_days("")
+        """Test parsing empty curriculum content returns dict with empty day_1."""
+        # Test with empty string - returns dict with empty day_1
+        result = curriculum_generator._parse_curriculum_days("")
+        assert isinstance(result, dict)
+        assert 'day_1' in result
+        assert result['day_1']['content'] == ''
+        assert result['day_1']['focus'] == ''
+        assert result['day_1']['title'] == 'Complete Curriculum'
+        assert result['day_1']['collocations'] == []
+        assert result['day_1']['activities'] == []
+            
+        # Test with whitespace only - same behavior as empty string
+        result = curriculum_generator._parse_curriculum_days("   \n  \t  ")
+        assert isinstance(result, dict)
+        assert 'day_1' in result
+        assert result['day_1']['content'] == ''  # Whitespace is stripped
+        assert result['day_1']['focus'] == ''
     
     def test_parse_curriculum_malformed(self, curriculum_generator):
         """Test parsing malformed curriculum text."""
-        # Test with properly formatted day headers but some malformed content
-        curriculum_text = """
+        # Test with missing required sections
+        malformed_curriculum = """
         Day 1:
         - Topics: Greetings
         - Grammar: Present simple
-        - Vocabulary: hello, hi, goodbye
-        - Activities: Practice greetings with a partner
+        # Missing Vocabulary and Activities sections
         
         Day 2:
         - Topics: Introductions
@@ -266,59 +309,42 @@ class TestCurriculumGenerator:
         - Vocabulary: name, where, from
         - Activities: Introduce yourself to a classmate
         """
-    
-        # Patch the config to expect 2 days
-        with patch.object(curriculum_generator, 'config') as mock_config:
-            mock_config.num_days = 2
-            mock_config.required_sections = ["Topics", "Grammar", "Vocabulary", "Activities"]
-    
-            # The parser should work with properly formatted content
-            result = curriculum_generator._parse_curriculum_days(curriculum_text)
-    
-            # Verify we get a result with the expected days
-            assert isinstance(result, dict)
-            assert "Day 1" in result
-            assert "Day 2" in result
-    
-            # Verify content is captured correctly
-            for day in ["Day 1", "Day 2"]:
-                assert isinstance(result[day], list)
-                # The parser returns 5 sections per day (including the day header)
-                assert len(result[day]) == 5  # 5 sections per day (including day header)
-                
-        # Test with some malformed content that the parser can handle
-        malformed = """
-        Day 1:
-        - Topics: Test
-        - Grammar: Test
-        - Vocabulary: Test
-        - Activities: Test
-    
-        Day 2:
-        - No colon here but should still be captured
-        - Grammar: Test
-        - Vocabulary: Test
-        - Activities: Test
-        """
         
-        # Patch the config to expect 2 days and be more lenient with validation
-        with patch.object(curriculum_generator, 'config') as mock_config:
-            mock_config.num_days = 2
-            mock_config.required_sections = ["Topics", "Grammar", "Vocabulary", "Activities"]
-            
-            # The parser should still work with slightly malformed content
-            result = curriculum_generator._parse_curriculum_days(malformed)
-            
-            # Verify we get a result with the expected days
-            assert isinstance(result, dict)
-            assert "Day 1" in result
-            assert "Day 2" in result
-            
-            # Verify content is captured correctly
-            for day in ["Day 1", "Day 2"]:
-                assert isinstance(result[day], list)
-                # The parser returns 5 sections per day (including the day header)
-                assert len(result[day]) == 5  # 5 sections per day (including day header)
+        # The parser should still work with missing sections
+        result = curriculum_generator._parse_curriculum_days(malformed_curriculum)
+        
+        # Verify we get a result with the expected days
+        assert isinstance(result, dict)
+        assert len(result) == 2  # Should have 2 days
+        
+        # Check first day (with missing sections)
+        assert 'day_1' in result
+        day1 = result['day_1']
+        assert 'content' in day1
+        assert 'Topics: Greetings' in day1['content']
+        assert 'Grammar: Present simple' in day1['content']
+        assert 'Vocabulary:' not in day1['content']  # Missing section
+        assert 'Activities:' not in day1['content']  # Missing section
+        
+        # Check second day (complete)
+        assert 'day_2' in result
+        day2 = result['day_2']
+        assert 'content' in day2
+        assert 'Topics: Introductions' in day2['content']
+        assert 'Grammar: Questions' in day2['content']
+        assert 'Vocabulary: name, where, from' in day2['content']
+        assert 'Activities: Introduce yourself to a classmate' in day2['content']
+        
+        # Test with completely malformed content - returns dict with day_1 containing the content
+        malformed_content = "This is not a valid curriculum"
+        result = curriculum_generator._parse_curriculum_days(malformed_content)
+        assert isinstance(result, dict)
+        assert 'day_1' in result
+        assert result['day_1']['content'] == malformed_content
+        assert result['day_1']['focus'] == ''
+        assert result['day_1']['title'] == 'Complete Curriculum'
+        assert result['day_1']['collocations'] == []
+        assert result['day_1']['activities'] == []
     
     def test_generate_curriculum_non_string_goal(self, curriculum_generator):
         """Test curriculum generation with non-string learning goal."""

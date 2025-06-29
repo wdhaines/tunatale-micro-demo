@@ -9,7 +9,13 @@ from dataclasses import dataclass
 
 # Try to import config values, with fallbacks for testing
 try:
-    from config import CURRICULUM_PATH, COLLOCATIONS_PATH, DATA_DIR, DEFAULT_STORY_LENGTH
+    from config import (
+        CURRICULUM_PATH, 
+        COLLOCATIONS_PATH, 
+        DATA_DIR, 
+        DEFAULT_STORY_LENGTH,
+        STORIES_DIR
+    )
 except ImportError:
     # Fallback values for testing
     TEST_DIR = Path(__file__).parent.parent / 'tests'
@@ -17,9 +23,11 @@ except ImportError:
     CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
     COLLOCATIONS_PATH = DATA_DIR / 'collocations.json'
     DEFAULT_STORY_LENGTH = 500
+    STORIES_DIR = DATA_DIR / 'stories'
     
     # Ensure test directories exist
     DATA_DIR.mkdir(exist_ok=True, parents=True)
+    STORIES_DIR.mkdir(exist_ok=True, parents=True)
 
 from curriculum_service import CurriculumGenerator
 from collocation_extractor import CollocationExtractor
@@ -555,11 +563,10 @@ class CLI:
             curriculum = Curriculum.load(CURRICULUM_PATH)
             
             # Find the last generated day
-            content_dir = Path("data/generated_content")
             generated_days = []
             
-            if content_dir.exists():
-                for f in content_dir.glob("story_day*.txt"):
+            if GENERATED_CONTENT_DIR.exists():
+                for f in GENERATED_CONTENT_DIR.glob("story_day*.txt"):
                     try:
                         day_num = int(f.stem.split('_')[1][3:])  # Extract day number from filename
                         generated_days.append(day_num)
@@ -686,7 +693,7 @@ class CLI:
                     
                 # Look for matching day file
                 day_str = f"day{day_num:02d}"  # Format as day01, day02, etc.
-                matches = list(Path("data/generated_content").glob(f"*{day_str}*.txt"))
+                matches = list(STORIES_DIR.glob(f"*{day_str}*.txt"))
                 
                 if not matches:
                     print(f"Error: No file found for day {day_num}", file=sys.stderr)
@@ -902,7 +909,7 @@ class CLI:
             print("Please specify a day with --day")
             return 1
             
-        story_path = DATA_DIR / 'generated_content' / f'day{day}_story.txt'
+        story_path = Path(STORIES_DIR) / f'day{day}_story.txt'
         if not story_path.exists():
             print(f"No story found for Day {day}")
             return 1
