@@ -1,0 +1,11 @@
+
+    Learning Objective: {LEARNING_OBJECTIVE}
+    
+    Write a short story in {LANGUAGE} at the {CEFR_LEVEL} CEFR level.
+    The story should be about {TOPIC}.
+    
+    Include these collocations:
+    {COLLOCATIONS}
+    
+    The story should be engaging and appropriate for language learning.
+    

@@ -1,0 +1,42 @@
+{
+  "learning_objective": "Learn basic conversation skills",
+  "target_language": "Spanish",
+  "learner_level": "Beginner",
+  "presentation_length": 30,
+  "days": [
+    {
+      "day": 1,
+      "title": "Day 1",
+      "focus": "Greetings",
+      "collocations": [
+        "good morning",
+        "good afternoon"
+      ],
+      "presentation_phrases": [
+        "Hello!",
+        "How are you?"
+      ],
+      "learning_objective": "Learn basic greetings",
+      "story_guidance": "Include a greeting between two people"
+    },
+    {
+      "day": 2,
+      "title": "Day 2",
+      "focus": "Introductions",
+      "collocations": [
+        "my name is",
+        "nice to meet you"
+      ],
+      "presentation_phrases": [
+        "What's your name?",
+        "Nice to meet you!"
+      ],
+      "learning_objective": "Learn to introduce yourself",
+      "story_guidance": "Include characters introducing themselves"
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "author": "Test"
+  }
+}

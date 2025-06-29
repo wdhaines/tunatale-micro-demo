@@ -1,11 +1,26 @@
+"""Curriculum generation and management service for TunaTale."""
 import datetime
 from datetime import timezone
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Type, TypeVar
-from config import PROMPTS_DIR, CURRICULUM_PATH
+
+# Try to import config values, with fallbacks for testing
+try:
+    from config import PROMPTS_DIR, CURRICULUM_PATH
+except ImportError:
+    # Fallback values for testing
+    TEST_DIR = Path(__file__).parent.parent / 'tests'
+    PROMPTS_DIR = TEST_DIR / 'prompts'
+    CURRICULUM_PATH = TEST_DIR / 'test_data' / 'curriculum_processed.json'
+    
+    # Ensure test directories exist
+    PROMPTS_DIR.mkdir(exist_ok=True, parents=True)
+    CURRICULUM_PATH.parent.mkdir(exist_ok=True, parents=True)
+
 from llm_mock import MockLLM
 
 # Type variable for generic type hints
@@ -210,6 +225,10 @@ class CurriculumGenerator:
         """
         Parse the LLM response into a structured curriculum format.
         
+        Extracts only the curriculum structure including day number, title, focus,
+        target collocations, presentation phrases, and learning objective based on focus.
+        Does not extract or store generated stories.
+        
         Args:
             response_text: Raw text response from the LLM
             
@@ -220,24 +239,7 @@ class CurriculumGenerator:
             ParserError: If the response cannot be parsed
         """
         try:
-            # First, try to find a JSON block in the response
-            import re
-            
-            # Look for a JSON block in the response
-            json_match = re.search(r'```(?:json)?\n({.*})\n```', response_text, re.DOTALL)
-            if json_match:
-                try:
-                    return json.loads(json_match.group(1))
-                except json.JSONDecodeError as e:
-                    logger.warning(f"Failed to parse JSON block: {e}")
-            
-            # If no JSON block found, try to parse the entire response as JSON
-            try:
-                return json.loads(response_text)
-            except json.JSONDecodeError:
-                pass
-            
-            # If we get here, try to extract the curriculum from the text format
+            # Initialize curriculum structure
             curriculum = {
                 'learning_objective': "",
                 'target_language': "English",
@@ -247,38 +249,98 @@ class CurriculumGenerator:
                 'metadata': {
                     'generated_at': str(datetime.datetime.now(timezone.utc)),
                     'version': '1.0',
+                    'is_template': True  # Indicate this is a template, not final content
                 }
             }
             
-            # Try to extract the learning objective from the response
-            objective_match = re.search(r'# TunaTale 30-Day Curriculum: (.+)', response_text)
+            # Extract learning objective from the response if available
+            objective_match = re.search(r'# TunaTale (\d+-Day )?Curriculum: (.+)', response_text, re.IGNORECASE)
             if objective_match:
-                curriculum['learning_objective'] = objective_match.group(1).strip()
+                curriculum['learning_objective'] = objective_match.group(2).strip()
             
-            # Extract days
-            day_sections = re.split(r'## Day (\d+)', response_text)[1:]
+            # Extract days using a more flexible pattern to handle different formats
+            day_sections = re.split(r'##\s*Day\s*(\d+)', response_text, flags=re.IGNORECASE)[1:]
+            
             for i in range(0, len(day_sections), 2):
                 if i + 1 >= len(day_sections):
                     break
                     
-                day_num = int(day_sections[i])
+                day_num = int(day_sections[i].strip())
                 day_content = day_sections[i+1].strip()
                 
-                # Extract story if present
-                story_match = re.search(r'\*\*Word count\*\*: \d+\n\n([\s\S]+?)(?=\n\n## Day|\Z)', day_content, re.IGNORECASE)
-                story = story_match.group(1).strip() if story_match else ""
+                # Extract title (first line after day header)
+                title_match = re.search(r'^\s*([^\n]+)', day_content)
+                title = title_match.group(1).strip() if title_match else f"Day {day_num}"
                 
-                # Extract collocations if present
-                collocations_match = re.search(r'\*\*Target collocations\*\*: ([^\n]+)', day_content)
-                collocations = [c.strip('"\' ') for c in collocations_match.group(1).split('/')] if collocations_match else []
+                # Extract focus (look for a line starting with Focus: or similar)
+                focus_match = re.search(r'(?:Focus|Topic|Theme)[:\s]+([^\n]+)', day_content, re.IGNORECASE)
+                focus = focus_match.group(1).strip() if focus_match else ""
                 
+                # Extract collocations (handle multiple formats)
+                collocations = []
+                collocations_match = re.search(
+                    r'(?:Target )?(?:Collocations|Phrases|Vocabulary)[:\s]+([^\n]+)', 
+                    day_content, 
+                    re.IGNORECASE
+                )
+                
+                if collocations_match:
+                    # Handle different delimiters: commas, slashes, newlines
+                    colloc_text = collocations_match.group(1).strip()
+                    # Split by commas, then by slashes, then clean up
+                    collocations = [
+                        c.strip(' "\'.,;') 
+                        for part in colloc_text.split(',')
+                        for c in part.split('/')
+                        if c.strip()
+                    ]
+                    # Filter to only include 3-5 word phrases
+                    collocations = [
+                        c for c in collocations 
+                        if 3 <= len(c.split()) <= 5
+                    ]
+                
+                # Extract presentation phrases (similar to collocations but look for specific heading)
+                phrases_match = re.search(
+                    r'(?:Presentation )?Phrases?[\s:]+([^\n]+(?:\n[^\n]+)*)', 
+                    day_content, 
+                    re.IGNORECASE
+                )
+                presentation_phrases = []
+                if phrases_match:
+                    # Split by newlines and clean up
+                    presentation_phrases = [
+                        p.strip(' -•*') 
+                        for p in phrases_match.group(1).split('\n')
+                        if p.strip()
+                    ]
+                
+                # Extract story guidance if present
+                guidance_match = re.search(
+                    r'(?:Story )?Guidance[\s:]+([^\n]+(?:\n[^\n]+)*)', 
+                    day_content, 
+                    re.IGNORECASE
+                )
+                story_guidance = guidance_match.group(1).strip() if guidance_match else ""
+                
+                # Create learning objective from focus if not provided
+                learning_objective = f"Learn and practice {focus.lower()}" if focus else f"Day {day_num} Learning Objectives"
+                
+                # Add day to curriculum
                 curriculum['days'].append({
                     'day': day_num,
-                    'content': day_content,
-                    'story': story,
-                    'collocations': collocations
+                    'title': title,
+                    'focus': focus,
+                    'collocations': collocations[:5],  # Limit to 5 collocations
+                    'presentation_phrases': presentation_phrases[:5],  # Limit to 5 phrases
+                    'learning_objective': learning_objective,
+                    'story_guidance': story_guidance
                 })
             
+            # Ensure we have at least one day
+            if not curriculum['days']:
+                raise ParserError("No valid days found in curriculum response")
+                
             return curriculum
             
         except Exception as e:

@@ -48,25 +48,38 @@ class SRSTracker:
             data_dir: Directory to store the status file
             filename: Name of the status file
         """
+        import sys
+        from pathlib import Path
+        
+        self._is_test = 'pytest' in sys.modules
         self.data_dir = Path(data_dir)
-        self.data_dir.mkdir(exist_ok=True)
-        self.status_file = self.data_dir / filename
-        
-        # Initialize with default values
-        self.current_day: int = 1
+        self.filename = filename
+        self.filepath = self.data_dir / filename
         self.collocations: Dict[str, CollocationStatus] = {}
+        self.current_day = 1
         
-        # Create empty state file if it doesn't exist
-        if not self.status_file.exists():
+        # In test mode, ensure we're not using the main data directory
+        if self._is_test:
+            # Verify we're not writing to the main data directory
+            main_data_dir = Path('data').resolve()
+            if self.data_dir.resolve() == main_data_dir:
+                raise RuntimeError(
+                    "Attempted to write to main data directory in test mode. "
+                    "Use a temporary directory for tests."
+                )
+        
+        # Always create directory and initialize state, even in test mode
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        if self.filepath.exists():
+            self._load_state()
+        else:
             self._save_state()
-            
-        self._load_state()
 
     def _load_state(self) -> None:
         """Load the tracker state from JSON file."""
         try:
-            if self.status_file.exists():
-                with open(self.status_file, 'r', encoding='utf-8') as f:
+            if self.filepath.exists():
+                with open(self.filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 self.current_day = data.get('current_day', 1)
                 self.collocations = {
@@ -89,10 +102,16 @@ class SRSTracker:
                     for colloc in self.collocations.values()
                 }
             }
-            with open(self.status_file, 'w', encoding='utf-8') as f:
+            # In test mode, ensure the directory exists before writing
+            if self._is_test:
+                self.data_dir.mkdir(parents=True, exist_ok=True)
+                
+            with open(self.filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except IOError as e:
-            print(f"Error saving SRS state: {e}")
+            if not self._is_test:  # Only log errors in non-test mode
+                print(f"Error saving SRS state: {e}")
+            raise  # Re-raise the exception to fail tests
 
     def add_collocations(self, collocations: List[str], day: Optional[int] = None) -> None:
         """Add new collocations or update existing ones.
@@ -148,26 +167,70 @@ class SRSTracker:
             List of all collocation texts in the tracker
         """
         return list(self.collocations.keys())
+        
+    def _categorize_collocation(self, collocation: str, current_day: int) -> str:
+        """Categorize a collocation based on its review status.
+        
+        Args:
+            collocation: The collocation text to categorize
+            current_day: The current day in the curriculum
+            
+        Returns:
+            str: One of "new", "learning", "reviewing", or "mastered"
+            
+        Raises:
+            KeyError: If the collocation is not found in the tracker
+        """
+        if collocation not in self.collocations:
+            raise KeyError(f"Collocation '{collocation}' not found in tracker")
+            
+        colloc = self.collocations[collocation]
+        
+        # A collocation is "new" if it has 0 reviews
+        if colloc.review_count == 0:
+            return "new"
+            
+        # A collocation is "mastered" if its next review is far in the future
+        if colloc.next_review_day > current_day + 7:  # More than a week away
+            return "mastered"
+            
+        # A collocation is in "reviewing" if it has 3 or more reviews
+        if colloc.review_count >= 3:
+            return "reviewing"
+            
+        # Otherwise, it's still in the "learning" phase
+        return "learning"
 
-    def get_due_collocations(self, day: int, max_items: int = 5) -> List[str]:
+    def get_due_collocations(self, day: int, min_items: int = 3, max_items: int = 5) -> List[str]:
         """Get collocations that are due for review on the given day.
         
         Args:
             day: The current day
+            min_items: Minimum number of collocations to return if available
             max_items: Maximum number of collocations to return
             
         Returns:
-            List of collocation texts that are due for review
+            List of collocation texts that are due for review, prioritized by:
+            1. Most overdue (days since due)
+            2. Stability score (least stable first)
         """
-        due_collocations = [
-            colloc for colloc in self.collocations.values() 
-            if colloc.next_review_day <= day
-        ]
-        # Sort by next_review_day (earliest first) and then by stability (lowest first)
-        due_collocations.sort(key=lambda x: (x.next_review_day, x.stability))
+        due_collocations = []
         
-        # Return just the text of the collocations
-        return [colloc.text for colloc in due_collocations[:max_items]]
+        # First get all due collocations with days overdue and sort
+        for colloc in self.collocations.values():
+            if colloc.next_review_day <= day:
+                days_overdue = day - colloc.next_review_day
+                due_collocations.append((days_overdue, colloc.stability, colloc.text, colloc))
+        
+        if not due_collocations:
+            return []
+            
+        # Sort by most overdue first, then by stability (least stable first)
+        due_collocations.sort(key=lambda x: (-x[0], x[1]))
+        
+        # Take up to max_items, but at least min_items if available
+        result_count = min(max(min_items, len(due_collocations)), max_items)
+        return [colloc[2] for colloc in due_collocations[:result_count]]
 
     def __enter__(self):
         return self

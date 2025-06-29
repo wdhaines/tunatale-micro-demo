@@ -1,11 +1,13 @@
 """Integration tests for SRS (Spaced Repetition System) functionality."""
 
 import json
+import os
 from pathlib import Path
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch, mock_open, MagicMock, call
 import pytest
 
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
+from curriculum_models import Curriculum, CurriculumDay
 from srs_tracker import SRSTracker
 from collocation_extractor import CollocationExtractor
 
@@ -59,23 +61,116 @@ def mock_collocation_extractor():
     return mock_extractor
 
 @pytest.fixture(autouse=True)
-def cleanup_generated_files():
-    """Fixture to clean up any generated files after each test."""
-    # This will run before each test
+def setup_test_environment(tmp_path, mocker):
+    """Set up the test environment with temporary directories and mocks."""
+    # Create necessary directories
+    data_dir = tmp_path / 'data'
+    data_dir.mkdir(exist_ok=True)
+    
+    generated_dir = data_dir / 'generated_content'
+    generated_dir.mkdir(exist_ok=True)
+    
+    # Create a mock vocabulary file
+    vocab_file = data_dir / 'a2_flat_vocabulary.json'
+    if not vocab_file.exists():
+        vocab_file.write_text('{"test": 1}')  # Minimal valid vocabulary
+    
+    # Create empty SRS and collocations files
+    srs_file = data_dir / 'srs_status.json'
+    if not srs_file.exists():
+        srs_file.write_text('{"current_day": 1, "collocations": {}}')
+    
+    collocations_file = data_dir / 'collocations.json'
+    if not collocations_file.exists():
+        collocations_file.write_text('[]')
+    
+    # Create a mock curriculum file
+    curriculum_file = data_dir / 'curriculum_processed.json'
+    if not curriculum_file.exists():
+        curriculum_file.write_text('{}')  # Empty curriculum
+    
+    # Patch the DATA_DIR and other paths to use our temporary directory
+    mocker.patch('story_generator.DATA_DIR', str(data_dir))
+    mocker.patch('collocation_extractor.DATA_DIR', str(data_dir))
+    mocker.patch('story_generator.CURRICULUM_PATH', str(curriculum_file))
+    
+    # Create a real SRSTracker with the test directory
+    srs_tracker = SRSTracker(data_dir=str(data_dir))
+    
+    # Create a mock CollocationExtractor
+    mock_extractor = mocker.MagicMock()
+    mock_extractor.extract_collocations.return_value = ["test collocation"]
+    
+    # Patch the SRSTracker and CollocationExtractor constructors to return our instances
+    mocker.patch('story_generator.SRSTracker', return_value=srs_tracker)
+    mocker.patch('story_generator.CollocationExtractor', return_value=mock_extractor)
+    
+    # Patch the SRSTracker class to use our test directory
+    original_srs_tracker_init = SRSTracker.__init__
+    
+    def patched_srs_tracker_init(self, data_dir: str = str(data_dir), filename: str = 'srs_status.json'):
+        original_srs_tracker_init(self, data_dir=data_dir, filename=filename)
+    
+    mocker.patch('srs_tracker.SRSTracker.__init__', patched_srs_tracker_init)
+    
+    # Store the data_dir for use in tests
+    mocker.patch('tests.test_srs_integration.test_data_dir', data_dir)
+    
+    # Make sure the data directory exists
+    data_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Clear any existing state
+    srs_file = data_dir / 'srs_status.json'
+    if srs_file.exists():
+        srs_file.unlink()
+    
+    # Create a new empty srs_status.json
+    srs_file.write_text('{"current_day": 1, "collocations": {}}')
+    
     yield
-    # This will run after each test
-    generated_dir = Path('data/generated_content')
-    if generated_dir.exists():
-        for file in generated_dir.glob('story_*.txt'):
+    
+    # Clean up test files
+    for file in data_dir.glob('*'):
+        try:
+            if file.is_file() and file.suffix in ['.json', '.txt']:
+                if file.exists():
+                    file.unlink()
+            elif file.is_dir() and file.name != '__pycache__':
+                # Remove all files in the directory
+                for subfile in file.glob('*'):
+                    if subfile.exists():
+                        try:
+                            if subfile.is_file():
+                                subfile.unlink()
+                            elif subfile.is_dir():
+                                for f in subfile.glob('*'):
+                                    if f.exists():
+                                        f.unlink()
+                                subfile.rmdir()
+                        except Exception as e:
+                            print(f"Warning: Failed to delete {subfile}: {e}")
+                # Remove the directory
+                if file.exists():
+                    file.rmdir()
+        except Exception as e:
+            print(f"Warning: Failed to clean up {file}: {e}")
+    
+    # Also clean up any remaining files in the temp directory
+    for file in tmp_path.glob('*'):
+        if file.is_file() and file.suffix in ['.json', '.txt'] and file.exists():
             try:
                 file.unlink()
             except Exception as e:
-                print(f"Warning: Could not delete {file}: {e}")
+                print(f"Warning: Failed to clean up {file}: {e}")
+
+# Store the test data directory for use in tests
+test_data_dir = None
 
 class TestSRSIntegration:
     """Integration tests for SRS functionality."""
     
-    def test_generate_story_updates_srs(self, temp_dir, mock_llm, mock_collocation_extractor):
+    @patch.object(ContentGenerator, '_load_prompt', return_value='test prompt')
+    def test_generate_story_updates_srs(self, mock_load_prompt, temp_dir, mock_llm, mock_collocation_extractor):
         """Test that generating a story updates the SRS with new collocations."""
         # Setup
         with patch('story_generator.MockLLM', return_value=mock_llm), \
@@ -140,21 +235,27 @@ class TestSRSIntegration:
             assert len(due_collocations) >= 0
             assert any(colloc in due_collocations for colloc in SAMPLE_COLLOCATIONS)
             
-    def test_generate_story_for_day_integrates_srs(self, temp_dir, mock_llm, mock_collocation_extractor):
+    @patch.object(ContentGenerator, '_load_prompt', return_value='test prompt')
+    def test_generate_story_for_day_integrates_srs(self, mock_load_prompt, temp_dir, mock_llm, mock_collocation_extractor):
         """Test that generate_story_for_day integrates with SRS correctly."""
-        # Setup test curriculum data
-        curriculum_data = {
-            'phases': {
-                'phase1': {
-                    'learning_objective': 'Learn about carnivorous plants',
-                    'cefr_level': 'A2',
-                    'story_length': 100,
-                    'new_vocabulary': ['carnivorous', 'nutrients'],
-                    'recycled_vocabulary': ['plant', 'leaves']
-                }
-            },
-            'language': 'English'
-        }
+        # Setup test data
+        day1 = CurriculumDay(
+            day=1,
+            title="Introduction to Carnivorous Plants",
+            focus="Basic plant biology",
+            collocations=["carnivorous plant", "special leaves"],
+            presentation_phrases=["The Venus flytrap is a carnivorous plant"],
+            learning_objective="Understand basic characteristics of carnivorous plants"
+        )
+        
+        curriculum_data = Curriculum(
+            learning_objective="Test Learning Objective",
+            target_language='English',
+            learner_level='A2',
+            presentation_length=10,  # minutes
+            days=[day1],
+            metadata={'title': 'Test Curriculum', 'description': 'Test Description', 'version': '1.0'}
+        )
         
         # Setup mocks
         with patch('story_generator.MockLLM', return_value=mock_llm), \
@@ -196,6 +297,9 @@ class TestSRSIntegration:
                     # Debug output
                     print(f"All collocations in SRS: {all_collocations}")
                     print(f"Due collocations: {due_collocations}")
+                    
+                    # Verify at least some collocations were added to SRS
+                    assert len(all_collocations) > 0, "No collocations were added to SRS"
                     
                     # Print detailed status of each collocation
                     print("\n--- Collocation Statuses ---")
