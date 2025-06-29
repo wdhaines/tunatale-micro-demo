@@ -12,6 +12,17 @@ from app import app
 @pytest.fixture
 def client(monkeypatch, tmp_path):
     """Create a test client for the Flask application with isolated test data."""
+    import os
+    import sys
+    from pathlib import Path
+    
+    # Get the project root directory
+    project_root = Path(__file__).parent.parent
+    
+    # Add the project root to the Python path if not already there
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+    
     from app import app as flask_app
     
     # Create temporary directories for test data
@@ -32,25 +43,28 @@ def client(monkeypatch, tmp_path):
     flask_app.config.update(
         TESTING=True,
         WTF_CSRF_ENABLED=False,  # Disable CSRF for testing
+        TEMPLATES_AUTO_RELOAD=True,
         CURRICULA_DIR=str(test_curricula_dir),
         STORIES_DIR=str(test_stories_dir),
         SRS_DIR=str(test_srs_dir),
         MOCK_RESPONSES_DIR=str(test_mock_responses_dir)
     )
     
-    # No need to monkey patch config since we're using Flask app config
+    # Explicitly set template and static folders
+    flask_app.template_folder = str(project_root / 'templates')
+    flask_app.static_folder = str(project_root / 'static')
     
     # Push application context
-    ctx = flask_app.app_context()
-    ctx.push()
-    
-    # Create test client
-    client = flask_app.test_client()
-    
-    yield client
-    
-    # Clean up
-    ctx.pop()
+    with flask_app.app_context() as ctx:
+        ctx.push()
+        
+        # Create test client
+        client = flask_app.test_client()
+        
+        yield client
+        
+        # Clean up
+        ctx.pop()
 
 def test_index_redirect(client):
     """Test that the index route redirects to the create page."""
