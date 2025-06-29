@@ -23,8 +23,9 @@ def client(monkeypatch, tmp_path):
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
     
-    # Import the app factory function
+    # Import the app factory function and ensure_test_templates
     from app import create_app
+    from tests.conftest import ensure_test_templates
     
     # Create temporary directories for test data
     test_instance_dir = tmp_path / "instance"
@@ -42,16 +43,8 @@ def client(monkeypatch, tmp_path):
     test_mock_responses_dir.mkdir(parents=True, exist_ok=True)
     test_upload_dir.mkdir(parents=True, exist_ok=True)
     
-    # Create a test templates directory and copy template files
-    test_templates_dir = tmp_path / "templates"
-    test_templates_dir.mkdir(exist_ok=True)
-    
-    # Copy template files from the project's templates directory
-    import shutil
-    project_templates = project_root / "templates"
-    if project_templates.exists():
-        for template_file in project_templates.glob("*.html"):
-            shutil.copy2(template_file, test_templates_dir / template_file.name)
+    # Ensure test templates are available
+    test_templates_dir = ensure_test_templates(tmp_path)
     
     # Create a test config dictionary
     test_config = {

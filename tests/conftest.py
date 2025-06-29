@@ -23,11 +23,27 @@ sys.modules['config'] = mock_config
 
 # Now import the rest of the testing dependencies
 import json
+import shutil
 import pytest
 from typing import Dict, Any
+from pathlib import Path
 
 # Import the config (which will be our mock)
 import config
+
+# Ensure test templates directory exists and contains required templates
+def ensure_test_templates(tmp_path: Path) -> Path:
+    """Ensure test templates directory exists with all required template files."""
+    test_templates_dir = tmp_path / "templates"
+    test_templates_dir.mkdir(exist_ok=True)
+    
+    # Copy templates from project templates directory
+    project_templates = PROJECT_ROOT / "templates"
+    if project_templates.exists():
+        for template_file in project_templates.glob("*.html"):
+            shutil.copy2(template_file, test_templates_dir / template_file.name)
+    
+    return test_templates_dir
 
 # Verify the patch worked
 assert config.DATA_DIR == mock_config.DATA_DIR, "Config patching failed!"
@@ -61,7 +77,7 @@ def setup_test_environment(tmp_path, monkeypatch, request):
     test_data_dir.mkdir(exist_ok=True)
     
     # Set up required subdirectories
-    (test_data_dir / 'generated_content').mkdir(exist_ok=True)
+    (test_data_dir / 'stories').mkdir(exist_ok=True)
     (test_data_dir / 'mock_responses').mkdir(exist_ok=True)
     
     # Create minimal required files
@@ -242,7 +258,7 @@ def content_generator(mocker, tmp_path):
     """Fixture that provides a ContentGenerator instance with mocked dependencies."""
     # Create a temporary directory for test output
     test_output_dir = tmp_path / "test_output"
-    test_output_dir.mkdir(exist_ok=True)
+    (test_output_dir / 'stories').mkdir(exist_ok=True, parents=True)
     
     # Create necessary subdirectories
     (test_output_dir / 'generated_content').mkdir(exist_ok=True)
@@ -274,7 +290,7 @@ def content_generator(mocker, tmp_path):
     test_prompts_dir.mkdir(exist_ok=True)
     
     # Create a test prompt file with the expected format
-    test_prompt_file = test_prompts_dir / 'story_prompt.txt'
+    test_prompt_file = test_prompts_dir / 'story_prompt_template.txt'
     test_prompt_file.write_text("""
     VOCABULARY CONTEXT:
     - Focus on teaching: {NEW_VOCABULARY}
@@ -326,8 +342,20 @@ def content_generator(mocker, tmp_path):
     generator = ContentGenerator()
     generator.llm = mock_llm
     
-    # Mock the _save_story method to avoid actual file I/O
-    generator._save_story = mocker.MagicMock(return_value=str(test_output_dir / 'generated_content' / 'test_story.txt'))
+    # Create a mock for the _save_story method
+    mock_save_story = mocker.MagicMock()
+    
+    # Set up the mock to return a path when called
+    def save_story_side_effect(story, phase, learning_objective):
+        output_file = test_output_dir / 'stories' / f'test_story_{phase}.txt'
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_text(story)
+        return str(output_file)
+    
+    mock_save_story.side_effect = save_story_side_effect
+    
+    # Patch the _save_story method to use our mock
+    generator._save_story = mock_save_story
     
     # Mock the _load_curriculum method to return a test curriculum
     generator._load_curriculum = mocker.MagicMock(return_value=None)
@@ -345,7 +373,7 @@ def content_generator(mocker, tmp_path):
     generator.test_output_dir = test_output_dir
     
     # Create the output directory if it doesn't exist
-    output_dir = test_output_dir / "generated_content"
+    output_dir = test_output_dir / "stories"
     output_dir.mkdir(exist_ok=True)
     
     # Add output_dir as an attribute for tests to use

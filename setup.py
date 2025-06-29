@@ -14,5 +14,6 @@ setup(
     package_data={
         '': ['templates/*.html', 'static/*', 'instance/*'],
     },
+    include_package_data=True,
     python_requires='>=3.8',
 )
