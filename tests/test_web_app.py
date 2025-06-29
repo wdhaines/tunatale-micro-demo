@@ -43,8 +43,15 @@ def client(monkeypatch, tmp_path):
     test_mock_responses_dir.mkdir(parents=True, exist_ok=True)
     test_upload_dir.mkdir(parents=True, exist_ok=True)
     
-    # Ensure test templates are available
-    test_templates_dir = ensure_test_templates(tmp_path)
+    # Get absolute path to templates directory
+    test_templates_dir = Path(__file__).parent.parent / 'templates'
+    
+    # Ensure the templates directory exists
+    if not test_templates_dir.exists():
+        raise RuntimeError(f"Templates directory not found at {test_templates_dir}")
+    
+    print(f"Using templates from: {test_templates_dir}")
+    print(f"Template files: {list(test_templates_dir.glob('*.html'))}")
     
     # Create a test config dictionary
     test_config = {

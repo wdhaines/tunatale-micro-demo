@@ -63,43 +63,62 @@ def mock_collocation_extractor():
 @pytest.fixture(autouse=True)
 def setup_test_environment(tmp_path, mocker):
     """Set up the test environment with temporary directories and mocks."""
-    # Create necessary directories
-    data_dir = tmp_path / 'data'
-    data_dir.mkdir(exist_ok=True)
+    # Import mock_config here to ensure it's loaded after patching
+    from tests import mock_config
     
-    generated_dir = data_dir / 'generated_content'
-    generated_dir.mkdir(exist_ok=True)
+    # Ensure test directories exist
+    mock_config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    mock_config.STORIES_DIR.mkdir(parents=True, exist_ok=True)
+    mock_config.SRS_DIR.mkdir(parents=True, exist_ok=True)
     
     # Create a mock vocabulary file
-    vocab_file = data_dir / 'a2_flat_vocabulary.json'
+    vocab_file = mock_config.VOCABULARY_PATH
     if not vocab_file.exists():
+        vocab_file.parent.mkdir(parents=True, exist_ok=True)
         vocab_file.write_text('{"test": 1}')  # Minimal valid vocabulary
     
     # Create empty SRS and collocations files
-    srs_file = data_dir / 'srs_status.json'
+    srs_file = mock_config.SRS_STATUS_PATH
     if not srs_file.exists():
+        srs_file.parent.mkdir(parents=True, exist_ok=True)
         srs_file.write_text('{"current_day": 1, "collocations": {}}')
     
-    collocations_file = data_dir / 'collocations.json'
+    collocations_file = mock_config.COLLOCATIONS_PATH
     if not collocations_file.exists():
+        collocations_file.parent.mkdir(parents=True, exist_ok=True)
         collocations_file.write_text('[]')
     
     # Create a mock curriculum file
-    curriculum_file = data_dir / 'curriculum_processed.json'
+    curriculum_file = mock_config.CURRICULUM_PATH
     if not curriculum_file.exists():
+        curriculum_file.parent.mkdir(parents=True, exist_ok=True)
         curriculum_file.write_text('{}')  # Empty curriculum
     
-    # Patch the DATA_DIR and other paths to use our temporary directory
-    mocker.patch('story_generator.DATA_DIR', str(data_dir))
-    mocker.patch('collocation_extractor.DATA_DIR', str(data_dir))
-    mocker.patch('story_generator.CURRICULUM_PATH', str(curriculum_file))
+    # Create a mock config module with all required attributes
+    mock_config_module = mocker.MagicMock()
+    mock_config_module.DATA_DIR = mock_config.DATA_DIR
+    mock_config_module.STORIES_DIR = mock_config.STORIES_DIR
+    mock_config_module.SRS_DIR = mock_config.SRS_DIR
+    mock_config_module.CURRICULA_DIR = mock_config.CURRICULA_DIR
+    mock_config_module.CURRICULUM_PATH = str(mock_config.CURRICULUM_PATH)
+    mock_config_module.COLLOCATIONS_PATH = str(mock_config.COLLOCATIONS_PATH)
     
-    # Create a real SRSTracker with the test directory
-    srs_tracker = SRSTracker(data_dir=str(data_dir))
+    # Patch the config module in all relevant modules
+    mocker.patch.dict('sys.modules', {'config': mock_config_module})
+    
+    # Also patch the specific paths used in story_generator
+    mocker.patch('story_generator.CURRICULUM_PATH', str(mock_config.CURRICULUM_PATH))
+    
+    # Create a temporary directory for this test
+    test_data_dir = tmp_path / "test_data"
+    test_data_dir.mkdir()
     
     # Create a mock CollocationExtractor
     mock_extractor = mocker.MagicMock()
     mock_extractor.extract_collocations.return_value = ["test collocation"]
+    
+    # Create a real SRSTracker with the test directory
+    srs_tracker = SRSTracker(data_dir=str(test_data_dir))
     
     # Patch the SRSTracker and CollocationExtractor constructors to return our instances
     mocker.patch('story_generator.SRSTracker', return_value=srs_tracker)
@@ -108,29 +127,35 @@ def setup_test_environment(tmp_path, mocker):
     # Patch the SRSTracker class to use our test directory
     original_srs_tracker_init = SRSTracker.__init__
     
-    def patched_srs_tracker_init(self, data_dir: str = str(data_dir), filename: str = 'srs_status.json'):
-        original_srs_tracker_init(self, data_dir=data_dir, filename=filename)
+    def patched_srs_tracker_init(self, data_dir: str = None, filename: str = 'srs_status.json'):
+        return original_srs_tracker_init(self, data_dir=str(test_data_dir), filename=filename)
     
     mocker.patch('srs_tracker.SRSTracker.__init__', patched_srs_tracker_init)
     
-    # Store the data_dir for use in tests
-    mocker.patch('tests.test_srs_integration.test_data_dir', data_dir)
+    # Store the test_data_dir for use in tests
+    mocker.patch('tests.test_srs_integration.test_data_dir', test_data_dir)
     
     # Make sure the data directory exists
-    data_dir.mkdir(parents=True, exist_ok=True)
+    mock_config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     
     # Clear any existing state
-    srs_file = data_dir / 'srs_status.json'
+    srs_file = mock_config.DATA_DIR / 'srs_status.json'
     if srs_file.exists():
         srs_file.unlink()
     
-    # Create a new empty srs_status.json
-    srs_file.write_text('{"current_day": 1, "collocations": {}}')
+    collocations_file = mock_config.DATA_DIR / 'collocations.json'
+    if collocations_file.exists():
+        collocations_file.unlink()
+    
+    # Create a mock story file
+    story_file = mock_config.STORIES_DIR / 'test_story.txt'
+    story_file.parent.mkdir(parents=True, exist_ok=True)
+    story_file.write_text('Test story content')
     
     yield
     
     # Clean up test files
-    for file in data_dir.glob('*'):
+    for file in mock_config.DATA_DIR.glob('*'):
         try:
             if file.is_file() and file.suffix in ['.json', '.txt']:
                 if file.exists():

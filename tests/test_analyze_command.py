@@ -313,7 +313,7 @@ class TestAnalyzeCommand:
         """Test analyzing by day number."""
         # Setup - create a test story file that would be found by day number
         test_content = "This is a test story about carnivorous plants."
-        test_dir = tmp_path / "generated_content"
+        test_dir = tmp_path / "stories"
         test_dir.mkdir()
         story_file = test_dir / "story_day01_venus_flytrap.txt"
         story_file.write_text(test_content)
@@ -375,7 +375,7 @@ class TestAnalyzeCommand:
         """Test verbose output with day-based analysis."""
         # Setup - create a test story file
         test_content = "This is a verbose test story about carnivorous plants."
-        test_dir = tmp_path / "generated_content"
+        test_dir = tmp_path / "stories"
         test_dir.mkdir()
         story_file = test_dir / "story_day02_swamp_adventure.txt"
         story_file.write_text(test_content)

@@ -43,6 +43,9 @@ Format the response as a JSON object with the following structure:
 
 def create_app(test_config=None):
     """Create and configure the Flask application."""
+    # Get the absolute path to the templates directory
+    template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
+    
     # Create default config
     default_config = {
         'SECRET_KEY': os.urandom(24),
@@ -54,7 +57,7 @@ def create_app(test_config=None):
         'UPLOAD_FOLDER': str(UPLOAD_DIR),
         'TEMPLATES_AUTO_RELOAD': True,
         'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,  # 16MB max file size
-        'TEMPLATE_FOLDER': str(BASE_DIR / 'templates')
+        'TEMPLATE_FOLDER': template_dir
     }
     
     # Create the app with default template folder

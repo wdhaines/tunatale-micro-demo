@@ -4,22 +4,24 @@ from datetime import timezone
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Type, TypeVar
 
 # Try to import config values, with fallbacks for testing
 try:
-    from config import PROMPTS_DIR, CURRICULUM_PATH
+    from config import PROMPTS_DIR, CURRICULUM_PATH, DATA_DIR
 except ImportError:
     # Fallback values for testing
     TEST_DIR = Path(__file__).parent.parent / 'tests'
     PROMPTS_DIR = TEST_DIR / 'prompts'
-    CURRICULUM_PATH = TEST_DIR / 'test_data' / 'curriculum_processed.json'
+    DATA_DIR = TEST_DIR / 'test_data'
+    CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
     
     # Ensure test directories exist
     PROMPTS_DIR.mkdir(exist_ok=True, parents=True)
-    CURRICULUM_PATH.parent.mkdir(exist_ok=True, parents=True)
+    DATA_DIR.mkdir(exist_ok=True, parents=True)
 
 from llm_mock import MockLLM
 
@@ -412,13 +414,13 @@ class CurriculumGenerator:
             raise ValidationError(f"Number of days must be between 1 and 365, got {days}")
         
         try:
-            # Format the prompt with all parameters (using uppercase to match template placeholders)
+            # Format the prompt with all parameters
             prompt = self.curriculum_prompt.format(
-                LEARNING_GOAL=learning_goal,
-                TARGET_LANGUAGE=target_language,
-                LEARNER_LEVEL=cefr_level,
-                PRESENTATION_LENGTH=days,
-                TARGET_PRESENTATION_TRANSCRIPT=transcript or ""
+                learning_objective=learning_goal,
+                target_language=target_language,
+                learner_level=cefr_level,
+                presentation_length=days,
+                presentation_transcript=transcript or ""
             )
             
             # Get response from LLM
@@ -428,68 +430,69 @@ class CurriculumGenerator:
                 # Validate response format
                 if not response or 'choices' not in response or not response['choices']:
                     raise LLMError("Invalid response format from LLM")
-                    
+                
+                # Extract content from the first choice
                 curriculum_content = response['choices'][0]['message']['content']
                 
-                # Parse the JSON response if it's a string
+                # Initialize curriculum with basic structure
+                curriculum = {
+                    'learning_goal': learning_goal,
+                    'target_language': target_language,
+                    'cefr_level': cefr_level,
+                    'days': {},
+                    'metadata': {
+                        'generated_at': datetime.datetime.now(timezone.utc).isoformat(),
+                        'transcript_used': transcript is not None,
+                        'format': 'text',
+                        'version': '1.0'
+                    },
+                    'content': curriculum_content
+                }
+                
+                # Generate the curriculum using the LLM with the template
+                prompt = self.curriculum_prompt.format(
+                    learning_objective=learning_goal,
+                    target_language=target_language,
+                    learner_level=cefr_level,
+                    presentation_length=days,
+                    presentation_transcript=transcript or ""
+                )
+                
+                # Get response from LLM
                 try:
-                    # First, ensure we have a properly structured curriculum dict
-                    curriculum = {
-                        'learning_goal': learning_goal,
-                        'target_language': target_language,
-                        'cefr_level': cefr_level,
-                        'days': days,
-                        'metadata': {
-                            'generated_at': datetime.datetime.now(timezone.utc).isoformat(),
-                            'transcript_used': transcript is not None,
-                            'format': 'json'
-                        }
-                    }
+                    response = self.llm.generate(prompt)
+                    curriculum_content = response['choices'][0]['message']['content']
                     
-                    # Try to parse the LLM response as JSON
+                    # Parse the LLM response into structured curriculum
+                    curriculum['content'] = curriculum_content
+                    curriculum['metadata']['format'] = 'text'
+                    
+                    # Try to extract structured days from the response
                     try:
-                        response_data = json.loads(curriculum_content)
-                        if isinstance(response_data, dict):
-                            # Update with any fields from the response
-                            curriculum.update({
-                                'learning_goal': response_data.get('learning_goal', learning_goal),
-                                'target_language': response_data.get('target_language', target_language),
-                                'cefr_level': response_data.get('cefr_level', cefr_level),
-                                'days': response_data.get('days', days),
-                                'content': json.dumps(response_data, indent=2)  # Store the JSON as a string
-                            })
-                            
-                            # Update metadata if present in response
-                            if 'metadata' in response_data and isinstance(response_data['metadata'], dict):
-                                curriculum['metadata'].update(response_data['metadata'])
-                        else:
-                            # If response is not a dict, store it as content
-                            curriculum['content'] = curriculum_content
-                    except (json.JSONDecodeError, ValueError):
-                        # If parsing fails, store the raw content
-                        curriculum['content'] = curriculum_content
-                        curriculum['metadata']['format'] = 'text'
-                        
-                except Exception as e:
-                    logger.error(f"Error processing LLM response: {e}")
-                    # Fall back to a minimal valid structure
-                    curriculum = {
-                        'learning_goal': learning_goal,
-                        'target_language': target_language,
-                        'cefr_level': cefr_level,
-                        'days': days,
-                        'content': curriculum_content,
-                        'metadata': {
-                            'generated_at': datetime.datetime.now(timezone.utc).isoformat(),
-                            'transcript_used': transcript is not None,
-                            'format': 'text',
-                            'error': str(e)
+                        parsed_days = self._parse_curriculum_days(curriculum_content)
+                        if parsed_days:
+                            curriculum['days'] = parsed_days
+                            curriculum['metadata']['format'] = 'json'
+                    except Exception as parse_error:
+                        logger.warning(f"Could not parse days from LLM response: {parse_error}")
+                        # Fall back to a single day with the full content
+                        curriculum['days'] = {
+                            'day_1': {
+                                'title': f'Introduction to {learning_goal}',
+                                'content': curriculum_content,
+                                'focus': learning_goal,
+                                'collocations': [],
+                                'vocabulary': [],
+                                'activities': []
+                            }
                         }
-                    }
+                except Exception as e:
+                    logger.error(f"Error generating curriculum with LLM: {e}")
+                    raise LLMError(f"Failed to generate curriculum: {e}")
                 
                 # Save the curriculum
                 save_path = Path(output_path) if output_path else CURRICULUM_PATH
-                self._save_curriculum(curriculum['content'], learning_goal, save_path)
+                self._save_curriculum(curriculum, learning_goal, save_path)
                 
                 logger.info("Successfully generated and saved curriculum")
                 return curriculum
@@ -552,13 +555,21 @@ class CurriculumGenerator:
         Args:
             curriculum: The curriculum content to save (can be a string or a dict)
             learning_goal: The learning goal for the curriculum
-            output_path: Path to save the curriculum (defaults to CURRICULUM_PATH)
+            output_path: Path to save the curriculum (defaults to CURRICULUM_PATH in data directory)
             
         Raises:
             IOError: If there's an error writing the file
             ParserError: If there's an error parsing the curriculum
         """
-        output_path = Path(output_path) if output_path else CURRICULUM_PATH
+        # Ensure we're using the data directory
+        if output_path is None:
+            output_path = CURRICULUM_PATH
+        else:
+            output_path = Path(output_path)
+            # If it's not an absolute path, make it relative to the data directory
+            if not output_path.is_absolute():
+                output_path = DATA_DIR / output_path
+        
         output_path = output_path.absolute()
         
         try:
@@ -569,15 +580,44 @@ class CurriculumGenerator:
             if isinstance(curriculum, dict):
                 # If curriculum is already a dict, use it directly
                 curriculum_data = curriculum
-                curriculum_data['learning_goal'] = learning_goal
-                if 'metadata' not in curriculum_data:
-                    curriculum_data['metadata'] = {}
-                curriculum_data['metadata'].update({
-                    'generated_at': str(datetime.datetime.now(timezone.utc)),
-                    'format': 'json'
-                })
             else:
-                # For string content, parse it into days
+                # If it's a string, try to parse it as JSON
+                try:
+                    curriculum_data = json.loads(curriculum)
+                    if not isinstance(curriculum_data, dict):
+                        # If it's not a dict after parsing, create a proper structure
+                        curriculum_data = {
+                            'content': curriculum,
+                            'days': {},
+                            'metadata': {}
+                        }
+                except (json.JSONDecodeError, ValueError):
+                    # If it's not valid JSON, create a basic structure
+                    curriculum_data = {
+                        'content': curriculum,
+                        'days': {},
+                        'metadata': {}
+                    }
+            
+            # Ensure all required fields are present
+            if 'learning_goal' not in curriculum_data:
+                curriculum_data['learning_goal'] = learning_goal
+                
+            if 'days' not in curriculum_data:
+                curriculum_data['days'] = {}
+                
+            if 'metadata' not in curriculum_data:
+                curriculum_data['metadata'] = {}
+                
+            # Update metadata
+            curriculum_data['metadata'].update({
+                'generated_at': datetime.datetime.now(timezone.utc).isoformat(),
+                'format': 'json' if 'content' in curriculum_data and isinstance(curriculum_data['content'], dict) else 'text',
+                'version': '1.0'
+            })
+            
+            # For string content, parse it into days
+            if isinstance(curriculum, str) and 'content' not in curriculum_data:
                 try:
                     days = self._parse_curriculum_days(curriculum)
                 except Exception as e:
@@ -681,83 +721,118 @@ class CurriculumGenerator:
                     "\n- Daily format (e.g., 'Day 1:', 'Day 2:'...)'"
                     "\n- Weekly format (e.g., 'Week 1 (Days 1-7):', 'Week 2 (Days 8-14):'...)"
                 )
-        
-        # If we get here, the structure is valid
-        return True
-            
-    def _parse_curriculum_days(self, curriculum_text: str) -> Dict[str, List[str]]:
+    
+    def _parse_curriculum_days(self, curriculum_text: str) -> Dict[str, Dict[str, Any]]:
         """
         Parse the curriculum text into structured day-by-day content.
         
-        Handles both daily and weekly formats:
+        Handles various formats including:
         - Daily: "Day 1:", "Day 2:", etc.
         - Weekly: "Week 1 (Days 1-7):", "Week 2 (Days 8-14):", etc.
+        - Markdown headers: "## Day 1", "## Week 1"
+        - Custom formats with focus and collocations
         
         Args:
             curriculum_text: The raw curriculum text to parse
             
         Returns:
-            Dict mapping day/week names to lists of content lines
+            Dict mapping day keys to structured day content
             
         Raises:
             ParserError: If there's an error in the curriculum format
         """
-        if not curriculum_text:
-            raise ParserError("Empty curriculum content")
-            
-        # First validate the overall structure
-        try:
-            self._validate_curriculum_structure(curriculum_text)
-        except ValueError as e:
-            raise ParserError(str(e)) from e
-            
-        # Check which format we're dealing with
-        is_weekly_format = any(
-            f"Week {i} (Days " in curriculum_text or 
-            f"Week {i}:" in curriculum_text
-            for i in range(1, (self.config.num_days // 7) + 2)
-        )
-        
         days = {}
-        current_section = None
+        current_day = None
         current_content = []
+        current_metadata = {}
         
-        for line in curriculum_text.split('\n'):
+        # Normalize line endings and split into lines
+        lines = curriculum_text.replace('\r\n', '\n').split('\n')
+        
+        def save_current_day():
+            if current_day and (current_content or current_metadata):
+                day_data = {
+                    'title': current_metadata.get('title', f'Day {current_day}'),
+                    'content': '\n'.join(current_content).strip(),
+                    'focus': current_metadata.get('focus', ''),
+                    'collocations': current_metadata.get('collocations', []),
+                    'vocabulary': current_metadata.get('vocabulary', []),
+                    'activities': current_metadata.get('activities', [])
+                }
+                days[f'day_{current_day}'] = day_data
+        
+        for line in lines:
             line = line.strip()
-            if not line:
-                if current_section and current_content:
-                    days[current_section] = current_content
-                    current_content = []
+            
+            # Skip empty lines between sections
+            if not line and not current_day:
                 continue
                 
-            # Check for weekly section headers
-            if is_weekly_format and (
-                line.lower().startswith('week ') and 
-                ('(days ' in line.lower() or ':' in line)
-            ):
-                if current_section and current_content:
-                    days[current_section] = current_content
-                current_section = line.split(':', 1)[0].strip()
-                current_content = [line]
-            # Check for daily section headers
-            elif line.lower().startswith('day ') and ':' in line:
-                if current_section and current_content:
-                    days[current_section] = current_content
-                current_section = line.split(':', 1)[0].strip()
-                current_content = [line]
-            # Content lines
-            elif current_section:
+            # Check for day/week headers in various formats
+            day_match = re.match(r'(?:##\s*)?(?:Day|Week)\s+(\d+)(?:\s*\(?Day[s\s]*(\d+)(?:-\s*(\d+))?\)?)?[:\-\s]*(.*)', line, re.IGNORECASE)
+            if day_match:
+                # Save previous day's content if exists
+                save_current_day()
+                
+                # Start new day
+                day_num = day_match.group(1)
+                current_day = day_num
+                current_content = []
+                current_metadata = {}
+                
+                # Extract title if present
+                title = day_match.group(4).strip()
+                if title:
+                    current_metadata['title'] = title
+                
+                continue
+            
+            # Check for metadata lines (key: value)
+            meta_match = re.match(r'^\s*([A-Za-z\s]+):\s*(.+?)\s*$', line, re.IGNORECASE)
+            if meta_match and current_day is not None:
+                key = meta_match.group(1).lower().strip()
+                value = meta_match.group(2).strip()
+                
+                # Handle different metadata types
+                if key in ['focus', 'title']:
+                    current_metadata[key] = value
+                elif key in ['collocations', 'vocabulary', 'activities']:
+                    if key not in current_metadata:
+                        current_metadata[key] = []
+                    # Split by commas or other delimiters
+                    items = [item.strip() for item in re.split(r'[,\n]', value) if item.strip()]
+                    current_metadata[key].extend(items)
+                continue
+                
+            # Add content line if we're in a day section
+            if current_day is not None and line:
                 current_content.append(line)
         
-        # Add the last section
-        if current_section and current_content:
-            days[current_section] = current_content
-            
-        # If we're in daily format, validate that we have all required days
-        if not is_weekly_format:
-            expected_days = [f"Day {i}" for i in range(1, self.config.num_days + 1)]
-            missing_days = [day for day in expected_days if day not in days]
-            if missing_days:
-                raise ParserError(f"Missing content for days: {', '.join(missing_days)}")
+        # Save the last day's content
+        save_current_day()
         
+        if not days:
+            # If no structured days found, try to split by sections
+            sections = re.split(r'(?i)(?:^|\n)(?=##?\s*(?:Day|Week)\s+\d+)', curriculum_text)
+            if len(sections) > 1:
+                for i, section in enumerate(sections[1:], 1):
+                    days[f'day_{i}'] = {
+                        'title': f'Day {i}',
+                        'content': section.strip(),
+                        'focus': '',
+                        'collocations': [],
+                        'vocabulary': [],
+                        'activities': []
+                    }
+            else:
+                # If all else fails, create a single day with all content
+                days['day_1'] = {
+                    'title': 'Complete Curriculum',
+                    'content': curriculum_text.strip(),
+                    'focus': '',
+                    'collocations': [],
+                    'vocabulary': [],
+                    'activities': []
+                }
+            
         return days
