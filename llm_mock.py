@@ -17,6 +17,7 @@ class MockLLM:
         """
         self.cache_dir = Path(cache_dir) if cache_dir else MOCK_RESPONSES_DIR
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self._manual_response = None
     
     def _get_cache_path(self, prompt: str) -> Path:
         """Generate a cache file path based on the prompt content."""
@@ -38,9 +39,18 @@ class MockLLM:
         # Delegate to get_response with 'curriculum' as the default response_type
         return self.get_response(prompt, response_type="curriculum")
     
+    def set_manual_response(self, response: str):
+        """
+        Set a manual response that will be returned for the next LLM call.
+        
+        Args:
+            response: The response text to return for the next LLM call
+        """
+        self._manual_response = response
+    
     def get_response(self, prompt: str, response_type: str = "curriculum") -> Dict[str, Any]:
         """
-        Get a mock response for the given prompt, either from cache or by prompting the user.
+        Get a mock response for the given prompt, either from cache, manual response, or by prompting the user.
         
         Args:
             prompt: The prompt to generate a response for
@@ -49,6 +59,24 @@ class MockLLM:
         Returns:
             Dictionary containing the mock response
         """
+        # Check for manual response first
+        if self._manual_response is not None:
+            try:
+                response = json.loads(self._manual_response)
+                self._manual_response = None  # Clear after use
+                return response
+            except json.JSONDecodeError:
+                # If it's not valid JSON, wrap it in a response structure
+                response = {
+                    'content': self._manual_response,
+                    'metadata': {
+                        'manual_response': True,
+                        'response_type': response_type
+                    }
+                }
+                self._manual_response = None  # Clear after use
+                return response
+                
         cache_path = self._get_cache_path(prompt)
         
         # Try to load from cache first

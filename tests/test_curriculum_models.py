@@ -82,9 +82,9 @@ class TestCurriculum:
         
         # Create a sample curriculum
         self.sample_curriculum = Curriculum(
-            learning_objective="Learn basic conversation skills",
+            learning_goal="Learn basic conversation skills",
             target_language="Spanish",
-            learner_level="Beginner",
+            cefr_level="A2",
             presentation_length=30,
             days=[self.day1, self.day2],
             metadata={"version": "1.0", "author": "Test"}
@@ -93,9 +93,9 @@ class TestCurriculum:
     
     def test_creation(self):
         """Test that a Curriculum is created with the correct attributes."""
-        assert self.sample_curriculum.learning_objective == "Learn basic conversation skills"
+        assert self.sample_curriculum.learning_goal == "Learn basic conversation skills"
         assert self.sample_curriculum.target_language == "Spanish"
-        assert self.sample_curriculum.learner_level == "Beginner"
+        assert self.sample_curriculum.cefr_level == "A2"
         assert self.sample_curriculum.presentation_length == 30
         assert len(self.sample_curriculum.days) == 2
         assert self.sample_curriculum.metadata["version"] == "1.0"
@@ -116,7 +116,7 @@ class TestCurriculum:
         data = self.sample_curriculum.to_dict()
         
         # Check top-level fields
-        assert data["learning_objective"] == "Learn basic conversation skills"
+        assert data["learning_goal"] == "Learn basic conversation skills"
         assert data["target_language"] == "Spanish"
         
         # Check days
@@ -136,7 +136,7 @@ class TestCurriculum:
         new_curriculum = Curriculum.from_dict(data)
         
         # Verify the new curriculum matches the original
-        assert new_curriculum.learning_objective == self.sample_curriculum.learning_objective
+        assert new_curriculum.learning_goal == self.sample_curriculum.learning_goal
         assert len(new_curriculum.days) == 2
         assert new_curriculum.days[0].title == "Day 1"
         assert new_curriculum.days[1].title == "Day 2"
@@ -156,7 +156,7 @@ class TestCurriculum:
         loaded = Curriculum.load(temp_file)
         
         # Verify the loaded curriculum matches the original
-        assert loaded.learning_objective == self.sample_curriculum.learning_objective
+        assert loaded.learning_goal == self.sample_curriculum.learning_goal
         assert len(loaded.days) == 2
         assert loaded.days[0].title == "Day 1"
         assert loaded.days[1].title == "Day 2"

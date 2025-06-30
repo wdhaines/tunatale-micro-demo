@@ -93,10 +93,10 @@ class TestSRSCollocationTracking:
         # Create a curriculum with some collocations
         curriculum = Curriculum(
             target_language="English",
-            learner_level=CEFRLevel.A2.value,
+            cefr_level=CEFRLevel.A2.value,
             presentation_length=5,
             days=[],
-            learning_objective="Test Learning Objective",
+            learning_goal="Test Learning Objective",
             metadata={"title": "Test Curriculum"}
         )
         day_data = CurriculumDay(
@@ -274,10 +274,10 @@ class TestSRSCollocationTracking:
         # Setup mock curriculum
         curriculum = Curriculum(
             target_language="English",
-            learner_level=CEFRLevel.A2.value,
+            cefr_level=CEFRLevel.A2.value,
             presentation_length=5,
             days=[],
-            learning_objective="Test Learning Objective",
+            learning_goal="Test Learning Objective",
             metadata={"title": "Test Curriculum"}
         )
     

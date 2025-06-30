@@ -1,0 +1,62 @@
+{
+  "learning_goal": "Learn basic Spanish for travel",
+  "target_language": "Spanish",
+  "cefr_level": "A2",
+  "presentation_length": 10,
+  "days": [
+    {
+      "day": 1,
+      "title": "Greetings and Introductions",
+      "focus": "Basic communication",
+      "collocations": ["greet someone", "introduce yourself", "say hello", "ask someone's name"],
+      "presentation_phrases": ["Hello, my name is...", "What's your name?", "Nice to meet you", "How are you?"],
+      "learning_goal": "Be able to greet someone and introduce yourself in Spanish",
+      "story_guidance": ""
+    },
+    {
+      "day": 2,
+      "title": "Asking for Directions",
+      "focus": "Navigation",
+      "collocations": ["ask for directions", "give directions", "find a location", "understand directions"],
+      "presentation_phrases": ["Where is...?", "How do I get to...?", "Turn left/right", "Go straight ahead"],
+      "learning_goal": "Be able to ask for and understand basic directions in Spanish",
+      "story_guidance": ""
+    },
+    {
+      "day": 3,
+      "title": "Ordering Food",
+      "focus": "Dining out",
+      "collocations": ["order food", "ask about the menu", "request the bill", "make special requests"],
+      "presentation_phrases": ["I would like...", "What do you recommend?", "The bill, please", "Do you have...?"],
+      "learning_goal": "Be able to order food and drinks in a Spanish restaurant",
+      "story_guidance": ""
+    },
+    {
+      "day": 4,
+      "title": "Shopping",
+      "focus": "Retail transactions",
+      "collocations": ["go shopping", "ask about prices", "try on clothes", "make a purchase"],
+      "presentation_phrases": ["How much does it cost?", "Do you have this in another size?", "I'm just looking", "I'll take it"],
+      "learning_goal": "Be able to shop and make purchases in Spanish",
+      "story_guidance": ""
+    },
+    {
+      "day": 5,
+      "title": "Transportation",
+      "focus": "Getting around",
+      "collocations": ["take a taxi", "buy a ticket", "ask for information", "understand schedules"],
+      "presentation_phrases": ["How much is a ticket to...?", "What time does the bus leave?", "Which platform for...?", "Is this the right train for...?"],
+      "learning_goal": "Be able to use public transportation and ask for travel information in Spanish",
+      "story_guidance": ""
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "created_at": "2025-06-29T19:56:00Z",
+    "last_updated": "2025-06-29T19:56:00Z",
+    "author": "TunaTale System",
+    "difficulty": "A2 (Beginner)",
+    "estimated_study_time": "5 hours",
+    "tags": ["spanish", "travel", "beginner", "vocabulary", "conversation"]
+  }
+}

@@ -9,29 +9,21 @@ from dataclasses import dataclass
 
 # Try to import config values, with fallbacks for testing
 try:
-    from config import (
-        CURRICULUM_PATH, 
-        COLLOCATIONS_PATH, 
-        DATA_DIR, 
-        DEFAULT_STORY_LENGTH,
-        STORIES_DIR
-    )
+    from config import DATA_DIR, STORIES_DIR
 except ImportError:
     # Fallback values for testing
     TEST_DIR = Path(__file__).parent.parent / 'tests'
     DATA_DIR = TEST_DIR / 'test_data'
-    CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
-    COLLOCATIONS_PATH = DATA_DIR / 'collocations.json'
-    DEFAULT_STORY_LENGTH = 500
     STORIES_DIR = DATA_DIR / 'stories'
     
     # Ensure test directories exist
     DATA_DIR.mkdir(exist_ok=True, parents=True)
     STORIES_DIR.mkdir(exist_ok=True, parents=True)
 
-from curriculum_service import CurriculumGenerator
-from collocation_extractor import CollocationExtractor
-from story_generator import ContentGenerator, StoryParams, CEFRLevel
+# Import the learning service
+from services.learning_service import learning_service, LearningError, DayContent
+from story_generator import CEFRLevel
+from config import DEFAULT_STORY_LENGTH
 
 
 @dataclass
@@ -61,11 +53,13 @@ class CLI:
               2. extract     - Extract collocations from the curriculum
               3. generate-day X - Generate content for a specific day
               4. continue    - Continue to the next day's content
-              
+                
             View progress with: view, analyze
+            
             ''',
             formatter_class=argparse.RawDescriptionHelpFormatter,
-            add_help=False  # We'll add help manually to control formatting
+            add_help=False,
+            usage='%(prog)s [-h] {help,generate,extract,story,view,generate-day,generate-comprehensive,progress,analyze} ...'
         )
         
         # Add help option manually to control its position
@@ -93,7 +87,9 @@ class CLI:
         gen_parser = subparsers.add_parser(
             'generate',
             help='Generate a new language learning curriculum',
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            usage='%(prog)s [-h] [--target-language TARGET_LANGUAGE] [--cefr-level {A1,A2,B1,B2,C1,C2}] [--days DAYS] [--transcript TRANSCRIPT] [--output OUTPUT] goal',
+            description='Generate a new language learning curriculum'
         )
         gen_parser.add_argument(
             'goal',
@@ -290,8 +286,7 @@ class CLI:
             return upper_level
         except (KeyError, AttributeError) as e:
             raise argparse.ArgumentTypeError(
-                f"invalid cefr level: {level.lower()}. Must be one of: "
-                f"{', '.join(lvl.value for lvl in CEFRLevel)}"
+                f"invalid choice: '{level.lower()}' (choose from {', '.join(lvl.value for lvl in CEFRLevel)})"
             ) from e
     
     @staticmethod
@@ -306,6 +301,34 @@ class CLI:
             raise argparse.ArgumentTypeError(
                 f"{value} must be a positive integer"
             ) from e
+    
+    def _handle_command(self, args: argparse.Namespace) -> int:
+        """Handle a command by dispatching to the appropriate handler.
+        
+        Args:
+            args: Parsed command line arguments
+            
+        Returns:
+            int: Exit code (0 for success, non-zero for errors)
+        """
+        if not hasattr(args, 'command') or args.command is None:
+            self.parser.print_help()
+            return 1
+            
+        if args.command not in self.commands:
+            print(f"Error: Unknown command '{args.command}'", file=sys.stderr)
+            self.parser.print_help()
+            return 1
+            
+        try:
+            # Call the registered handler for this command
+            return self.commands[args.command].handler(args)
+        except Exception as e:
+            print(f"Error executing command '{args.command}': {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:  # Don't print traceback during tests
+                import traceback
+                traceback.print_exc()
+            return 1
     
     def _setup_commands(self) -> None:
         """Register all command handlers."""
@@ -354,100 +377,105 @@ class CLI:
                 with open(args.transcript, 'r') as f:
                     transcript = f.read()
                 print(f"Using transcript from: {args.transcript}")
-            except OSError as e:  # Catches FileNotFoundError, PermissionError, etc.
-                print(f"Warning: Could not read transcript file: {e}", file=sys.stderr)
-                # Continue without transcript
+            except FileNotFoundError as e:
+                print(f"Error: Transcript file not found: {args.transcript}", file=sys.stderr)
+                return 1
+            except OSError as e:  # Catches other OSErrors like PermissionError
+                print(f"Error: Could not read transcript file: {e}", file=sys.stderr)
+                return 1
         
         # Set default output path
-        output_path = Path(args.output) if args.output else Path('curriculum.json')
+        output_path = Path(args.output) if args.output else DATA_DIR / 'curriculum.json'
         
-        # Generate the curriculum
-        generator = CurriculumGenerator()
         try:
-            curriculum = generator.generate_curriculum(
-                learning_goal=args.goal,
+            # Generate the curriculum using LearningService
+            curriculum = learning_service.create_curriculum(
+                learning_goal=args.goal,  # Changed from learning_objective to learning_goal to match test expectation
                 target_language=args.target_language,
                 cefr_level=args.cefr_level,
                 days=args.days,
                 transcript=transcript,
-                output_path=output_path
+                output_path=output_path  # Add output_path parameter
             )
             
-            if curriculum:
-                # Ensure the output directory exists
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                
-                with open(output_path, 'w') as f:
-                    json.dump(curriculum, f, indent=2)
-                print(f"\nCurriculum generated successfully and saved to: {output_path}")
-                return 0
-            return 1
+            # Save the curriculum
+            saved_path = learning_service.save_curriculum(output_path)
+            print(f"\nCurriculum generated successfully and saved to: {saved_path}")
+            return 0
             
-        except ValueError as e:
+        except LearningError as e:
             print(f"Error: {e}", file=sys.stderr)
             return 1
-        except IOError as e:
-            print(f"Error saving curriculum: {e}", file=sys.stderr)
+        except PermissionError as e:
+            print(f"Error: Permission denied - {e}", file=sys.stderr)
             return 1
 
     def _handle_generate_day(self, args: argparse.Namespace) -> int:
         """Handle the generate-day command."""
-        from story_generator import ContentGenerator
-        from srs_tracker import SRSTracker
-        from curriculum_models import Curriculum
-        
-        if not 1 <= args.day <= 5:
-            print(f"Error: Day must be between 1 and 5, got {args.day}", file=sys.stderr)
-            return 1
-        
-        # Check if curriculum exists
-        if not CURRICULUM_PATH.exists():
-            print("Error: No curriculum found. Please generate a curriculum first using 'generate' command.", 
-                  file=sys.stderr)
-            print("\nWorkflow: generate -> extract -> generate-day -> continue...")
-            return 1
-            
         try:
-            # Load the curriculum to verify the requested day exists
-            curriculum = Curriculum.load(CURRICULUM_PATH)
-            if args.day > len(curriculum.days):
-                print(f"Error: Day {args.day} is not in the curriculum (max day: {len(curriculum.days)})", 
-                      file=sys.stderr)
+            # Validate day number
+            if not 1 <= args.day <= 31:  # Allow up to 31 days
+                print(f"Error: Day must be between 1 and 31, got {args.day}", file=sys.stderr)
                 return 1
-                
+            
             print(f"Generating content for day {args.day}...")
-            generator = ContentGenerator()
             
-            # Generate the day's content
-            result = generator.generate_day_content(args.day)
-            if not result:
-                print(f"Failed to generate content for day {args.day}", file=sys.stderr)
-                return 1
+            # Generate the day's content using LearningService
+            day_content = learning_service.generate_day_content(args.day)
+            
+            # Display the content
+            print("\n" + "="*50)
+            print(f"Day {day_content.day}: {day_content.title}")
+            print(f"Focus: {day_content.focus}")
+            
+            # Display collocations
+            if day_content.new_collocations or day_content.review_collocations:
+                print("\n=== Collocations ===")
                 
-            # Unpack the result (story, collocation_report, srs_update)
-            story, collocation_report, srs_update = result
+                if day_content.new_collocations:
+                    print("\nNew collocations:")
+                    for colloc in day_content.new_collocations:
+                        print(f"- {colloc}")
+                
+                if day_content.review_collocations:
+                    print("\nReview collocations:")
+                    for colloc in day_content.review_collocations:
+                        print(f"- {colloc}")
             
-            # Display collocation information
-            print("\n=== Collocations ===")
-            if collocation_report.get('new'):
-                print(f"\nNew collocations introduced:")
-                for colloc in collocation_report['new']:
-                    print(f"- {colloc}")
-                    
-            if collocation_report.get('reviewed'):
-                print(f"\nCollocations reviewed:")
-                for colloc in collocation_report['reviewed']:
-                    print(f"- {colloc}")
-                    
-            if collocation_report.get('bonus'):
-                print(f"\nBonus collocations found:")
-                for colloc in collocation_report['bonus']:
-                    print(f"- {colloc}")
+            # Display the story
+            print("\n=== Story ===\n")
+            print(day_content.story)
+            print("\n" + "="*50)
             
-            print(f"\nSuccessfully generated content for day {args.day}")
+            # Save the content to a file
+            output_dir = STORIES_DIR
+            output_dir.mkdir(exist_ok=True, parents=True)
+            output_file = output_dir / f"day_{args.day:02d}.txt"
+            
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(f"Day {day_content.day}: {day_content.title}\n")
+                f.write(f"Focus: {day_content.focus}\n\n")
+                
+                if day_content.new_collocations:
+                    f.write("New collocations:\n")
+                    for colloc in day_content.new_collocations:
+                        f.write(f"- {colloc}\n")
+                    f.write("\n")
+                
+                if day_content.review_collocations:
+                    f.write("Review collocations:\n")
+                    for colloc in day_content.review_collocations:
+                        f.write(f"- {colloc}\n")
+                    f.write("\n")
+                
+                f.write("\n=== Story ===\n\n")
+                f.write(day_content.story)
+                f.write("\n")
+            
+            print(f"\n✅ Successfully generated and saved content for day {args.day} to: {output_file}")
             return 0
             
-        except Exception as e:
+        except LearningError as e:
             print(f"Error generating content for day {args.day}: {e}", file=sys.stderr)
             if 'pytest' not in sys.modules:  # Don't print traceback during tests
                 import traceback
@@ -545,122 +573,153 @@ class CLI:
 
     def _handle_continue(self, args: argparse.Namespace) -> int:
         """Continue to the next day, generating content and updating SRS."""
-        from story_generator import ContentGenerator
-        from curriculum_models import Curriculum
-        import os
-        
-        print("Continuing to the next day...")
-        
-        # Check if curriculum exists
-        if not CURRICULUM_PATH.exists():
-            print("Error: No curriculum found. Please generate a curriculum first using 'generate' command.", 
-                  file=sys.stderr)
-            print("\nWorkflow: generate -> extract -> generate-day -> continue...")
-            return 1
-            
         try:
-            # Load the curriculum
-            curriculum = Curriculum.load(CURRICULUM_PATH)
+            print("Continuing to the next day...")
             
-            # Find the last generated day
-            generated_days = []
+            # Get the current day from the learning service
+            current_day = learning_service.get_current_day()
+            next_day = current_day
             
-            if GENERATED_CONTENT_DIR.exists():
-                for f in GENERATED_CONTENT_DIR.glob("story_day*.txt"):
-                    try:
-                        day_num = int(f.stem.split('_')[1][3:])  # Extract day number from filename
-                        generated_days.append(day_num)
-                    except (IndexError, ValueError):
-                        continue
-            
-            # Determine the next day
-            if not generated_days:
+            # If we're already on day 0, start from day 1
+            if current_day == 0:
                 next_day = 1
-                print("No previous content found. Starting from day 1.")
+                print("Starting from day 1.")
             else:
-                next_day = max(generated_days) + 1
-                print(f"Last generated day: {max(generated_days)}")
+                next_day = current_day + 1
+                print(f"Last completed day: {current_day}")
             
-            # Check if we've reached the end of the curriculum
-            if next_day > len(curriculum.days):
-                print(f"\n🎉 Congratulations! You've completed all {len(curriculum.days)} days of the curriculum!")
-                print("Consider generating a new curriculum to continue learning.")
-                return 0
+            # Generate the day's content using LearningService
+            day_content = learning_service.generate_day_content(next_day)
             
-            print(f"Generating content for day {next_day}...")
+            # Update the current day in the learning service
+            learning_service.set_current_day(next_day)
             
-            # Generate the day's content
-            generator = ContentGenerator()
-            result = generator.generate_day_content(next_day)
-            if not result:
-                print(f"Failed to generate content for day {next_day}", file=sys.stderr)
-                return 1
+            # Display the content
+            print("\n" + "="*50)
+            print(f"Day {day_content.day}: {day_content.title}")
+            print(f"Focus: {day_content.focus}")
             
-            # Unpack the result
-            story, collocation_report, srs_update = result
+            # Display collocations
+            if day_content.new_collocations or day_content.review_collocations:
+                print("\n=== Learning Progress ===")
+                
+                if day_content.new_collocations:
+                    print("\n📚 New collocations:")
+                    for colloc in day_content.new_collocations:
+                        print(f"  • {colloc}")
+                
+                if day_content.review_collocations:
+                    print("\n🔄 Reviewing collocations:")
+                    for colloc in day_content.review_collocations:
+                        print(f"  • {colloc}")
             
-            # Display collocation information
-            print("\n=== Learning Progress ===")
-            print(f"Day {next_day}: {curriculum.days[next_day-1].title}")
+            # Display the story
+            print("\n=== Story ===\n")
+            print(day_content.story)
+            print("\n" + "="*50)
             
-            if collocation_report.get('new'):
-                print(f"\n📚 New collocations:")
-                for colloc in collocation_report['new']:
-                    print(f"  • {colloc}")
-                    
-            if collocation_report.get('reviewed'):
-                print(f"\n🔄 Reviewed collocations:")
-                for colloc in collocation_report['reviewed']:
-                    print(f"  • {colloc}")
-                    
-            if collocation_report.get('bonus'):
-                print(f"\n🎁 Bonus collocations found in context:")
-                for colloc in collocation_report['bonus']:
-                    print(f"  • {colloc}")
+            # Save the content to a file
+            output_dir = STORIES_DIR
+            output_dir.mkdir(exist_ok=True, parents=True)
+            output_file = output_dir / f"day_{next_day:02d}.txt"
             
-            # Show SRS status
-            if hasattr(generator, 'srs'):
-                total_collocations = len(generator.srs.collocations)
-                due_count = len([c for c in generator.srs.collocations.values() 
-                               if c.next_review_day <= next_day])
-                print(f"\n📊 SRS Status: {total_collocations} collocations in system")
-                print(f"   - {due_count} due for review")
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(f"Day {day_content.day}: {day_content.title}\n")
+                f.write(f"Focus: {day_content.focus}\n\n")
+                
+                if day_content.new_collocations:
+                    f.write("New collocations:\n")
+                    for colloc in day_content.new_collocations:
+                        f.write(f"- {colloc}\n")
+                    f.write("\n")
+                
+                if day_content.review_collocations:
+                    f.write("Review collocations:\n")
+                    for colloc in day_content.review_collocations:
+                        f.write(f"- {colloc}\n")
+                    f.write("\n")
+                
+                f.write("\n=== Story ===\n\n")
+                f.write(day_content.story)
+                f.write("\n")
+            
+            # Get progress information
+            progress = learning_service.get_progress()
+            print(f"\n📊 Progress: {progress.completion_percentage:.1f}% complete")
+            print(f"   - Day {progress.current_day} of {progress.total_days}")
+            
+            if progress.next_review_date:
+                print(f"   - Next review: {progress.next_review_date.strftime('%Y-%m-%d %H:%M')}")
             
             print(f"\n✅ Successfully generated content for day {next_day}")
-            print(f"\nTo continue tomorrow, run: tunatale continue")
+            print(f"Saved to: {output_file}")
+            print("\nTo continue tomorrow, run: tunatale continue")
             return 0
             
+        except LearningError as e:
+            # If we get a LearningError, it might mean we've reached the end of the curriculum
+            if "Invalid day" in str(e) and next_day > 1:
+                print(f"\n🎉 Congratulations! You've completed all {next_day-1} days of the curriculum!")
+                print("Consider generating a new curriculum to continue learning.")
+                return 0
+            print(f"Error continuing to next day: {e}", file=sys.stderr)
+            return 1
+            
         except Exception as e:
-            print(f"Error generating content: {e}", file=sys.stderr)
+            print(f"Unexpected error: {e}", file=sys.stderr)
             if 'pytest' not in sys.modules:  # Don't print traceback during tests
                 import traceback
                 traceback.print_exc()
             return 1
-
+            
     def _handle_extract(self, args: argparse.Namespace) -> int:
         """Handle the extract command."""
         print("Extracting collocations from curriculum...")
-        extractor = CollocationExtractor()
         
-        # Check if we have a curriculum file
-        if not CURRICULUM_PATH.exists():
-            print("No curriculum found. Please generate one with 'python main.py generate <goal>'")
-            return 1
-            
         try:
-            # Extract collocations from the curriculum
-            collocations = extractor.extract_from_curriculum()
+            # Extract collocations using LearningService
+            collocations = learning_service.extract_collocations()
             
             # Print some statistics
-            print(f"\nExtracted {len(collocations)} collocations.")
-            if collocations:
-                print("Top collocations:")
-                for i, (colloc, count) in enumerate(list(collocations.items())[:10], 1):
-                    print(f"{i}. {colloc} (x{count})")
+            if isinstance(collocations, list):
+                # New format: list of (collocation, count) tuples
+                total_collocations = len(collocations)
+                print(f"\nFound {total_collocations} collocations in the curriculum.")
+                
+                # Sort by frequency (descending)
+                collocations_sorted = sorted(collocations, key=lambda x: x[1], reverse=True)
+                
+                # Print collocations
+                if collocations_sorted:
+                    print("\nCollocations (most frequent first):")
+                    for i, (colloc, count) in enumerate(collocations_sorted, 1):
+                        print(f"{i}. {colloc} (x{count})")
+                
+            elif isinstance(collocations, dict):
+                # Old format: dict of {day: [(colloc, count, days)]}
+                total_collocations = sum(len(colloc_list) for colloc_list in collocations.values())
+                print(f"\nFound {total_collocations} collocations across {len(collocations)} days.")
+                
+                # Flatten and count collocations across all days
+                colloc_counts = {}
+                for day, colloc_list in collocations.items():
+                    for colloc, count, _ in colloc_list:
+                        if colloc in colloc_counts:
+                            colloc_counts[colloc] += count
+                        else:
+                            colloc_counts[colloc] = count
+                
+                # Sort by frequency (descending)
+                sorted_collocs = sorted(colloc_counts.items(), key=lambda x: x[1], reverse=True)
+                
+                if sorted_collocs:
+                    print("\nCollocations (most frequent first):")
+                    for i, (colloc, count) in enumerate(sorted_collocs, 1):
+                        print(f"{i}. {colloc} (x{count})")
             
             return 0
             
-        except Exception as e:
+        except LearningError as e:
             print(f"Error extracting collocations: {e}", file=sys.stderr)
             if 'pytest' not in sys.modules:  # Don't print traceback during tests
                 import traceback
@@ -739,22 +798,21 @@ class CLI:
             print(f"Verbose output: {'Yes' if args.verbose else 'No'}")
             
             print("\nLoading vocabulary analyzer...")
-            extractor = CollocationExtractor()
+            from services.learning_service import learning_service
             
             print("Analyzing text...")
-            try:
-                analysis = extractor.analyze_vocabulary_distribution(text)
-                
-                # Calculate analysis time
-                analysis_time = time.time() - start_time
-                
-                # Print summary with consistent column alignment
-            except Exception as e:
-                print(f"Error during analysis: {e}", file=sys.stderr)
-                if 'pytest' not in sys.modules:  # Don't print traceback during tests
-                    import traceback
-                    traceback.print_exc()
-                return 1
+            # Use LearningService to analyze the text
+            analysis = learning_service.analyze_text(
+                text=text,
+                min_word_length=args.min_word_len,
+                top_n_words=args.top_words,
+                top_n_collocations=args.top_collocations
+            )
+            
+            # Calculate analysis time
+            analysis_time = time.time() - start_time
+            
+            # Set up display constants
             col1_width = 30
             col2_width = 20
             
@@ -820,7 +878,6 @@ class CLI:
             print("="*60)
             
             return 0
-            
         except Exception as e:
             print(f"\nError during analysis: {e}", file=sys.stderr)
             if 'pytest' not in sys.modules:  # Don't print traceback during tests
@@ -867,57 +924,159 @@ class CLI:
     def _handle_view(self, args: argparse.Namespace) -> int:
         """Handle the view command."""
         try:
-            if args.what == 'curriculum':
-                return self._view_curriculum()
-            elif args.what == 'collocations':
-                return self._view_collocations()
-            elif args.what == 'story':
-                return self._view_story(args.day)
+            # Handle new format with 'file' argument
+            if hasattr(args, 'file') and args.file:
+                if args.file.endswith('.json'):
+                    # For JSON files, assume it's a curriculum
+                    curriculum = learning_service.get_curriculum(args.file)
+                    print(json.dumps(curriculum, indent=2))
+                    return 0
+                else:
+                    # For other files, try to read and display
+                    with open(args.file, 'r') as f:
+                        print(f.read())
+                    return 0
+            # Fall back to old format with 'what' argument
+            elif hasattr(args, 'what'):
+                if args.what == 'curriculum':
+                    return self._view_curriculum()
+                elif args.what == 'collocations':
+                    return self._view_collocations()
+                elif args.what == 'story':
+                    return self._view_story(args.day if hasattr(args, 'day') else 1)
+            
+            print("Error: No valid view target specified", file=sys.stderr)
+            return 1
+            
         except FileNotFoundError as e:
+            print(f"Error: File not found: {e}", file=sys.stderr)
+            return 1
+        except LearningError as e:
             print(f"Error: {e}", file=sys.stderr)
             return 1
-        return 0
+        except Exception as e:
+            print(f"Unexpected error: {e}", file=sys.stderr)
+            return 1
     
     def _view_curriculum(self) -> int:
         """Display the generated curriculum."""
-        if not CURRICULUM_PATH.exists():
-            print("No curriculum found. Generate one with 'python main.py generate <goal>'")
-            return 1
+        try:
+            curriculum = learning_service.get_curriculum()
+            if not curriculum:
+                print("No curriculum found. Generate one with 'tunatale generate <goal>'")
+                return 1
+                
+            print(f"\n📚 Learning Goal: {curriculum.learning_goal}")
+            print(f"📅 Duration: {len(curriculum.days)} days")
+            print(f"🌐 Target Language: {curriculum.target_language}")
+            print(f"📊 CEFR Level: {curriculum.cefr_level}\n")
             
-        with open(CURRICULUM_PATH, 'r') as f:
-            curriculum = json.load(f)
-            print(f"\nLearning Goal: {curriculum['learning_goal']}\n")
-            print(curriculum['content'])
-        return 0
+            print("=== Curriculum Overview ===")
+            for i, day in enumerate(curriculum.days, 1):
+                print(f"\nDay {i}: {day.title}")
+                print(f"   Focus: {day.focus}")
+                if day.description:
+                    print(f"   Description: {day.description}")
+            
+            return 0
+            
+        except LearningError as e:
+            print(f"Error viewing curriculum: {e}", file=sys.stderr)
+            return 1
     
     def _view_collocations(self) -> int:
         """Display the extracted collocations."""
-        if not COLLOCATIONS_PATH.exists():
-            print("No collocations found. Extract them with 'python main.py extract'")
-            return 1
+        try:
+            # Get collocations from the learning service
+            collocations = learning_service.get_all_collocations()
             
-        with open(COLLOCATIONS_PATH, 'r') as f:
-            collocations = json.load(f)
-            print("\nTop Collocations:")
-            for i, (colloc, count) in enumerate(list(collocations.items())[:20], 1):
-                print(f"{i}. {colloc} (x{count})")
-        return 0
+            if not collocations:
+                print("No collocations found. Extract them with 'tunatale extract'")
+                return 1
+            
+            # Group collocations by category (new, review, bonus)
+            new_collocations = []
+            review_collocations = []
+            bonus_collocations = []
+            
+            for colloc in collocations:
+                if colloc.get('category') == 'new':
+                    new_collocations.append(colloc)
+                elif colloc.get('category') == 'review':
+                    review_collocations.append(colloc)
+                elif colloc.get('category') == 'bonus':
+                    bonus_collocations.append(colloc)
+            
+            # Print collocations by category
+            if new_collocations:
+                print("\n📚 New Collocations:")
+                for i, colloc in enumerate(new_collocations[:20], 1):
+                    print(f"  {i}. {colloc['phrase']} - {colloc.get('translation', '')}")
+                    if 'example' in colloc:
+                        print(f"     Example: {colloc['example']}")
+            
+            if review_collocations:
+                print("\n🔄 Review Collocations:")
+                for i, colloc in enumerate(review_collocations[:10], 1):
+                    print(f"  {i}. {colloc['phrase']} - {colloc.get('translation', '')}")
+            
+            if bonus_collocations:
+                print("\n🎁 Bonus Collocations:")
+                for i, colloc in enumerate(bonus_collocations[:5], 1):
+                    print(f"  {i}. {colloc['phrase']} - {colloc.get('translation', '')}")
+            
+            # Show stats
+            total = len(new_collocations) + len(review_collocations) + len(bonus_collocations)
+            print(f"\n📊 Total collocations: {total} (New: {len(new_collocations)}, "
+                  f"Review: {len(review_collocations)}, Bonus: {len(bonus_collocations)})")
+            
+            return 0
+            
+        except LearningError as e:
+            print(f"Error viewing collocations: {e}", file=sys.stderr)
+            return 1
     
     def _view_story(self, day: Optional[int]) -> int:
         """Display a generated story."""
-        if not day:
-            print("Please specify a day with --day")
-            return 1
+        try:
+            if not day:
+                print("Please specify a day with --day")
+                return 1
+                
+            # Get the story content from the learning service
+            story_content = learning_service.get_story(day)
             
-        story_path = Path(STORIES_DIR) / f'day{day}_story.txt'
-        if not story_path.exists():
-            print(f"No story found for Day {day}")
-            return 1
+            if not story_content:
+                print(f"No story found for Day {day}")
+                return 1
             
-        with open(story_path, 'r') as f:
-            print(f"\nDay {day} Story:\n")
-            print(f.read())
-        return 0
+            # Display the story with nice formatting
+            print("\n" + "="*60)
+            print(f"📖 Day {day} Story: {story_content.get('title', '')}")
+            print("="*60 + "\n")
+            
+            # Print the story content with proper formatting
+            if 'content' in story_content:
+                print(story_content['content'])
+            
+            # Print collocations if available
+            if 'collocations' in story_content and story_content['collocations']:
+                print("\n📝 Key Collocations:")
+                for i, colloc in enumerate(story_content['collocations'], 1):
+                    print(f"  {i}. {colloc}")
+            
+            # Print any additional metadata
+            if 'vocabulary' in story_content and story_content['vocabulary']:
+                print("\n📚 New Vocabulary:")
+                for word, meaning in story_content['vocabulary'].items():
+                    print(f"  • {word}: {meaning}")
+            
+            print("\n" + "="*60)
+            return 0
+            
+        except LearningError as e:
+            print(f"Error viewing story: {e}", file=sys.stderr)
+            return 1
     
     @staticmethod
     def _load_previous_story(path: str) -> str:
@@ -949,24 +1108,59 @@ class CLI:
             print("-" * 50)
             return 0
     
-    def run(self) -> int:
-        """Run the CLI application."""
-        try:
-            args = self.parser.parse_args()
+    def run(self, args=None) -> int:
+        """Run the CLI application.
+        
+        Args:
+            args: Optional list of command line arguments. If not provided, uses sys.argv[1:].
             
-            # Handle help flag
-            if hasattr(args, 'help') and args.help:
+        Returns:
+            int: Exit code (0 for success, non-zero for errors)
+        """
+        try:
+            # If no args provided, use sys.argv[1:]
+            if args is None:
+                args = sys.argv[1:]
+                
+            # Special case: handle empty command line or help flag
+            if not args or '-h' in args or '--help' in args:
                 self.parser.print_help()
                 print('\nFor help on a specific command, use: <command> -h')
-                return 0
+                return 0 if ('-h' in args or '--help' in args) else 1
                 
-            # Handle help command
-            if hasattr(args, 'func') and args.func:
-                return args.func(args)
+            # Check if the first argument is a known command
+            if args and args[0] not in self.commands and args[0] not in ['-h', '--help']:
+                print(f"Error: Unknown command '{args[0]}'", file=sys.stderr)
+                print("\nAvailable commands:")
+                for cmd_name, cmd in self.commands.items():
+                    print(f"  {cmd_name:20} {cmd.help}")
+                return 1
                 
-            # Handle regular commands
-            if hasattr(args, 'command') and args.command in self.commands:
-                return self.commands[args.command].handler(args)
+            # Try to parse the arguments
+            try:
+                parsed_args = self.parser.parse_args(args)
+            except SystemExit as e:
+                # Re-raise with status code 2 for argument errors
+                if hasattr(e, 'code') and e.code == 0:
+                    return 0
+                return 2
+            except Exception as e:
+                # Handle other argument parsing errors
+                print(f"Error: {str(e)}", file=sys.stderr)
+                return 2
+                    
+            # Handle the parsed command
+            if hasattr(parsed_args, 'command') and parsed_args.command:
+                if parsed_args.command in self.commands:
+                    return self._handle_command(parsed_args)
+                else:
+                    # This should not happen as we already checked the command
+                    print(f"Error: Unknown command '{parsed_args.command}'", file=sys.stderr)
+                    return 1
+                    
+            # Handle functions directly (like help)
+            if hasattr(parsed_args, 'func') and parsed_args.func:
+                return parsed_args.func(parsed_args)
                 
             # No command provided
             self.parser.print_help()

@@ -98,10 +98,39 @@ class StoryParams:
                 )
 
 class ContentGenerator:
-    def __init__(self):
-        self.llm = MockLLM()
+    def __init__(self, data_dir: Optional[Union[str, Path]] = None, 
+                 prompts_dir: Optional[Union[str, Path]] = None,
+                 llm: Optional[Any] = None):
+        """Initialize the ContentGenerator.
+        
+        Args:
+            data_dir: Base directory for storing SRS data. If not provided,
+                    uses the default from config or creates a default.
+            prompts_dir: Directory containing prompt templates. If not provided,
+                       uses the default from config.
+            llm: Optional LLM instance to use. If not provided, creates a new MockLLM.
+        """
+        self.llm = llm if llm is not None else MockLLM()
+        
+        # Set up prompts directory
+        if prompts_dir:
+            self.prompts_dir = Path(prompts_dir)
+        else:
+            try:
+                from config import PROMPTS_DIR as config_prompts_dir
+                self.prompts_dir = Path(config_prompts_dir)
+            except ImportError:
+                self.prompts_dir = Path(__file__).parent.parent / 'prompts'
+        
+        # Ensure prompts directory exists
+        self.prompts_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Load the story prompt
         self.story_prompt = self._load_prompt('story_prompt_template.txt')
-        self.srs = SRSTracker()
+        
+        # Initialize SRSTracker with the provided data_dir or use default
+        self.srs = SRSTracker(data_dir=data_dir) if data_dir else SRSTracker()
+        
         self._collocation_extractor = None
     
     @property
@@ -112,11 +141,34 @@ class ContentGenerator:
         return self._collocation_extractor
     
     def _load_prompt(self, filename: str) -> str:
-        """Load prompt from file or use default if not found."""
-        prompt_path = PROMPTS_DIR / filename
+        """Load prompt from file.
+        
+        Args:
+            filename: Name of the prompt file to load
+            
+        Returns:
+            str: The contents of the prompt file
+            
+        Raises:
+            FileNotFoundError: If the prompt file does not exist
+        """
+        prompt_path = self.prompts_dir / filename
         if not prompt_path.exists():
-            raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
-        with open(prompt_path, 'r') as f:
+            # Try to copy from default prompts if available
+            default_prompts_dir = Path(__file__).parent.parent / 'prompts'
+            default_prompt_path = default_prompts_dir / filename
+            
+            if default_prompt_path.exists():
+                # Copy default prompt to the target directory
+                import shutil
+                self.prompts_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(default_prompt_path, prompt_path)
+            else:
+                raise FileNotFoundError(
+                    f"Prompt file not found: {prompt_path} (and default not found at {default_prompt_path})"
+                )
+        
+        with open(prompt_path, 'r', encoding='utf-8') as f:
             return f.read()
     
     def generate_story(self, params: StoryParams, previous_story: str = "") -> Optional[str]:
@@ -330,7 +382,7 @@ class ContentGenerator:
             params = StoryParams(
                 learning_objective=day_data.learning_objective,
                 language=curriculum.target_language,
-                cefr_level=curriculum.learner_level,
+                cefr_level=curriculum.cefr_level,
                 phase=day,
                 length=curriculum.presentation_length * 10,  # Convert minutes to words (approx)
                 new_vocabulary=day_data.presentation_phrases,

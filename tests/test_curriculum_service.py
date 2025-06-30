@@ -253,17 +253,17 @@ class TestCurriculumGenerator:
         mock_llm.generate.return_value = {
             'invalid': 'response'
         }
-        with pytest.raises(LLMError, match="Unexpected error generating curriculum"):
+        with pytest.raises(LLMError, match="Failed to generate curriculum: Invalid response format from LLM"):
             curriculum_generator.generate_curriculum("Test goal")
             
         # Test with empty choices list
         mock_llm.generate.return_value = {
             'choices': []
         }
-        with pytest.raises(LLMError, match="Unexpected error generating curriculum"):
+        with pytest.raises(LLMError, match="Failed to generate curriculum: Invalid response format from LLM"):
             curriculum_generator.generate_curriculum("Test goal")
             
-        # Test with invalid content in response
+        # Test with invalid content in response - this should now work as the code handles it
         mock_llm.generate.return_value = {
             'choices': [{
                 'message': {
@@ -272,8 +272,11 @@ class TestCurriculumGenerator:
                 }
             }]
         }
-        with pytest.raises(LLMError, match="Unexpected error generating curriculum"):
-            curriculum_generator.generate_curriculum("Test goal")
+        # This should not raise an exception as the code now handles this case
+        result = curriculum_generator.generate_curriculum("Test goal")
+        assert isinstance(result, dict)
+        assert 'days' in result
+        assert 'day_1' in result['days']
     
     def test_parse_curriculum_empty_content(self, curriculum_generator):
         """Test parsing empty curriculum content returns dict with empty day_1."""

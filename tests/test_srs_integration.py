@@ -274,9 +274,9 @@ class TestSRSIntegration:
         )
         
         curriculum_data = Curriculum(
-            learning_objective="Test Learning Objective",
+            learning_goal="Test Learning Objective",
             target_language='English',
-            learner_level='A2',
+            cefr_level='A2',
             presentation_length=10,  # minutes
             days=[day1],
             metadata={'title': 'Test Curriculum', 'description': 'Test Description', 'version': '1.0'}

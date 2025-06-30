@@ -15,10 +15,8 @@ class TestAnalyzeCommand:
 
     @pytest.fixture
     def mock_extractor(self):
-        """Create a mock collocation extractor with sample analysis results."""
-        with patch('main.CollocationExtractor') as mock_extractor_cls:
-            mock_instance = mock_extractor_cls.return_value
-            
+        """Create a mock LearningService with sample analysis results."""
+        with patch('services.learning_service.learning_service') as mock_service:
             # Create a custom mock class that handles comparison operations
             class MockResult(dict):
                 def __init__(self, data):
@@ -40,10 +38,10 @@ class TestAnalyzeCommand:
                 def items(self):
                     return self._data.items()
             
-            # Mock the vocabulary analysis to return different results based on input
-            def mock_analyze(text):
+            # Mock the analyze_text method to return different results based on input
+            def mock_analyze_text(text, min_word_length=None, top_n_words=None, top_n_collocations=None):
                 if not text.strip():
-                    return MockResult({
+                    return {
                         'total_words': 0,
                         'unique_words_count': 0,
                         'background_words': 0,
@@ -53,9 +51,9 @@ class TestAnalyzeCommand:
                         'top_new_words': [],
                         'collocations': {},
                         'unique_new_words': []
-                    })
+                    }
                 elif "carnivorous" in text.lower():
-                    return MockResult({
+                    return {
                         'total_words': 100,
                         'unique_words_count': 50,
                         'background_words': 70,
@@ -69,9 +67,9 @@ class TestAnalyzeCommand:
                             'digest prey': 3,
                         },
                         'unique_new_words': ['plant', 'carnivorous', 'trap', 'insect', 'digest', 'prey']
-                    })
+                    }
                 else:  # For other test cases
-                    return MockResult({
+                    return {
                         'total_words': 50,
                         'unique_words_count': 30,
                         'background_words': 35,
@@ -84,10 +82,10 @@ class TestAnalyzeCommand:
                             'carnivorous plants': 2,
                         },
                         'unique_new_words': ['test', 'story', 'plants', 'carnivorous']
-                    })
+                    }
             
-            mock_instance.analyze_vocabulary_distribution.side_effect = mock_analyze
-            yield mock_instance
+            mock_service.analyze_text.side_effect = mock_analyze_text
+            yield mock_service
 
     def test_analyze_file(self, mock_extractor, capsys, tmp_path):
         """Test analyzing a file with the analyze command."""
@@ -129,9 +127,12 @@ class TestAnalyzeCommand:
         assert "100" in output  # From our mock data
         
         # Verify the extractor was called with the file content
-        mock_extractor.analyze_vocabulary_distribution.assert_called_once()
-        call_args = mock_extractor.analyze_vocabulary_distribution.call_args[0][0]
-        assert "Carnivorous plants" in call_args
+        mock_extractor.analyze_text.assert_called_once()
+        call_args = mock_extractor.analyze_text.call_args[1]
+        assert call_args['text'] == test_content
+        assert call_args['min_word_length'] == 3
+        assert call_args['top_n_words'] == 20
+        assert call_args['top_n_collocations'] == 20
 
     def test_analyze_direct_text(self, mock_extractor, capsys):
         """Test analyzing direct text input with the analyze command."""
@@ -161,7 +162,12 @@ class TestAnalyzeCommand:
         assert "100" in output  # From our mock data
         
         # Verify the extractor was called with the direct text
-        mock_extractor.analyze_vocabulary_distribution.assert_called_once_with(test_text)
+        mock_extractor.analyze_text.assert_called_once()
+        call_args = mock_extractor.analyze_text.call_args[1]
+        assert call_args['text'] == test_text
+        assert call_args['min_word_length'] == 3
+        assert call_args['top_n_words'] == 5
+        assert call_args['top_n_collocations'] == 5
 
     def test_analyze_verbose_output(self, mock_extractor, capsys):
         """Test verbose output shows all unique words."""
@@ -186,7 +192,7 @@ class TestAnalyzeCommand:
         }
         
         # Configure the mock to return our test result
-        mock_extractor.analyze_vocabulary_distribution.return_value = mock_result
+        mock_extractor.analyze_text.return_value = mock_result
         
         # Execute with verbose flag
         cli = CLI()
@@ -216,7 +222,12 @@ class TestAnalyzeCommand:
             assert "trap" in output
         
         # Verify the extractor was called with the correct parameters
-        mock_extractor.analyze_vocabulary_distribution.assert_called_once_with(test_text)
+        mock_extractor.analyze_text.assert_called_once()
+        call_args = mock_extractor.analyze_text.call_args[1]
+        assert call_args['text'] == test_text
+        assert call_args['min_word_length'] == 3
+        assert call_args['top_n_words'] == 5
+        assert call_args['top_n_collocations'] == 5
 
     def test_analyze_nonexistent_file(self, capsys):
         """Test handling of non-existent file."""
@@ -262,7 +273,7 @@ class TestAnalyzeCommand:
         }
         
         # Configure the mock to return our test result
-        mock_extractor.analyze_vocabulary_distribution.return_value = mock_result
+        mock_extractor.analyze_text.return_value = mock_result
         
         # Execute
         cli = CLI()

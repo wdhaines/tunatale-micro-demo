@@ -469,23 +469,26 @@ class CurriculumGenerator:
                     
                     # Try to extract structured days from the response
                     try:
-                        parsed_days = self._parse_curriculum_days(curriculum_content)
-                        if parsed_days:
-                            curriculum['days'] = parsed_days
+                        # First try the comprehensive parser
+                        parsed_days = self._parse_comprehensive_response(curriculum_content)
+                        if parsed_days and 'days' in parsed_days and parsed_days['days']:
+                            curriculum['days'] = parsed_days['days']
                             curriculum['metadata']['format'] = 'json'
+                            logger.info(f"Successfully parsed {len(parsed_days['days'])} days from curriculum response")
+                        else:
+                            # Fall back to the simpler parser
+                            parsed_days = self._parse_curriculum_days(curriculum_content)
+                            if parsed_days:
+                                curriculum['days'] = parsed_days
+                                curriculum['metadata']['format'] = 'json'
+                                logger.info(f"Parsed {len(parsed_days)} days using simple parser")
+                            else:
+                                raise ValueError("No days could be parsed from the response")
                     except Exception as parse_error:
                         logger.warning(f"Could not parse days from LLM response: {parse_error}")
-                        # Fall back to a single day with the full content
-                        curriculum['days'] = {
-                            'day_1': {
-                                'title': f'Introduction to {learning_goal}',
-                                'content': curriculum_content,
-                                'focus': learning_goal,
-                                'collocations': [],
-                                'vocabulary': [],
-                                'activities': []
-                            }
-                        }
+                        # Instead of falling back to a single day, raise an error to be handled by the caller
+                        # This ensures we don't silently create a single-day curriculum when multiple were requested
+                        raise LLMError(f"Failed to parse curriculum days: {parse_error}") from parse_error
                 except Exception as e:
                     logger.error(f"Error generating curriculum with LLM: {e}")
                     raise LLMError(f"Failed to generate curriculum: {e}")

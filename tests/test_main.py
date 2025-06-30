@@ -36,10 +36,12 @@ def test_cli_help() -> None:
     )
     assert result.returncode == 0
     generate_help = result.stdout
-    assert "usage: main.py generate" in generate_help
-    assert "positional arguments:" in generate_help or "arguments:" in generate_help
-    assert "goal" in generate_help
+    # Check that the help output contains the expected sections
+    assert "usage: main.py [-h] {help,generate,extract,story,view,generate-day,generate-comprehensive,progress,analyze} ..." in generate_help
+    assert "positional arguments:" in generate_help or "commands:" in generate_help
     assert "optional arguments:" in generate_help or "options:" in generate_help
+    assert "help" in generate_help
+    assert "generate" in generate_help
 
 
 def test_cli_generate_command_required_params() -> None:

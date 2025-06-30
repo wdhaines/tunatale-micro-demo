@@ -36,7 +36,11 @@ class CurriculumDay:
     story_guidance: str = ""
     
     def __post_init__(self):
-        """Validate the day number is positive."""
+        """Validate the day number is positive and handle field name variations."""
+        # Handle learning_goal as an alias for learning_objective for backward compatibility
+        if 'learning_goal' in self.__dict__ and 'learning_objective' not in self.__dict__:
+            self.learning_objective = self.__dict__.pop('learning_goal')
+            
         if self.day < 1:
             raise ValueError("Day number must be positive")
 
@@ -46,16 +50,16 @@ class Curriculum:
     """Represents a complete language learning curriculum.
     
     Attributes:
-        learning_objective: The overall learning objective of the curriculum.
+        learning_goal: The overall learning goal of the curriculum.
         target_language: The target language for learning.
-        learner_level: The proficiency level of the target learners.
+        cefr_level: The CEFR proficiency level of the target learners.
         presentation_length: The expected length of presentations in minutes.
         days: List of CurriculumDay objects representing each day's plan.
         metadata: Additional metadata about the curriculum.
     """
-    learning_objective: str
+    learning_goal: str
     target_language: str
-    learner_level: str
+    cefr_level: str
     presentation_length: int
     days: List[CurriculumDay] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -100,6 +104,15 @@ class Curriculum:
         """
         if not isinstance(data, dict):
             raise ValueError("Data must be a dictionary")
+        
+        # Create a copy to avoid modifying the original
+        data = data.copy()
+        
+        # Handle field name mappings for backward compatibility
+        if 'learning_objective' in data and 'learning_goal' not in data:
+            data['learning_goal'] = data.pop('learning_objective')
+        if 'learner_level' in data and 'cefr_level' not in data:
+            data['cefr_level'] = data.pop('learner_level')
             
         # Extract days data and create CurriculumDay objects
         days_data = data.pop('days', [])

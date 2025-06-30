@@ -5,12 +5,18 @@
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
         <h2 class="text-xl font-semibold mb-4">Create New Curriculum</h2>
         
-        <form method="POST" action="{{ url_for('create_curriculum') }}" enctype="multipart/form-data" class="space-y-6">
+        <div id="result" class="mb-4"></div>
+        <form method="POST" action="{{ url_for('generate_curriculum') }}" enctype="multipart/form-data" class="space-y-6"
+              hx-post="{{ url_for('generate_curriculum') }}" 
+              hx-target="#result" 
+              hx-swap="innerHTML"
+              hx-indicator=".htmx-indicator"
+              hx-on::after-request="if(event.detail.successful) { handleResponse(event.detail.xhr); }">
             <div class="space-y-4">
                 <div>
-                    <label for="learning_objective" class="block text-sm font-medium text-gray-700">Learning Objective *</label>
-                    <input type="text" id="learning_objective" name="learning_objective" required
-                           value="{{ learning_objective if learning_objective else '' }}" 
+                    <label for="learning_goal" class="block text-sm font-medium text-gray-700">Learning Goal *</label>
+                    <input type="text" id="learning_goal" name="learning_goal" required
+                           value="{{ learning_goal if learning_goal else '' }}" 
                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                            placeholder="What should the learner be able to do? (e.g., 'Ordering food in a restaurant')">
                 </div>
@@ -75,14 +81,48 @@
                 </div>
             </div>
             
+            <!-- Advanced Options Section -->
+            <div class="pt-4 border-t border-gray-200">
+                <button type="button" 
+                        onclick="toggleAdvancedOptions()"
+                        class="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 focus:outline-none">
+                    <span id="advanced-options-arrow">▶</span>
+                    <span class="ml-1">Advanced Options</span>
+                </button>
+                
+                <div id="advanced-options" class="mt-2 hidden">
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <div class="mb-4">
+                            <label for="llm_response" class="block text-sm font-medium text-gray-700 mb-1">
+                                Paste LLM Response (JSON)
+                            </label>
+                            <p class="text-xs text-gray-500 mb-2">
+                                For testing: Paste a complete LLM response to use instead of generating one.
+                            </p>
+                            <textarea id="llm_response" name="llm_response" rows="8"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs font-mono"
+                                placeholder="Paste LLM JSON response here..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                 <button type="button" onclick="window.location.href='{{ url_for('index') }}'" 
                         class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     Cancel
                 </button>
                 <button type="submit" 
-                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Generate Curriculum
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        id="generate-btn">
+                    <span class="htmx-indicator">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating...
+                    </span>
+                    <span class="htmx-indicator-none">Generate Curriculum</span>
                 </button>
             </div>
         </form>
@@ -122,20 +162,77 @@
             </div>
         </form>
         
-        <div id="result" class="mt-6"></div>
+
     </div>
     {% endif %}
 </div>
 
+<style>
+    .htmx-indicator {
+        display: none;
+    }
+    .htmx-request .htmx-indicator {
+        display: inline;
+    }
+    .htmx-request .htmx-indicator-none {
+        display: none;
+    }
+</style>
+
 <script>
-    document.body.addEventListener('htmx:afterRequest', function(evt) {
-        if (evt.detail.successful) {
-            const response = JSON.parse(evt.detail.xhr.responseText);
-            if (response.success && response.curriculum) {
+    function toggleAdvancedOptions() {
+        const advancedOptions = document.getElementById('advanced-options');
+        const arrow = document.getElementById('advanced-options-arrow');
+        
+        if (advancedOptions.classList.contains('hidden')) {
+            advancedOptions.classList.remove('hidden');
+            arrow.textContent = '▼';
+        } else {
+            advancedOptions.classList.add('hidden');
+            arrow.textContent = '▶';
+        }
+    }
+
+    function handleResponse(xhr) {
+        try {
+            const response = JSON.parse(xhr.responseText);
+            if (response.success && response.filename) {
                 // Redirect to view the generated curriculum
                 window.location.href = `/view/${response.filename}`;
+            } else if (response.error) {
+                // Show error message
+                document.getElementById('result').innerHTML = `
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-red-700">${response.error}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
+        } catch (e) {
+            console.error('Error parsing response:', e);
+            document.getElementById('result').innerHTML = `
+                <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-red-700">An error occurred while processing the response. Please try again.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
-    });
+    }
 </script>
 {% endblock %}

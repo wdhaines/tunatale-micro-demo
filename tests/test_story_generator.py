@@ -440,9 +440,9 @@ def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp
     )
     
     test_curriculum = Curriculum(
-        learning_objective='Test Learning',
+        learning_goal='Test Learning',
         target_language='English',
-        learner_level='A2',
+        cefr_level='A2',
         presentation_length=10,  # minutes
         days=[test_day],
         metadata={'version': 'test'}
