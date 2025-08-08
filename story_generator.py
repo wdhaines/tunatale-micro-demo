@@ -36,6 +36,14 @@ from llm_mock import MockLLM
 from srs_tracker import SRSTracker
 from collocation_extractor import CollocationExtractor
 from curriculum_models import Curriculum, CurriculumDay
+from content_strategy import (
+    ContentStrategy, 
+    DifficultyLevel, 
+    EnhancedStoryParams,
+    get_strategy_config
+)
+from prompt_generator import DayPromptGenerator, create_prompt_generator
+from mock_srs import MockSRS, create_mock_srs, LessonVocabularyReport
 
 class CEFRLevel(str, Enum):
     A1 = "A1"
@@ -102,7 +110,24 @@ class StoryParams:
 class ContentGenerator:
     def __init__(self):
         self.llm = MockLLM()
+        # Legacy prompts (for backward compatibility)
         self.story_prompt = self._load_prompt('story_prompt_template.txt')
+        # Try to load deeper prompt, but don't fail if not available (for tests)
+        try:
+            self.story_prompt_deeper = self._load_prompt('story_prompt_deeper.txt')
+        except FileNotFoundError:
+            self.story_prompt_deeper = None  # For testing environments
+        
+        # New two-part prompt architecture (with safe initialization)
+        try:
+            self.prompt_generator = create_prompt_generator()
+            self.mock_srs = create_mock_srs()
+        except Exception:
+            # For testing environments where new prompts may not exist
+            self.prompt_generator = None
+            self.mock_srs = None
+        
+        # Legacy SRS (for existing functionality)
         self.srs = SRSTracker()
         self._collocation_extractor = None
     
@@ -184,7 +209,211 @@ class ContentGenerator:
             print(f"Error generating story: {e}")
             traceback.print_exc()
             return None
+
+
+    def generate_enhanced_story(self, params: EnhancedStoryParams) -> Optional[str]:
+        """
+        Generate a story using enhanced parameters with strategy support.
+        
+        Args:
+            params: Enhanced story generation parameters with strategy info
+            
+        Returns:
+            Generated story text or None if generation fails
+        """
+        try:
+            # Select appropriate prompt based on strategy
+            if params.content_strategy == ContentStrategy.DEEPER:
+                prompt_template = self.story_prompt_deeper
+            else:
+                # Use default template for BALANCED and WIDER
+                prompt_template = self.story_prompt
+            
+            # Get strategy configuration
+            strategy_config = get_strategy_config(params.content_strategy)
+            
+            # Format new collocations and review collocations
+            new_vocab = ", ".join(params.new_vocabulary) if params.new_vocabulary else "None"
+            recycled_collocs = ", ".join(params.review_collocations) if params.review_collocations else "None"
+            
+            # Prepare prompt parameters
+            prompt_params = {
+                'learning_objective': params.learning_objective,
+                'focus': params.focus or f"Language learning - Phase {params.phase}",
+                'learner_level': params.cefr_level,
+                'new_collocations': new_vocab,
+                'review_collocations': recycled_collocs,
+                'story_guidance': params.story_guidance or "Create an engaging story incorporating the target vocabulary.",
+                'phase': params.phase
+            }
+            
+            # Add DEEPER-specific parameters
+            if params.content_strategy == ContentStrategy.DEEPER and params.source_day:
+                prompt_params['source_day'] = params.source_day
+            
+            # Format the prompt
+            prompt = prompt_template.format(**prompt_params)
+            
+            # Get the story from the LLM
+            logging.info(f"\n--- Enhanced Story Generation ({params.content_strategy.value.upper()}) ---")
+            logging.info(f"Day {params.phase}: {params.learning_objective}")
+            logging.info(f"Focus: {params.focus}")
+            logging.info(f"Strategy: {params.content_strategy.value}")
+            if params.source_day:
+                logging.info(f"Source Day: {params.source_day}")
+            logging.info(f"New collocations: {new_vocab}")
+            logging.info(f"Review collocations: {recycled_collocs}")
+            
+            response = self.llm.get_response(prompt)
+            
+            if not response or 'choices' not in response:
+                logging.error("Invalid LLM response format")
+                return None
+                
+            story = response['choices'][0]['message']['content'].strip()
+            
+            if not story:
+                logging.error("Empty story generated")
+                return None
+            
+            # Extract and update collocations if needed
+            try:
+                extracted_collocations = self.collocation_extractor.extract_collocations(story)
+                logging.info(f"Extracted {len(extracted_collocations)} collocations from generated story")
+            except Exception as e:
+                logging.warning(f"Failed to extract collocations: {e}")
+                
+            return story
+            
+        except Exception as e:
+            logging.error(f"Error generating enhanced story: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+
+    def generate_day_with_srs(
+        self, 
+        day: int, 
+        strategy: ContentStrategy = ContentStrategy.BALANCED,
+        source_day: Optional[int] = None,
+        learning_objective: Optional[str] = None
+    ) -> Optional[str]:
+        """
+        Generate content using the new two-part prompt architecture with SRS integration.
+        
+        Args:
+            day: Day number for the lesson
+            strategy: Content generation strategy (WIDER/DEEPER/BALANCED)
+            source_day: Source day for DEEPER strategy (which day to enhance)
+            learning_objective: Optional override for learning objective
+            
+        Returns:
+            Generated story content or None if generation fails
+        """
+        try:
+            logging.info(f"\n--- SRS-Informed Story Generation ---")
+            logging.info(f"Day: {day}")
+            logging.info(f"Strategy: {strategy.value}")
+            if source_day:
+                logging.info(f"Source Day: {source_day}")
+            
+            # Generate complete prompt using two-part architecture
+            complete_prompt = self.prompt_generator.generate_complete_prompt(
+                day=day,
+                strategy=strategy,
+                source_day=source_day,
+                learning_objective=learning_objective
+            )
+            
+            # Get vocabulary constraints from mock SRS
+            srs_data = self.mock_srs.get_srs_data_for_prompt(day, strategy)
+            
+            logging.info(f"Vocabulary constraints:")
+            logging.info(f"  - Learned: {len(srs_data['learned_vocabulary'])} words")
+            logging.info(f"  - Review: {len(srs_data['review_vocabulary'])} words") 
+            logging.info(f"  - New limit: {srs_data['new_vocabulary_limit']}")
+            logging.info(f"  - Difficulty: {srs_data['difficulty_level']}")
+            
+            # Generate content using LLM
+            response = self.llm.get_response(complete_prompt)
+            
+            if not response or 'choices' not in response:
+                logging.error("Invalid LLM response format")
+                return None
+                
+            story = response['choices'][0]['message']['content'].strip()
+            
+            if not story:
+                logging.error("Empty story generated")
+                return None
+            
+            # Extract vocabulary that was actually used (simplified mock)
+            vocabulary_report = self._analyze_vocabulary_usage(
+                story, 
+                srs_data['learned_vocabulary'],
+                srs_data['review_vocabulary']
+            )
+            
+            # Update mock SRS with lesson results
+            self.mock_srs.update_from_lesson(day, vocabulary_report)
+            
+            # Save the story
+            saved_path = self._save_story(story, day, learning_objective or f"Day {day} Content")
+            
+            logging.info(f"Story generated and saved to: {saved_path}")
+            logging.info(f"Vocabulary report:")
+            logging.info(f"  - New introduced: {len(vocabulary_report.introduced_new)}")
+            logging.info(f"  - Review reinforced: {len(vocabulary_report.reinforced_review)}")
+            
+            return story
+            
+        except Exception as e:
+            logging.error(f"Error generating SRS-informed story: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     
+    def _analyze_vocabulary_usage(
+        self, 
+        story: str, 
+        learned_vocab: List[str], 
+        review_vocab: List[str]
+    ) -> LessonVocabularyReport:
+        """
+        Analyze vocabulary usage in generated story (simplified mock implementation).
+        
+        In a real implementation, this would use NLP to extract vocabulary.
+        For now, we'll do simple string matching.
+        """
+        story_lower = story.lower()
+        
+        # Check which review vocabulary was reinforced
+        reinforced_review = [word for word in review_vocab if word.lower() in story_lower]
+        
+        # Mock detection of new vocabulary (simplified)
+        # In real implementation, this would extract Filipino phrases not in learned_vocab
+        introduced_new = []
+        
+        # Look for common new vocabulary patterns in the story
+        new_vocab_indicators = [
+            "ano po", "saan po", "kailan po", "paano po", "bakit po",
+            "masarap po", "mahal po", "mura po", "malaki po", "maliit po"
+        ]
+        
+        for phrase in new_vocab_indicators:
+            if phrase in story_lower and phrase not in [v.lower() for v in learned_vocab]:
+                introduced_new.append(phrase)
+        
+        # Limit to realistic numbers
+        introduced_new = introduced_new[:3]  # Max 3 new items detected
+        
+        return LessonVocabularyReport(
+            introduced_new=introduced_new,
+            reinforced_review=reinforced_review,
+            unexpected_vocabulary=[]  # Mock doesn't detect unexpected vocabulary
+        )
+
 
     def _extract_title(self, story: str) -> str:
         """Extract the title from the story content.
