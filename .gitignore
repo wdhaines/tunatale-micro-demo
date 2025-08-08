@@ -41,13 +41,28 @@ data/generated_content/*
 !data/generated_content/*.txt
 !data/generated_content/.gitkeep
 
-# Mock responses
-data/mock_responses/*
-!data/mock_responses/.gitkeep
+# Mock responses and test data
+instance/data/mock_responses/*.json
+instance/data/curriculum.json
+instance/data/logs/*.log
+
+# Test coverage and cache
+.coverage
+.pytest_cache/
+.mypy_cache/
 
 # OS generated files
 .DS_Store
 .DS_Store?
+
+# Logs
+*.log
+
+# Local development overrides
+local_settings.py
+
+# Jupyter Notebook
+.ipynb_checkpoints
 ._*
 .Spotlight-V100
 .Trashes
