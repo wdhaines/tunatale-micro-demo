@@ -383,10 +383,27 @@ class ContentGenerator:
         review_vocab: List[str]
     ) -> LessonVocabularyReport:
         """
-        Analyze vocabulary usage in generated story (simplified mock implementation).
+        Analyze vocabulary usage in generated story using improved extraction.
         
-        In a real implementation, this would use NLP to extract vocabulary.
-        For now, we'll do simple string matching.
+        This uses the SRSPhraseExtractor for better phrase identification.
+        """
+        try:
+            from srs_phrase_extractor import SRSPhraseExtractor
+            extractor = SRSPhraseExtractor()
+            return extractor.analyze_vocabulary_usage_improved(story, learned_vocab, review_vocab)
+        except ImportError:
+            # Fallback to original simple implementation if extractor not available
+            logging.warning("SRSPhraseExtractor not available, using simple extraction")
+            return self._analyze_vocabulary_usage_simple(story, learned_vocab, review_vocab)
+    
+    def _analyze_vocabulary_usage_simple(
+        self, 
+        story: str, 
+        learned_vocab: List[str], 
+        review_vocab: List[str]
+    ) -> LessonVocabularyReport:
+        """
+        Simple vocabulary analysis fallback.
         """
         story_lower = story.lower()
         
