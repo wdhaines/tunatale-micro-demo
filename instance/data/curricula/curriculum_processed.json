@@ -2,8 +2,8 @@
   "learning_goal": "Learn conversational Filipino for travel in El Nido",
   "target_language": "Filipino/Tagalog",
   "cefr_level": "A2",
-  "days": {
-    "day_1": {
+  "days": [
+    {
       "title": "Day 1: Welcome to El Nido!",
       "content": "Day 1 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
       "focus": "Travel Filipino - Day 1",
@@ -26,9 +26,10 @@
         "Listen and repeat pronunciation exercises",
         "Role-play travel scenarios in Filipino",
         "Review vocabulary with spaced repetition"
-      ]
+      ],
+      "story_guidance": ""
     },
-    "day_2": {
+    {
       "title": "Day 2: At the Hotel",
       "content": "Day 2 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
       "focus": "Travel Filipino - Day 2",
@@ -150,9 +151,10 @@
         "Listen and repeat pronunciation exercises",
         "Role-play travel scenarios in Filipino",
         "Review vocabulary with spaced repetition"
-      ]
+      ],
+      "story_guidance": ""
     },
-    "day_3": {
+    {
       "title": "Day 3: Breakfast and Basic Needs",
       "content": "Day 3 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
       "focus": "Travel Filipino - Day 3",
@@ -262,9 +264,10 @@
         "Listen and repeat pronunciation exercises",
         "Role-play travel scenarios in Filipino",
         "Review vocabulary with spaced repetition"
-      ]
+      ],
+      "story_guidance": ""
     },
-    "day_4": {
+    {
       "title": "Day 4: Getting Around Town",
       "content": "Day 4 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
       "focus": "Travel Filipino - Day 4",
@@ -310,9 +313,10 @@
         "Listen and repeat pronunciation exercises",
         "Role-play travel scenarios in Filipino",
         "Review vocabulary with spaced repetition"
-      ]
+      ],
+      "story_guidance": ""
     },
-    "day_5": {
+    {
       "title": "Day 5: Shopping for Beach Day",
       "content": "Day 5 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
       "focus": "Travel Filipino - Day 5",
@@ -434,9 +438,10 @@
         "Listen and repeat pronunciation exercises",
         "Role-play travel scenarios in Filipino",
         "Review vocabulary with spaced repetition"
-      ]
+      ],
+      "story_guidance": ""
     },
-    "day_6": {
+    {
       "title": "Day 6: Island Hopping Preparation",
       "content": "Day 6 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
       "focus": "Travel Filipino - Day 6",
@@ -538,9 +543,10 @@
         "Listen and repeat pronunciation exercises",
         "Role-play travel scenarios in Filipino",
         "Review vocabulary with spaced repetition"
-      ]
+      ],
+      "story_guidance": ""
     },
-    "day_7": {
+    {
       "title": "Day 7: Restaurant Confidence",
       "content": "Day 7 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
       "focus": "Travel Filipino - Day 7",
@@ -698,9 +704,10 @@
         "Listen and repeat pronunciation exercises",
         "Role-play travel scenarios in Filipino",
         "Review vocabulary with spaced repetition"
-      ]
+      ],
+      "story_guidance": ""
     }
-  },
+  ],
   "metadata": {
     "generated_at": "2025-08-05T20:46:40.498320",
     "transcript_used": false,

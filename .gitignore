@@ -63,6 +63,11 @@ local_settings.py
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+# Data backups
+/data_backup/
+
+# System files
 ._*
 .Spotlight-V100
 .Trashes

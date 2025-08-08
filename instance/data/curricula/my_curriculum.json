@@ -19,7 +19,8 @@
         "Let me introduce the topic of...",
         "First, I'd like to talk about...",
         "The main point is that..."
-      ]
+      ],
+      "story_guidance": ""
     },
     {
       "day": 2,
@@ -36,7 +37,8 @@
         "Another important aspect is...",
         "This brings me to my next point...",
         "Let me give you an example..."
-      ]
+      ],
+      "story_guidance": ""
     },
     {
       "day": 3,
@@ -53,7 +55,8 @@
         "According to recent studies...",
         "This is particularly important because...",
         "The evidence shows that..."
-      ]
+      ],
+      "story_guidance": ""
     },
     {
       "day": 4,
@@ -70,7 +73,8 @@
         "Let me illustrate this with...",
         "Research indicates that...",
         "To summarize this point..."
-      ]
+      ],
+      "story_guidance": ""
     },
     {
       "day": 5,
@@ -87,7 +91,8 @@
         "This demonstrates that...",
         "The key benefit here is...",
         "Moving on to discuss..."
-      ]
+      ],
+      "story_guidance": ""
     },
     {
       "day": 6,
@@ -104,7 +109,8 @@
         "The data clearly indicates...",
         "This leads us to conclude...",
         "In practical terms, this means..."
-      ]
+      ],
+      "story_guidance": ""
     },
     {
       "day": 7,
@@ -121,7 +127,8 @@
         "In conclusion, I'd like to emphasize...",
         "The main takeaway is...",
         "Thank you for your attention. I'm happy to answer questions."
-      ]
+      ],
+      "story_guidance": ""
     }
   ],
   "metadata": {

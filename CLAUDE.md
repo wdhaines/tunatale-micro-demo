@@ -19,6 +19,20 @@ TunaTale is an audio-first Filipino language learning system focused on El Nido 
 - **SRS**: Spaced repetition tracking for collocations with review scheduling
 - **File Storage**: Instance-based with organized directories
 
+### File Organization (Updated)
+```
+instance/data/
+├── curricula/              # All curriculum files
+│   ├── curriculum.json     # Main curriculum
+│   ├── my_curriculum.json  # User-generated curricula
+│   └── *.json             # Other curriculum variants
+├── collocations.json       # Clean collocation data
+├── curriculum.json         # Legacy curriculum (instance level)
+├── stories/               # Generated story content
+└── srs/                   # SRS tracking data
+```
+**Note**: Curriculum files should ONLY exist in `instance/data/` directories, never in project root.
+
 ### Current Limitations
 1. **Data Quality Issues**: Broken collocation data with embedded syllables
 2. **SRS Problems**: Review collocations return voice tags instead of phrases
