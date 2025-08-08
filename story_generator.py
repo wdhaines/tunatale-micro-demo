@@ -67,6 +67,8 @@ class StoryParams:
     new_vocabulary: List[str] = field(default_factory=list)
     recycled_vocabulary: List[str] = field(default_factory=list)
     recycled_collocations: List[str] = field(default_factory=list)
+    focus: str = ""
+    story_guidance: str = ""
     
     def __post_init__(self):
         """Validate the CEFR level after initialization."""
@@ -141,9 +143,12 @@ class ContentGenerator:
             
             # Format the prompt according to story_prompt_template.txt structure
             prompt = self.story_prompt.format(
-                NEW_VOCABULARY=new_vocab,
-                RECYCLED_COLLOCATIONS=recycled_collocs,
-                GENRE="adventure"  # Default genre, can be made configurable if needed
+                learning_objective=params.learning_objective,
+                focus=params.focus or f"Language learning - Phase {params.phase}",
+                learner_level=cefr_level,
+                new_collocations=new_vocab,
+                review_collocations=recycled_collocs,
+                story_guidance=params.story_guidance or "Create an engaging story incorporating the target vocabulary."
             )
             
             # Get the story from the LLM
@@ -335,7 +340,9 @@ class ContentGenerator:
                 length=curriculum.presentation_length * 10,  # Convert minutes to words (approx)
                 new_vocabulary=day_data.presentation_phrases,
                 recycled_collocations=day_data.collocations + review_collocations,
-                recycled_vocabulary=[]
+                recycled_vocabulary=[],
+                focus=day_data.focus,
+                story_guidance=day_data.story_guidance
             )
             
             # Generate the story

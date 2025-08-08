@@ -65,9 +65,12 @@ def test_generate_story_creates_output_dir(content_generator: ContentGenerator, 
     # Set up the test prompt with the correct format
     test_prompt = """
     VOCABULARY CONTEXT:
-    - Focus on teaching: {NEW_VOCABULARY}
-    - Naturally recycle: {RECYCLED_COLLOCATIONS}
-    - Genre: {GENRE}
+    - Focus on teaching: {new_collocations}
+    - Naturally recycle: {review_collocations}
+    - Learning objective: {learning_objective}
+    - Focus: {focus}
+    - Level: {learner_level}
+    - Story guidance: {story_guidance}
     """.strip()
     
     # Set the test prompt on the content generator
@@ -174,7 +177,7 @@ def test_generate_story_handles_ioerror(content_generator: ContentGenerator) -> 
     content_generator.llm.get_response.return_value = mock_response
     
     # Patch the prompt to avoid file operations
-    content_generator.story_prompt = "Test prompt with {NEW_VOCABULARY} and {RECYCLED_COLLOCATIONS}"
+    content_generator.story_prompt = "Test prompt with {new_collocations} and {review_collocations} for {learning_objective} at {learner_level} level focusing on {focus} with {story_guidance}"
     
     # Mock _save_story to raise IOError
     with patch.object(content_generator, '_save_story') as mock_save_story:
@@ -375,9 +378,12 @@ def test_generate_story_uses_prompt_template(content_generator: ContentGenerator
     # Set up test data with only the placeholders that the code actually uses
     test_prompt = """
     VOCABULARY CONTEXT:
-    - Focus on teaching: {NEW_VOCABULARY}
-    - Naturally recycle: {RECYCLED_COLLOCATIONS}
-    - Genre: {GENRE}
+    - Focus on teaching: {new_collocations}
+    - Naturally recycle: {review_collocations}
+    - Learning objective: {learning_objective}
+    - Focus: {focus}
+    - Level: {learner_level}
+    - Story guidance: {story_guidance}
     """.strip()
     
     # Create a test story with a title
@@ -451,9 +457,12 @@ def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp
     # Mock the prompt with placeholders that match the implementation
     content_generator.story_prompt = """
     VOCABULARY CONTEXT:
-    - Focus on teaching: {NEW_VOCABULARY}
-    - Naturally recycle: {RECYCLED_COLLOCATIONS}
-    - Genre: {GENRE}
+    - Focus on teaching: {new_collocations}
+    - Naturally recycle: {review_collocations}
+    - Learning objective: {learning_objective}
+    - Focus: {focus}
+    - Level: {learner_level}
+    - Story guidance: {story_guidance}
     """.strip()
     
     # Create a test story with a title

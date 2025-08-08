@@ -18,6 +18,10 @@ MOCK_RESPONSES_DIR = DATA_DIR / 'mock_responses'  # Directory for mock LLM respo
 UPLOAD_DIR = DATA_DIR / 'uploads'  # Directory for user uploads (e.g., transcripts)
 PROMPTS_DIR = BASE_DIR / 'prompts'  # Keep prompts in project root as they are part of the code
 
+# Logging configuration
+LOGS_DIR = DATA_DIR / 'logs'
+DEBUG_LOG_PATH = LOGS_DIR / 'debug.log'
+
 # Create directories if they don't exist
 INSTANCE_DIR.mkdir(exist_ok=True)
 DATA_DIR.mkdir(exist_ok=True)
@@ -27,6 +31,7 @@ SRS_DIR.mkdir(exist_ok=True)
 MOCK_RESPONSES_DIR.mkdir(exist_ok=True)
 UPLOAD_DIR.mkdir(exist_ok=True)
 PROMPTS_DIR.mkdir(exist_ok=True)
+LOGS_DIR.mkdir(exist_ok=True)
 
 # Default configuration
 DEFAULT_STORY_LENGTH = int(os.getenv('DEFAULT_STORY_LENGTH', '500'))  # Default to 500 words if not set

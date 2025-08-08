@@ -1,4 +1,4 @@
-**Story Generation Request**
+**Language Learning Content Generation Request**
 
 **Learning Objective:** {learning_objective}
 **Theme/Focus:** {focus}
@@ -13,30 +13,233 @@
 **Story Guidance:**
 {story_guidance}
 
+**CRITICAL CONTENT QUALITY RULES:**
+
+**Authentic Filipino Language:**
+- Use ONLY Tagalog spelling for loanwords: "asukal" not "azúcar", "porke" not "porque", "syempre" not "siempre"
+- NEVER use Spanish accents (á, é, í, ó, ú) or Spanish 'c' when Tagalog uses 'k'
+- Generate PURE Tagalog collocations only - NO English phrases like "very good" or "thank you"
+- Use natural "po" - formal situations, strangers, service contexts only (NOT every sentence)
+
+**Voice Assignment Rules:**
+- Male names (Carlos, Juan, Miguel) → TAGALOG-MALE voices
+- Female names (Maria, Ana, Rosa) → TAGALOG-FEMALE voices
+- Maintain consistency within lesson
+
+**Number Usage:**
+- NEVER use raw digits (10, 8:30, 150) - always spell out numbers
+- Spanish numbers for time: "alas otso y medya" not "8:30"
+- Tagalog numbers for counting: "sampu" not "10"
+- English numbers for business contexts when appropriate
+
+**Key Phrases Rules:**
+- Focus on 8-12 essential collocations maximum
+- NEVER breakdown English words - use whole words only
+- Break Tagalog words at natural syllable boundaries: "ma-gan-dang... ha-pon... po"
+- NO mixed-language breakdowns
+
+**Section Length Requirements:**
+- Natural Speed: 3-5 minutes of substantial content (main immersion section)
+- Key Phrases: Focused, essential collocations only (not the main content)
+- Maintain proper balance - Natural Speed should be the longest section
+
+**Story Structure Requirements:**
+- Create clear beginning, middle, and end narrative flow
+- Use 60% or more dialogue throughout all sections
+- Keep paragraphs short (2-3 sentences max) for clarity
+- Use simple, clear language appropriate for the CEFR level
+- Include a title at the top
+- word count between 400-500 words
+
+**Collocation Marking (for reference only - not used in output):**
+- Mark new collocations with **double asterisks** like this: **new collocation**
+- Mark review collocations with *single asterisks* like this: *review collocation*
+- Example in context: "I think we should **make a decision** soon," said Maria. "Remember when we had to *deal with* something similar last month?"
+
 **Instructions:**
-1. Create an engaging, coherent story that naturally incorporates ALL provided collocations.
-2. For each new collocation, use it 3-4 times throughout the story.
-3. For each review collocation, use it 1-2 times in the story.
-4. Mark new collocations with **double asterisks** like this: **new collocation**
-5. Mark review collocations with *single asterisks* like this: *review collocation*
-6. Maintain a word count between 400-500 words.
-7. Keep the language and content appropriate for {learner_level} level learners.
+Generate a structured language learning lesson with the following exact format:
 
-**Story Structure Guidelines:**
-- Use 60% or more dialogue to make it engaging for audio.
-- Keep paragraphs short (2-3 sentences max).
-- Use simple, clear language appropriate for the level.
-- Ensure the story has a clear beginning, middle, and end.
-- Make the story interesting and relatable.
+**SECTION 1: Title and Key Phrases**
+1. Start with: [NARRATOR]: Day X: [Descriptive Title]
+2. Add a blank line, then "Key Phrases:"
+3. For each key phrase/collocation (8-12 maximum):
+   - [TAGALOG-FEMALE-1]: [phrase in target language]
+   - [NARRATOR]: [English translation]
+   - [TAGALOG-FEMALE-1]: [phrase again]
+   - [syllable breakdown lines - break ONLY Tagalog words at natural syllable boundaries]
+   - Blank line before next phrase
 
-**Formatting Notes:**
-- Include a title at the top (without the word "Title:")
-- Use blank lines between paragraphs
-- Use proper punctuation and capitalization
-- Use present tense for better immediacy
-- Keep sentences relatively short and clear
+**SECTION 2: Natural Speed Dialogue**
+1. Add: [NARRATOR]: Natural Speed
+2. Create 4-6 substantial dialogue scenes with scene headers (3-5 minutes total content)
+3. Use voice tags: [TAGALOG-FEMALE-1], [TAGALOG-FEMALE-2], [TAGALOG-MALE-1], [TAGALOG-MALE-2]
+4. Mix English and target language naturally in conversations
+5. Each scene should be 5-12 lines of dialogue for substantial immersion practice
 
-**Example of marked collocations in text:**
-"I think we should **make a decision** soon," said Maria. "Remember when we had to *deal with* something similar last month?"
+**SECTION 3: Slow Speed**
+1. Add: [NARRATOR]: Slow Speed  
+2. Repeat the exact same dialogues but with ellipses (...) between words
+3. Example: "Magandang... hapon... po" instead of "Magandang hapon po"
 
-**Your Story:**
+**SECTION 4: Translated**
+1. Add: [NARRATOR]: Translated
+2. Repeat each dialogue scene with alternating lines:
+   - [SPEAKER]: [Original line]
+   - [NARRATOR]: [English translation]
+
+**Content Guidelines:**
+- Incorporate ALL provided collocations naturally
+- Use mostly dialogue (80%+)
+- Keep scenes realistic and engaging
+- Use appropriate voice assignments matching character gender
+- Maintain consistency across all three speed/translation sections
+- Focus content length on Natural Speed section (3-5 minutes)
+- Generate authentic Filipino conversation patterns
+
+**EXAMPLE OUTPUT FORMAT:**
+
+[NARRATOR]: Day 7: Restaurant Confidence
+
+Key Phrases:
+
+[TAGALOG-FEMALE-1]: para sa ilan po
+[NARRATOR]: for how many
+[TAGALOG-FEMALE-1]: para sa ilan po
+po
+ilan po
+i
+ilan
+ilan po
+sa ilan
+sa ilan po
+ra
+pa
+para
+para sa
+para sa ilan
+para sa ilan po
+
+[TAGALOG-FEMALE-1]: masarap po ba
+[NARRATOR]: is it delicious
+[TAGALOG-FEMALE-1]: masarap po ba
+ba
+po ba
+po
+rap
+sa
+sarap
+ma
+masarap
+masarap po
+masarap po ba
+
+[NARRATOR]: Natural Speed
+
+[NARRATOR]: At the Restaurant - Arrival
+
+[TAGALOG-MALE-1]: Good evening! Para sa ilan po?
+[TAGALOG-FEMALE-1]: Para sa dalawa po.
+[TAGALOG-MALE-1]: Saan po gusto ninyo? Inside or outside?
+[TAGALOG-FEMALE-1]: Outside po. May available table po ba?
+[TAGALOG-MALE-1]: Meron po! This way po.
+[TAGALOG-FEMALE-1]: Salamat po.
+
+[NARRATOR]: Ordering Food
+
+[TAGALOG-MALE-1]: Ano po ang gusto ninyong inumin?
+[TAGALOG-FEMALE-1]: Dalawang tubig po muna.
+[TAGALOG-MALE-1]: Sige po. Ready na po ba kayong mag-order?
+[TAGALOG-FEMALE-1]: Ano po ang specialty ninyo dito?
+[TAGALOG-MALE-1]: Ang adobo po at sinigang na baboy.
+[TAGALOG-FEMALE-1]: Masarap po ba yung sinigang?
+[TAGALOG-MALE-1]: Masarap po! Specialty po namin yan.
+[TAGALOG-FEMALE-1]: Sige, dalawang sinigang po.
+
+[NARRATOR]: Paying the Bill
+
+[TAGALOG-MALE-1]: Kumusta po ang pagkain?
+[TAGALOG-FEMALE-1]: Masarap po! Magkano po lahat?
+[TAGALOG-MALE-1]: Limang daan pesos po.
+[TAGALOG-FEMALE-1]: Heto po ang bayad.
+[TAGALOG-MALE-1]: Salamat po! Bumalik po kayo.
+
+[NARRATOR]: Slow Speed
+
+[NARRATOR]: At the Restaurant - Arrival
+
+[TAGALOG-MALE-1]: Good... evening!... Para... sa... ilan... po?
+[TAGALOG-FEMALE-1]: Para... sa... dalawa... po.
+[TAGALOG-MALE-1]: Saan... po... gusto... ninyo?... Inside... or... outside?
+[TAGALOG-FEMALE-1]: Outside... po... May... available... table... po... ba?
+[TAGALOG-MALE-1]: Meron... po!... This... way... po.
+[TAGALOG-FEMALE-1]: Salamat... po.
+
+[NARRATOR]: Ordering Food
+
+[TAGALOG-MALE-1]: Ano... po... ang... gusto... ninyong... inumin?
+[TAGALOG-FEMALE-1]: Dalawang... tubig... po... muna.
+[TAGALOG-MALE-1]: Sige... po... Ready... na... po... ba... kayong... mag-order?
+[TAGALOG-FEMALE-1]: Ano... po... ang... specialty... ninyo... dito?
+[TAGALOG-MALE-1]: Ang... adobo... po... at... sinigang... na... baboy.
+[TAGALOG-FEMALE-1]: Masarap... po... ba... yung... sinigang?
+[TAGALOG-MALE-1]: Masarap... po!... Specialty... po... namin... yan.
+[TAGALOG-FEMALE-1]: Sige... dalawang... sinigang... po.
+
+[NARRATOR]: Paying the Bill
+
+[TAGALOG-MALE-1]: Kumusta... po... ang... pagkain?
+[TAGALOG-FEMALE-1]: Masarap... po!... Magkano... po... lahat?
+[TAGALOG-MALE-1]: Limang... daan... pesos... po.
+[TAGALOG-FEMALE-1]: Heto... po... ang... bayad.
+[TAGALOG-MALE-1]: Salamat... po!... Bumalik... po... kayo.
+
+[NARRATOR]: Translated
+
+[NARRATOR]: At the Restaurant - Arrival
+
+[TAGALOG-MALE-1]: Good evening! Para sa ilan po?
+[NARRATOR]: Good evening! For how many?
+[TAGALOG-FEMALE-1]: Para sa dalawa po.
+[NARRATOR]: For two.
+[TAGALOG-MALE-1]: Saan po gusto ninyo? Inside or outside?
+[NARRATOR]: Where would you like? Inside or outside?
+[TAGALOG-FEMALE-1]: Outside po. May available table po ba?
+[NARRATOR]: Outside. Is there an available table?
+[TAGALOG-MALE-1]: Meron po! This way po.
+[NARRATOR]: There is! This way.
+[TAGALOG-FEMALE-1]: Salamat po.
+[NARRATOR]: Thank you.
+
+[NARRATOR]: Ordering Food
+
+[TAGALOG-MALE-1]: Ano po ang gusto ninyong inumin?
+[NARRATOR]: What would you like to drink?
+[TAGALOG-FEMALE-1]: Dalawang tubig po muna.
+[NARRATOR]: Two waters first.
+[TAGALOG-MALE-1]: Sige po. Ready na po ba kayong mag-order?
+[NARRATOR]: Okay. Are you ready to order?
+[TAGALOG-FEMALE-1]: Ano po ang specialty ninyo dito?
+[NARRATOR]: What's your specialty here?
+[TAGALOG-MALE-1]: Ang adobo po at sinigang na baboy.
+[NARRATOR]: The adobo and pork sinigang.
+[TAGALOG-FEMALE-1]: Masarap po ba yung sinigang?
+[NARRATOR]: Is the sinigang delicious?
+[TAGALOG-MALE-1]: Masarap po! Specialty po namin yan.
+[NARRATOR]: It's delicious! That's our specialty.
+[TAGALOG-FEMALE-1]: Sige, dalawang sinigang po.
+[NARRATOR]: Okay, two sinigang.
+
+[NARRATOR]: Paying the Bill
+
+[TAGALOG-MALE-1]: Kumusta po ang pagkain?
+[NARRATOR]: How was the food?
+[TAGALOG-FEMALE-1]: Masarap po! Magkano po lahat?
+[NARRATOR]: It was delicious! How much is everything?
+[TAGALOG-MALE-1]: Limang daan pesos po.
+[NARRATOR]: Five hundred pesos.
+[TAGALOG-FEMALE-1]: Heto po ang bayad.
+[NARRATOR]: Here's the payment.
+[TAGALOG-MALE-1]: Salamat po! Bumalik po kayo.
+[NARRATOR]: Thank you! Please come back.
+
+**Your Structured Lesson (follow the exact format above):**

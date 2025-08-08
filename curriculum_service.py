@@ -662,7 +662,9 @@ class CurriculumGenerator:
             json.JSONDecodeError: If the file contains invalid JSON
             ParserError: If the curriculum data is invalid
         """
+        logger = logging.getLogger(__name__)
         file_path = Path(file_path) if file_path else CURRICULUM_PATH
+        logger.debug(f"Loading curriculum from: {file_path}")
         
         if not file_path.exists():
             raise FileNotFoundError(f"Curriculum file not found: {file_path}")
@@ -670,11 +672,14 @@ class CurriculumGenerator:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                logger.debug(f"Loaded curriculum keys: {list(data.keys())}")
+                logger.debug(f"First few characters of file: {str(data)[:200]}...")
                 
             # Validate the loaded data structure
-            required_keys = ['learning_goal', 'content', 'days', 'metadata']
-            if not all(key in data for key in required_keys):
-                raise ParserError("Invalid curriculum format: missing required fields")
+            required_keys = ['learning_objective', 'days']  # Use actual field names from the file
+            missing_keys = [key for key in required_keys if key not in data]
+            if missing_keys:
+                raise ParserError(f"Invalid curriculum format: missing required fields: {missing_keys}")
                 
             return data
             
@@ -836,3 +841,144 @@ class CurriculumGenerator:
                 }
             
         return days
+
+    def extend_curriculum(self, target_days: int, curriculum_path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
+        """
+        Extend an existing curriculum with additional days.
+        
+        Args:
+            target_days: Total number of days the extended curriculum should have
+            curriculum_path: Path to curriculum file (defaults to CURRICULUM_PATH)
+            
+        Returns:
+            Dict[str, Any]: The extended curriculum
+            
+        Raises:
+            CurriculumError: If curriculum can't be loaded or extended
+        """
+        try:
+            # Load existing curriculum
+            current_curriculum = self._load_curriculum(curriculum_path)
+            current_days_list = current_curriculum.get('days', [])
+            
+            # Get current day count
+            current_day_count = len(current_days_list)
+            
+            if target_days <= current_day_count:
+                logger.info(f"Curriculum already has {current_day_count} days. No extension needed.")
+                return current_curriculum
+                
+            # Extract learning context from existing curriculum
+            learning_goal = current_curriculum.get('learning_objective', 'Continue language learning journey')
+            target_language = current_curriculum.get('target_language', 'English')
+            cefr_level = current_curriculum.get('learner_level', 'A2')
+            
+            # Analyze existing days to understand progression
+            last_day = current_days_list[-1] if current_days_list else {}
+            
+            # Generate new days
+            days_to_add = target_days - current_day_count
+            logger.info(f"Extending curriculum from {current_day_count} to {target_days} days ({days_to_add} new days)")
+            
+            # Create extension prompt
+            extension_prompt = self._create_extension_prompt(
+                learning_goal=learning_goal,
+                target_language=target_language,
+                cefr_level=cefr_level,
+                current_days=current_days_list,
+                start_day=current_day_count + 1,
+                end_day=target_days
+            )
+            
+            # Get new days from LLM
+            response = self.llm.get_response(extension_prompt, response_type="curriculum")
+            extension_content = response['choices'][0]['message']['content']
+            
+            # Parse new days
+            new_days = self._parse_curriculum_days(extension_content)
+            
+            # Convert new days to list format and merge with existing curriculum
+            extended_curriculum = current_curriculum.copy()
+            
+            # Convert new_days dictionary to list format
+            new_days_list = []
+            for day_key, day_data in new_days.items():
+                day_num = int(day_key.split('_')[1])
+                day_entry = day_data.copy()
+                day_entry['day'] = day_num
+                new_days_list.append(day_entry)
+            
+            # Extend the days list
+            extended_curriculum['days'].extend(new_days_list)
+            
+            # Update metadata
+            extended_curriculum['last_modified'] = datetime.datetime.now(timezone.utc).isoformat()
+            if 'total_days' in extended_curriculum:
+                extended_curriculum['total_days'] = target_days
+                
+            # Save extended curriculum
+            self._save_curriculum(extended_curriculum, learning_goal, curriculum_path)
+            
+            logger.info(f"Successfully extended curriculum to {target_days} days")
+            return extended_curriculum
+            
+        except Exception as e:
+            logger.error(f"Error extending curriculum: {e}")
+            raise CurriculumError(f"Failed to extend curriculum: {e}") from e
+    
+    def _create_extension_prompt(self, learning_goal: str, target_language: str, cefr_level: str,
+                               current_days: List[Dict[str, Any]], start_day: int, end_day: int) -> str:
+        """
+        Create a prompt for extending the curriculum.
+        
+        Args:
+            learning_goal: The overall learning objective
+            target_language: Target language being learned
+            cefr_level: CEFR proficiency level
+            current_days: Dictionary of existing curriculum days
+            start_day: First new day number
+            end_day: Last new day number
+            
+        Returns:
+            str: Formatted prompt for curriculum extension
+        """
+        # Get context from last few days
+        context_days = []
+        for i, day in enumerate(current_days[-3:], start=max(1, len(current_days) - 2)):
+            day_num = day.get('day', i)
+            title = day.get('title', f'Day {day_num}')
+            focus = day.get('focus', day.get('learning_objective', ''))
+            context_days.append(f"Day {day_num}: {title} - {focus}")
+        
+        prompt = f"""**Curriculum Extension Request**
+
+**Learning Goal:** {learning_goal}
+**Target Language:** {target_language}
+**CEFR Level:** {cefr_level}
+**Extend From:** Day {start_day} to Day {end_day}
+
+**Context - Previous Days:**
+{chr(10).join(context_days)}
+
+**Instructions:**
+Generate {end_day - start_day + 1} additional days for this curriculum, building naturally on the existing progression.
+
+For each day, provide in this exact format:
+
+**Day X: [Title]**
+**Focus:** [Specific learning focus for this day]
+**Learning Objective:** [Specific objective for this day]
+**Collocations:** [3-5 key phrases/collocations to learn, one per line]
+**Presentation Phrases:** [3-5 key phrases for presentation, one per line]
+**Story Guidance:** [Guidance for story generation for this day]
+
+**Guidelines:**
+- Build progressively on previous days
+- Introduce new concepts while reinforcing earlier learning
+- Maintain consistency with the established learning trajectory
+- Use realistic, practical scenarios appropriate for {cefr_level} level
+- Focus on {target_language} language learning for the stated goal
+
+**Generate Days {start_day} through {end_day}:**
+"""
+        return prompt

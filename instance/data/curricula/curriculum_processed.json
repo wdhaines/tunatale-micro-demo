@@ -1,22 +1,711 @@
 {
-  "learning_goal": "test goal",
-  "target_language": "English",
+  "learning_goal": "Learn conversational Filipino for travel in El Nido",
+  "target_language": "Filipino/Tagalog",
   "cefr_level": "A2",
   "days": {
     "day_1": {
-      "title": "Complete Curriculum",
-      "content": "{\n  \"metadata\": {\n    \"learning_goal\": \"space exploration\",\n    \"target_language\": \"English\",\n    \"cefr_level\": \"B1\",\n    \"format\": \"json\",\n    \"generated_at\": \"2023-01-01T00:00:00Z\",\n    \"version\": \"1.0\"\n  },\n  \"content\": \"A comprehensive curriculum for learning about space exploration over 5 days.\",\n  \"days\": {\n    \"day_1\": {\n      \"title\": \"Day 1: Space exploration - Part 1\",\n      \"content\": \"This is day 1 of learning about space exploration. Today we'll focus on key aspects of this topic.\",\n      \"focus\": \"space exploration - Part 1\",\n      \"collocations\": [\n        \"learn about space exploration\",\n        \"study space exploration\",\n        \"explore space exploration\",\n        \"understand space exploration\"\n      ],\n      \"vocabulary\": [\n        {\n          \"word\": \"space exploration term 1\",\n          \"definition\": \"Definition of space exploration term 1\"\n        },\n        {\n          \"word\": \"space exploration term 2\",\n          \"definition\": \"Definition of space exploration term 2\"\n        },\n        {\n          \"word\": \"space exploration term 3\",\n          \"definition\": \"Definition of space exploration term 3\"\n        }\n      ],\n      \"activities\": [\n        \"Read a short text about space exploration\",\n        \"Practice using key vocabulary related to space exploration\",\n        \"Have a conversation about space exploration\"\n      ]\n    },\n    \"day_2\": {\n      \"title\": \"Day 2: Space exploration - Part 2\",\n      \"content\": \"This is day 2 of learning about space exploration. Today we'll focus on key aspects of this topic.\",\n      \"focus\": \"space exploration - Part 2\",\n      \"collocations\": [\n        \"learn about space exploration\",\n        \"study space exploration\",\n        \"explore space exploration\",\n        \"understand space exploration\"\n      ],\n      \"vocabulary\": [\n        {\n          \"word\": \"space exploration term 1\",\n          \"definition\": \"Definition of space exploration term 1\"\n        },\n        {\n          \"word\": \"space exploration term 2\",\n          \"definition\": \"Definition of space exploration term 2\"\n        },\n        {\n          \"word\": \"space exploration term 3\",\n          \"definition\": \"Definition of space exploration term 3\"\n        }\n      ],\n      \"activities\": [\n        \"Read a short text about space exploration\",\n        \"Practice using key vocabulary related to space exploration\",\n        \"Have a conversation about space exploration\"\n      ]\n    },\n    \"day_3\": {\n      \"title\": \"Day 3: Space exploration - Part 3\",\n      \"content\": \"This is day 3 of learning about space exploration. Today we'll focus on key aspects of this topic.\",\n      \"focus\": \"space exploration - Part 3\",\n      \"collocations\": [\n        \"learn about space exploration\",\n        \"study space exploration\",\n        \"explore space exploration\",\n        \"understand space exploration\"\n      ],\n      \"vocabulary\": [\n        {\n          \"word\": \"space exploration term 1\",\n          \"definition\": \"Definition of space exploration term 1\"\n        },\n        {\n          \"word\": \"space exploration term 2\",\n          \"definition\": \"Definition of space exploration term 2\"\n        },\n        {\n          \"word\": \"space exploration term 3\",\n          \"definition\": \"Definition of space exploration term 3\"\n        }\n      ],\n      \"activities\": [\n        \"Read a short text about space exploration\",\n        \"Practice using key vocabulary related to space exploration\",\n        \"Have a conversation about space exploration\"\n      ]\n    },\n    \"day_4\": {\n      \"title\": \"Day 4: Space exploration - Part 4\",\n      \"content\": \"This is day 4 of learning about space exploration. Today we'll focus on key aspects of this topic.\",\n      \"focus\": \"space exploration - Part 4\",\n      \"collocations\": [\n        \"learn about space exploration\",\n        \"study space exploration\",\n        \"explore space exploration\",\n        \"understand space exploration\"\n      ],\n      \"vocabulary\": [\n        {\n          \"word\": \"space exploration term 1\",\n          \"definition\": \"Definition of space exploration term 1\"\n        },\n        {\n          \"word\": \"space exploration term 2\",\n          \"definition\": \"Definition of space exploration term 2\"\n        },\n        {\n          \"word\": \"space exploration term 3\",\n          \"definition\": \"Definition of space exploration term 3\"\n        }\n      ],\n      \"activities\": [\n        \"Read a short text about space exploration\",\n        \"Practice using key vocabulary related to space exploration\",\n        \"Have a conversation about space exploration\"\n      ]\n    },\n    \"day_5\": {\n      \"title\": \"Day 5: Space exploration - Part 5\",\n      \"content\": \"This is day 5 of learning about space exploration. Today we'll focus on key aspects of this topic.\",\n      \"focus\": \"space exploration - Part 5\",\n      \"collocations\": [\n        \"learn about space exploration\",\n        \"study space exploration\",\n        \"explore space exploration\",\n        \"understand space exploration\"\n      ],\n      \"vocabulary\": [\n        {\n          \"word\": \"space exploration term 1\",\n          \"definition\": \"Definition of space exploration term 1\"\n        },\n        {\n          \"word\": \"space exploration term 2\",\n          \"definition\": \"Definition of space exploration term 2\"\n        },\n        {\n          \"word\": \"space exploration term 3\",\n          \"definition\": \"Definition of space exploration term 3\"\n        }\n      ],\n      \"activities\": [\n        \"Read a short text about space exploration\",\n        \"Practice using key vocabulary related to space exploration\",\n        \"Have a conversation about space exploration\"\n      ]\n    }\n  }\n}",
-      "focus": "",
-      "collocations": [],
-      "vocabulary": [],
-      "activities": []
+      "title": "Day 1: Welcome to El Nido!",
+      "content": "Day 1 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
+      "focus": "Travel Filipino - Day 1",
+      "collocations": [
+        "magandang hapon po",
+        "ito po\npo\nito\nto\ni\nito\nito po\nito po"
+      ],
+      "vocabulary": [
+        {
+          "word": "magandang hapon po",
+          "definition": "good afternoon (polite)"
+        },
+        {
+          "word": "ito po\npo\nito\nto\ni\nito\nito po\nito po",
+          "definition": "Natural Speed"
+        }
+      ],
+      "activities": [
+        "Practice key Filipino phrases for Day 1",
+        "Listen and repeat pronunciation exercises",
+        "Role-play travel scenarios in Filipino",
+        "Review vocabulary with spaced repetition"
+      ]
+    },
+    "day_2": {
+      "title": "Day 2: At the Hotel",
+      "content": "Day 2 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
+      "focus": "Travel Filipino - Day 2",
+      "collocations": [
+        "may kwarto po ba",
+        "first time po\npo\ntime\ntime po\nfirst\nfirst time\nfirst time po\nfirst time po",
+        "Good evening po! May kwarto po ba?",
+        "Single po.",
+        "Salamat po!"
+      ],
+      "vocabulary": [
+        {
+          "word": "may kwarto po ba",
+          "definition": "do you have a room?"
+        },
+        {
+          "word": "first time po\npo\ntime\ntime po\nfirst\nfirst time\nfirst time po\nfirst time po",
+          "definition": "Natural Speed"
+        },
+        {
+          "word": "Good evening po! May kwarto po ba?",
+          "definition": "Good evening! Do you have a room?"
+        },
+        {
+          "word": "Single po.",
+          "definition": "Single."
+        },
+        {
+          "word": "Salamat po!",
+          "definition": "Thank you!"
+        },
+        {
+          "word": "Tatlo po. Tatlong gabi.",
+          "definition": "Three. Three nights."
+        },
+        {
+          "word": "Ito po.",
+          "definition": "Here it is."
+        },
+        {
+          "word": "Opo!",
+          "definition": "Yes!"
+        },
+        {
+          "word": "Susi po?",
+          "definition": "Key?"
+        },
+        {
+          "word": "Ah, susi po. Salamat!",
+          "definition": "Ah, key. Thanks!"
+        },
+        {
+          "word": "Opo! First time po!",
+          "definition": "Yes! First time!"
+        },
+        {
+          "word": "Excited na po ako!",
+          "definition": "I'm excited!"
+        },
+        {
+          "word": "Magkano po?",
+          "definition": "How much?"
+        },
+        {
+          "word": "Tatlo po. Tatlong gabi.",
+          "definition": "Three. Three nights."
+        },
+        {
+          "word": "Puwede credit card?",
+          "definition": "Can I use credit card?"
+        },
+        {
+          "word": "Ito po.",
+          "definition": "Here you go."
+        },
+        {
+          "word": "Ah, ito po. Salamat!",
+          "definition": "Ah, here. Thanks!"
+        },
+        {
+          "word": "Susi po. Click! Wow!",
+          "definition": "Key. Click! Wow!"
+        },
+        {
+          "word": "Hello po!",
+          "definition": "Hello!"
+        },
+        {
+          "word": "Opo! Salamat po!",
+          "definition": "Yes! Thank you!"
+        },
+        {
+          "word": "Ano po ang Wi-Fi password?",
+          "definition": "What's the Wi-Fi password?"
+        },
+        {
+          "word": "Salamat po!",
+          "definition": "Thank you!"
+        },
+        {
+          "word": "Opo! Ikaw?",
+          "definition": "Yes! You?"
+        },
+        {
+          "word": "Opo! Tanong mo sa baba.",
+          "definition": "Yes! Ask downstairs."
+        },
+        {
+          "word": "Opo! First time po sa El Nido!",
+          "definition": "Yes! First time in El Nido!"
+        },
+        {
+          "word": "Salamat! Ikaw rin!",
+          "definition": "Thanks! You too!"
+        }
+      ],
+      "activities": [
+        "Practice key Filipino phrases for Day 2",
+        "Listen and repeat pronunciation exercises",
+        "Role-play travel scenarios in Filipino",
+        "Review vocabulary with spaced repetition"
+      ]
+    },
+    "day_3": {
+      "title": "Day 3: Breakfast and Basic Needs",
+      "content": "Day 3 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
+      "focus": "Travel Filipino - Day 3",
+      "collocations": [
+        "saan po",
+        "walking distance po\npo\ndistance\ndistance po\nwalking\nwalking distance\nwalking distance po\nwalking distance po",
+        "Good morning! Saan po ang breakfast?",
+        "Second floor?",
+        "Salamat po!"
+      ],
+      "vocabulary": [
+        {
+          "word": "saan po",
+          "definition": "where?"
+        },
+        {
+          "word": "walking distance po\npo\ndistance\ndistance po\nwalking\nwalking distance\nwalking distance po\nwalking distance po",
+          "definition": "Natural Speed"
+        },
+        {
+          "word": "Good morning! Saan po ang breakfast?",
+          "definition": "Good morning! Where is breakfast?"
+        },
+        {
+          "word": "Second floor?",
+          "definition": "Second floor?"
+        },
+        {
+          "word": "Salamat po!",
+          "definition": "Thank you!"
+        },
+        {
+          "word": "Good morning! Breakfast po?",
+          "definition": "Good morning! Breakfast?"
+        },
+        {
+          "word": "Saan po?",
+          "definition": "Where?"
+        },
+        {
+          "word": "Ah! Doon po.",
+          "definition": "Ah! There."
+        },
+        {
+          "word": "Meron po ba kayong menu?",
+          "definition": "Do you have a menu?"
+        },
+        {
+          "word": "Ah! Meron po ba kayong kape?",
+          "definition": "Ah! Do you have coffee?"
+        },
+        {
+          "word": "Gusto ko po.",
+          "definition": "I want some."
+        },
+        {
+          "word": "Opo. Gusto ko po ng hot coffee.",
+          "definition": "Yes. I want hot coffee."
+        },
+        {
+          "word": "Excuse me, meron po ba kayong rice?",
+          "definition": "Excuse me, do you have rice?"
+        },
+        {
+          "word": "Salamat! Gusto ko po ito.",
+          "definition": "Thanks! I want this."
+        },
+        {
+          "word": "Opo!",
+          "definition": "Yes!"
+        },
+        {
+          "word": "Opo! Puwede po ba... oo, libre po.",
+          "definition": "Yes! May you... yes, it's free."
+        },
+        {
+          "word": "Opo! Gusto ko po ang longganisa!",
+          "definition": "Yes! I like the sausage!"
+        },
+        {
+          "word": "Doon po. Sa buffet.",
+          "definition": "Over there. At the buffet."
+        },
+        {
+          "word": "Kuya, saan po ang beach?",
+          "definition": "Brother, where is the beach?"
+        },
+        {
+          "word": "Walking distance po? Malapit lang?",
+          "definition": "Walking distance? Just nearby?"
+        },
+        {
+          "word": "Meron po ba kayong map?",
+          "definition": "Do you have a map?"
+        },
+        {
+          "word": "Meron po ba kayong map?",
+          "definition": "Do you have a map?"
+        },
+        {
+          "word": "Salamat! Puwede po ba akong bumalik kahit gabi?",
+          "definition": "Thanks! May I come back even at night?"
+        }
+      ],
+      "activities": [
+        "Practice key Filipino phrases for Day 3",
+        "Listen and repeat pronunciation exercises",
+        "Role-play travel scenarios in Filipino",
+        "Review vocabulary with spaced repetition"
+      ]
+    },
+    "day_4": {
+      "title": "Day 4: Getting Around Town",
+      "content": "Day 4 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
+      "focus": "Travel Filipino - Day 4",
+      "collocations": [
+        "paano po pumunta",
+        "kaliwa po\npo\nwa\nli\nliwa\nka\nkaliwa\nkaliwa po\nkaliwa po",
+        "Lakad lang? Derecho lang po dito.",
+        "Malapit lang po! Kita mo na yung mga building.",
+        "Opo! Ito po."
+      ],
+      "vocabulary": [
+        {
+          "word": "paano po pumunta",
+          "definition": "how to get to"
+        },
+        {
+          "word": "kaliwa po\npo\nwa\nli\nliwa\nka\nkaliwa\nkaliwa po\nkaliwa po",
+          "definition": "Natural Speed"
+        },
+        {
+          "word": "Lakad lang? Derecho lang po dito.",
+          "definition": "Just walk? Just straight here."
+        },
+        {
+          "word": "Malapit lang po! Kita mo na yung mga building.",
+          "definition": "Just nearby! You can see the buildings already."
+        },
+        {
+          "word": "Opo! Ito po.",
+          "definition": "Yes! Here."
+        },
+        {
+          "word": "Boat lang po yan. Hindi tricycle.",
+          "definition": "That's by boat only. Not tricycle."
+        },
+        {
+          "word": "By boat, malapit lang po.",
+          "definition": "By boat, just nearby."
+        }
+      ],
+      "activities": [
+        "Practice key Filipino phrases for Day 4",
+        "Listen and repeat pronunciation exercises",
+        "Role-play travel scenarios in Filipino",
+        "Review vocabulary with spaced repetition"
+      ]
+    },
+    "day_5": {
+      "title": "Day 5: Shopping for Beach Day",
+      "content": "Day 5 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
+      "focus": "Travel Filipino - Day 5",
+      "collocations": [
+        "meron po ba kayong",
+        "sukli po\npo\nli\nsuk\nsukli\nsukli po\nsukli po",
+        "Ate, meron po ba kayong sunblock?",
+        "Magkano po?",
+        "Ay! Meron po ba kayong mas mura?"
+      ],
+      "vocabulary": [
+        {
+          "word": "meron po ba kayong",
+          "definition": "do you have"
+        },
+        {
+          "word": "sukli po\npo\nli\nsuk\nsukli\nsukli po\nsukli po",
+          "definition": "Natural Speed"
+        },
+        {
+          "word": "Ate, meron po ba kayong sunblock?",
+          "definition": "Sister, do you have sunblock?"
+        },
+        {
+          "word": "Magkano po?",
+          "definition": "How much?"
+        },
+        {
+          "word": "Ay! Meron po ba kayong mas mura?",
+          "definition": "Oh! Do you have something cheaper?"
+        },
+        {
+          "word": "Sige, yun na lang. Meron po ba kayong tsinelas?",
+          "definition": "Okay, that one. Do you have slippers?"
+        },
+        {
+          "word": "Ilan po ang size mo?",
+          "definition": "What's your size?"
+        },
+        {
+          "word": "Ilan po? Isa lang?",
+          "definition": "How many? Just one?"
+        },
+        {
+          "word": "Pink o blue?",
+          "definition": "Pink or blue?"
+        },
+        {
+          "word": "Isang daang limampung piso lang po.",
+          "definition": "Just one hundred fifty pesos."
+        },
+        {
+          "word": "Sunblock, tsinelas... meron po ba kayong tubig?",
+          "definition": "Sunblock, slippers... do you have water?"
+        },
+        {
+          "word": "Dalawa po. Yung malamig.",
+          "definition": "Two. The cold ones."
+        },
+        {
+          "word": "Sige po. Lahat magkano?",
+          "definition": "Okay. How much for everything?"
+        },
+        {
+          "word": "Ito po, five hundred.",
+          "definition": "Here, five hundred."
+        },
+        {
+          "word": "Kulang po? Bakit?",
+          "definition": "Not enough? Why?"
+        },
+        {
+          "word": "Ah okay. Ito po, five hundred.",
+          "definition": "Ah okay. Here, five hundred."
+        },
+        {
+          "word": "Salamat po!",
+          "definition": "Thank you!"
+        },
+        {
+          "word": "Wala po, sorry. Pero meron ata doon.",
+          "definition": "None, sorry. But I think there's some there."
+        },
+        {
+          "word": "Mga isang daang piso lang po siguro.",
+          "definition": "Maybe just one hundred pesos."
+        },
+        {
+          "word": "Kuya, goggles po. Ilan po?",
+          "definition": "Brother, goggles. How many?"
+        },
+        {
+          "word": "Yung pinakamura po.",
+          "definition": "The cheapest one."
+        },
+        {
+          "word": "Sige po.",
+          "definition": "Okay."
+        },
+        {
+          "word": "Keep the change na lang po.",
+          "definition": "Just keep the change."
+        },
+        {
+          "word": "Ate, meron po ba kayong aloe vera?",
+          "definition": "Sister, do you have aloe vera?"
+        },
+        {
+          "word": "Sayang! Kulang po kasi sunblock ko kanina.",
+          "definition": "Too bad! My sunblock wasn't enough earlier."
+        },
+        {
+          "word": "Ilan po need ko?",
+          "definition": "How many do I need?"
+        }
+      ],
+      "activities": [
+        "Practice key Filipino phrases for Day 5",
+        "Listen and repeat pronunciation exercises",
+        "Role-play travel scenarios in Filipino",
+        "Review vocabulary with spaced repetition"
+      ]
+    },
+    "day_6": {
+      "title": "Day 6: Island Hopping Preparation",
+      "content": "Day 6 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
+      "focus": "Travel Filipino - Day 6",
+      "collocations": [
+        "anong oras po",
+        "bawal po\npo\nwal\nba\nbawal\nbawal po\nbawal po",
+        "Hello po! Anong oras po dating ng boat?",
+        "8 AM po.",
+        "Ah, dadating po sila dito?"
+      ],
+      "vocabulary": [
+        {
+          "word": "anong oras po",
+          "definition": "what time"
+        },
+        {
+          "word": "bawal po\npo\nwal\nba\nbawal\nbawal po\nbawal po",
+          "definition": "Natural Speed"
+        },
+        {
+          "word": "Hello po! Anong oras po dating ng boat?",
+          "definition": "Hello! What time will the boat arrive?"
+        },
+        {
+          "word": "8 AM po.",
+          "definition": "8 AM."
+        },
+        {
+          "word": "Ah, dadating po sila dito?",
+          "definition": "Ah, they'll arrive here?"
+        },
+        {
+          "word": "Okay po! Mag-ready po na ako.",
+          "definition": "Okay! I'll get ready now."
+        },
+        {
+          "word": "Opo!",
+          "definition": "Yes!"
+        },
+        {
+          "word": "Opo! Ako po.",
+          "definition": "Yes! That's me."
+        },
+        {
+          "word": "Anong oras po usually?",
+          "definition": "What time usually?"
+        },
+        {
+          "word": "Puede bang 3:30 na lang?",
+          "definition": "Can we make it 3:30 instead?"
+        },
+        {
+          "word": "Puede bang umupo dito?",
+          "definition": "Can I sit here?"
+        },
+        {
+          "word": "Bawal po ba dito?",
+          "definition": "Is it not allowed here?"
+        },
+        {
+          "word": "Ah sige, doon na lang!",
+          "definition": "Ah okay, I'll go there!"
+        },
+        {
+          "word": "Puede bang swimming dito?",
+          "definition": "Can we swim here?"
+        },
+        {
+          "word": "Bakit bawal po?",
+          "definition": "Why is it not allowed?"
+        },
+        {
+          "word": "Ah! Anong oras po alis natin dito?",
+          "definition": "Ah! What time will we leave here?"
+        },
+        {
+          "word": "Anong oras po tayo dadating sa town?",
+          "definition": "What time will we arrive in town?"
+        },
+        {
+          "word": "Ah opo! Puede bang dumaan sa pharmacy?",
+          "definition": "Ah yes! Can we pass by the pharmacy?"
+        },
+        {
+          "word": "Bawal po ba card?",
+          "definition": "Is card not allowed?"
+        },
+        {
+          "word": "Salamat po! Bukas ulit!",
+          "definition": "Thank you! Again tomorrow!"
+        },
+        {
+          "word": "Same po? 8 AM?",
+          "definition": "Same? 8 AM?"
+        }
+      ],
+      "activities": [
+        "Practice key Filipino phrases for Day 6",
+        "Listen and repeat pronunciation exercises",
+        "Role-play travel scenarios in Filipino",
+        "Review vocabulary with spaced repetition"
+      ]
+    },
+    "day_7": {
+      "title": "Day 7: Restaurant Confidence",
+      "content": "Day 7 focuses on practical Filipino phrases for travelers in El Nido, covering essential conversational skills.",
+      "focus": "Travel Filipino - Day 7",
+      "collocations": [
+        "para sa ilan po",
+        "tubig lang po\npo\nlang po\nlang\nbig\ntu\ntubig\ntubig lang\ntubig lang po\ntubig lang po",
+        "Para sa dalawa po.",
+        "Outside po. May table po ba?",
+        "Dalawa po kami."
+      ],
+      "vocabulary": [
+        {
+          "word": "para sa ilan po",
+          "definition": "for how many"
+        },
+        {
+          "word": "tubig lang po\npo\nlang po\nlang\nbig\ntu\ntubig\ntubig lang\ntubig lang po\ntubig lang po",
+          "definition": "Natural Speed"
+        },
+        {
+          "word": "Para sa dalawa po.",
+          "definition": "For two."
+        },
+        {
+          "word": "Outside po. May table po ba?",
+          "definition": "Outside. Is there a table?"
+        },
+        {
+          "word": "Dalawa po kami.",
+          "definition": "We're two."
+        },
+        {
+          "word": "Ano pa pong specialty?",
+          "definition": "What other specialties?"
+        },
+        {
+          "word": "Masarap po ba?",
+          "definition": "Is it delicious?"
+        },
+        {
+          "word": "Wait lang po. Drinks muna.",
+          "definition": "Wait. Drinks first."
+        },
+        {
+          "word": "Mango shake po. Dalawa. Masarap po ba?",
+          "definition": "Mango shake. Two. Is it delicious?"
+        },
+        {
+          "word": "Ben, order na po ba tayo?",
+          "definition": "Ben, are we ready to order?"
+        },
+        {
+          "word": "Mango shake, dalawa po.",
+          "definition": "Mango shake, two."
+        },
+        {
+          "word": "Tubig lang po. May service water po ba?",
+          "definition": "Just water. Is there service water?"
+        },
+        {
+          "word": "Sobrang sarap po!",
+          "definition": "Very delicious!"
+        },
+        {
+          "word": "Opo! Super sarap!",
+          "definition": "Yes! Super delicious!"
+        },
+        {
+          "word": "Ano pong meron?",
+          "definition": "What do you have?"
+        },
+        {
+          "word": "Para sa ilan po yun?",
+          "definition": "For how many is that?"
+        },
+        {
+          "word": "Ben, order po ba tayo?",
+          "definition": "Ben, should we order?"
+        },
+        {
+          "word": "Ako rin. Maybe later na lang.",
+          "definition": "Me too. Maybe later."
+        },
+        {
+          "word": "Excuse me po.",
+          "definition": "Excuse me."
+        },
+        {
+          "word": "Magandang hapon po. Tubig?",
+          "definition": "Good afternoon. Water?"
+        },
+        {
+          "word": "Malamig. Magkano po?",
+          "definition": "Cold. How much?"
+        },
+        {
+          "word": "Bente?",
+          "definition": "Twenty?"
+        },
+        {
+          "word": "Ah, salamat. Ito po.",
+          "definition": "Ah, thanks. Here you go."
+        },
+        {
+          "word": "Excuse me po. El Nido?",
+          "definition": "Excuse me. El Nido?"
+        },
+        {
+          "word": "Salamat. Magkano po?",
+          "definition": "Thanks. How much?"
+        },
+        {
+          "word": "Ah! Sige. Ito po.",
+          "definition": "Ah! Okay. Here you go."
+        },
+        {
+          "word": "Magandang hapon po!",
+          "definition": "Good afternoon!"
+        },
+        {
+          "word": "Ah! Opo!",
+          "definition": "Ah! Yes!"
+        },
+        {
+          "word": "Salamat po!",
+          "definition": "Thank you!"
+        },
+        {
+          "word": "Excuse me po. CR?",
+          "definition": "Excuse me. Restroom?"
+        },
+        {
+          "word": "Magandang hapon! Chips?",
+          "definition": "Good afternoon! Chips?"
+        },
+        {
+          "word": "Piattos. Magkano?",
+          "definition": "Piattos. How much?"
+        },
+        {
+          "word": "Ito po.",
+          "definition": "Here you go."
+        },
+        {
+          "word": "Salamat!",
+          "definition": "Thanks!"
+        },
+        {
+          "word": "Salamat po, kuya!",
+          "definition": "Thank you, brother!"
+        }
+      ],
+      "activities": [
+        "Practice key Filipino phrases for Day 7",
+        "Listen and repeat pronunciation exercises",
+        "Role-play travel scenarios in Filipino",
+        "Review vocabulary with spaced repetition"
+      ]
     }
   },
   "metadata": {
-    "generated_at": "2025-06-29T00:59:10.505476+00:00",
+    "generated_at": "2025-08-05T20:46:40.498320",
     "transcript_used": false,
-    "format": "text",
-    "version": "1.0"
-  },
-  "content": "{\n  \"metadata\": {\n    \"learning_goal\": \"space exploration\",\n    \"target_language\": \"English\",\n    \"cefr_level\": \"B1\",\n    \"format\": \"json\",\n    \"generated_at\": \"2023-01-01T00:00:00Z\",\n    \"version\": \"1.0\"\n  },\n  \"content\": \"A comprehensive curriculum for learning about space exploration over 5 days.\",\n  \"days\": {\n    \"day_1\": {\n      \"title\": \"Day 1: Space exploration - Part 1\",\n      \"content\": \"This is day 1 of learning about space exploration. Today we'll focus on key aspects of this topic.\",\n      \"focus\": \"space exploration - Part 1\",\n      \"collocations\": [\n        \"learn about space exploration\",\n        \"study space exploration\",\n        \"explore space exploration\",\n        \"understand space exploration\"\n      ],\n      \"vocabulary\": [\n        {\n          \"word\": \"space exploration term 1\",\n          \"definition\": \"Definition of space exploration term 1\"\n        },\n        {\n          \"word\": \"space exploration term 2\",\n          \"definition\": \"Definition of space exploration term 2\"\n        },\n        {\n          \"word\": \"space exploration term 3\",\n          \"definition\": \"Definition of space exploration term 3\"\n        }\n      ],\n      \"activities\": [\n        \"Read a short text about space exploration\",\n        \"Practice using key vocabulary related to space exploration\",\n        \"Have a conversation about space exploration\"\n      ]\n    },\n    \"day_2\": {\n      \"title\": \"Day 2: Space exploration - Part 2\",\n      \"content\": \"This is day 2 of learning about space exploration. Today we'll focus on key aspects of this topic.\",\n      \"focus\": \"space exploration - Part 2\",\n      \"collocations\": [\n        \"learn about space exploration\",\n        \"study space exploration\",\n        \"explore space exploration\",\n        \"understand space exploration\"\n      ],\n      \"vocabulary\": [\n        {\n          \"word\": \"space exploration term 1\",\n          \"definition\": \"Definition of space exploration term 1\"\n        },\n        {\n          \"word\": \"space exploration term 2\",\n          \"definition\": \"Definition of space exploration term 2\"\n        },\n        {\n          \"word\": \"space exploration term 3\",\n          \"definition\": \"Definition of space exploration term 3\"\n        }\n      ],\n      \"activities\": [\n        \"Read a short text about space exploration\",\n        \"Practice using key vocabulary related to space exploration\",\n        \"Have a conversation about space exploration\"\n      ]\n    },\n    \"day_3\": {\n      \"title\": \"Day 3: Space exploration - Part 3\",\n      \"content\": \"This is day 3 of learning about space exploration. Today we'll focus on key aspects of this topic.\",\n      \"focus\": \"space exploration - Part 3\",\n      \"collocations\": [\n        \"learn about space exploration\",\n        \"study space exploration\",\n        \"explore space exploration\",\n        \"understand space exploration\"\n      ],\n      \"vocabulary\": [\n        {\n          \"word\": \"space exploration term 1\",\n          \"definition\": \"Definition of space exploration term 1\"\n        },\n        {\n          \"word\": \"space exploration term 2\",\n          \"definition\": \"Definition of space exploration term 2\"\n        },\n        {\n          \"word\": \"space exploration term 3\",\n          \"definition\": \"Definition of space exploration term 3\"\n        }\n      ],\n      \"activities\": [\n        \"Read a short text about space exploration\",\n        \"Practice using key vocabulary related to space exploration\",\n        \"Have a conversation about space exploration\"\n      ]\n    },\n    \"day_4\": {\n      \"title\": \"Day 4: Space exploration - Part 4\",\n      \"content\": \"This is day 4 of learning about space exploration. Today we'll focus on key aspects of this topic.\",\n      \"focus\": \"space exploration - Part 4\",\n      \"collocations\": [\n        \"learn about space exploration\",\n        \"study space exploration\",\n        \"explore space exploration\",\n        \"understand space exploration\"\n      ],\n      \"vocabulary\": [\n        {\n          \"word\": \"space exploration term 1\",\n          \"definition\": \"Definition of space exploration term 1\"\n        },\n        {\n          \"word\": \"space exploration term 2\",\n          \"definition\": \"Definition of space exploration term 2\"\n        },\n        {\n          \"word\": \"space exploration term 3\",\n          \"definition\": \"Definition of space exploration term 3\"\n        }\n      ],\n      \"activities\": [\n        \"Read a short text about space exploration\",\n        \"Practice using key vocabulary related to space exploration\",\n        \"Have a conversation about space exploration\"\n      ]\n    },\n    \"day_5\": {\n      \"title\": \"Day 5: Space exploration - Part 5\",\n      \"content\": \"This is day 5 of learning about space exploration. Today we'll focus on key aspects of this topic.\",\n      \"focus\": \"space exploration - Part 5\",\n      \"collocations\": [\n        \"learn about space exploration\",\n        \"study space exploration\",\n        \"explore space exploration\",\n        \"understand space exploration\"\n      ],\n      \"vocabulary\": [\n        {\n          \"word\": \"space exploration term 1\",\n          \"definition\": \"Definition of space exploration term 1\"\n        },\n        {\n          \"word\": \"space exploration term 2\",\n          \"definition\": \"Definition of space exploration term 2\"\n        },\n        {\n          \"word\": \"space exploration term 3\",\n          \"definition\": \"Definition of space exploration term 3\"\n        }\n      ],\n      \"activities\": [\n        \"Read a short text about space exploration\",\n        \"Practice using key vocabulary related to space exploration\",\n        \"Have a conversation about space exploration\"\n      ]\n    }\n  }\n}"
+    "format": "converted_from_demo_0_0",
+    "version": "1.0",
+    "original_source": "demo-0.0.3-full-week.txt"
+  }
 }

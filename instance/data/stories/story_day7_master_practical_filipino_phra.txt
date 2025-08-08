@@ -1,0 +1,271 @@
+[NARRATOR]: Day 7: Restaurant Ordering Mastery
+
+Key Phrases:
+
+[TAGALOG-FEMALE-1]: para sa ilan po
+[NARRATOR]: for how many
+[TAGALOG-FEMALE-1]: para sa ilan po
+po
+ilan po
+i
+ilan
+ilan po
+sa ilan
+sa ilan po
+ra
+pa
+para
+para sa
+para sa ilan
+para sa ilan po
+para sa ilan po
+
+[TAGALOG-FEMALE-1]: Para sa dalawa po
+[NARRATOR]: for two please
+[TAGALOG-FEMALE-1]: Para sa dalawa po
+po
+wa po
+lawa po
+da
+dalawa
+dalawa po
+sa dalawa
+sa dalawa po
+ra
+pa
+para
+para sa
+para sa dalawa
+para sa dalawa po
+para sa dalawa po
+
+[TAGALOG-FEMALE-1]: Dalawa po kami
+[NARRATOR]: we are two
+[TAGALOG-FEMALE-1]: Dalawa po kami
+mi
+kami
+po kami
+wa po
+lawa po
+da
+dalawa
+dalawa po
+dalawa po kami
+dalawa po kami
+
+[TAGALOG-FEMALE-1]: Ano pa pong specialty
+[NARRATOR]: what other specialties
+[TAGALOG-FEMALE-1]: Ano pa pong specialty
+ty
+cialty
+specialty
+pong specialty
+pa pong
+pa pong specialty
+no
+a
+ano
+ano pa
+ano pa pong
+ano pa pong specialty
+ano pa pong specialty
+
+[TAGALOG-FEMALE-1]: Masarap po ba
+[NARRATOR]: is it delicious
+[TAGALOG-FEMALE-1]: Masarap po ba
+ba
+po ba
+po
+rap
+sa
+sarap
+ma
+masarap
+masarap po
+masarap po ba
+masarap po ba
+
+[TAGALOG-FEMALE-1]: Mango shake, dalawa po
+[NARRATOR]: mango shake, two please
+[TAGALOG-FEMALE-1]: Mango shake, dalawa po
+po
+wa po
+lawa po
+da
+dalawa
+dalawa po
+shake dalawa
+mango shake
+mango shake dalawa
+mango shake dalawa po
+mango shake dalawa po
+
+[TAGALOG-FEMALE-1]: Sobrang sarap po
+[NARRATOR]: it's so delicious
+[TAGALOG-FEMALE-1]: Sobrang sarap po
+po
+rap po
+sarap po
+rang sarap
+sobrang sarap
+sobrang sarap po
+sobrang sarap po
+
+[TAGALOG-FEMALE-1]: Opo! Super sarap!
+[NARRATOR]: yes! super delicious!
+[TAGALOG-FEMALE-1]: Opo! Super sarap!
+rap
+sarap
+super sarap
+po
+o
+opo
+opo super
+opo super sarap
+opo super sarap
+
+[NARRATOR]: Natural Speed
+
+Arriving at the Restaurant
+
+[TAGALOG-MALE-1]: Good evening! Para sa ilan po?
+[TAGALOG-FEMALE-1]: Para sa dalawa po.
+[TAGALOG-MALE-1]: Dalawa po kayo? This way po.
+[TAGALOG-FEMALE-1]: Salamat po!
+[TAGALOG-MALE-1]: Outside po ba or inside?
+[TAGALOG-FEMALE-1]: Outside po. May table po ba?
+[TAGALOG-MALE-1]: Meron po! Here po.
+
+Ordering Drinks
+
+[TAGALOG-MALE-1]: Ano po ang gusto ninyong drinks?
+[TAGALOG-FEMALE-1]: Tubig lang po for now.
+[TAGALOG-MALE-1]: Tubig lang po?
+[TAGALOG-FEMALE-1]: Actually, ano pa pong specialty drinks?
+[TAGALOG-MALE-1]: Mango shake po, masarap po yan!
+[TAGALOG-FEMALE-1]: Masarap po ba talaga?
+[TAGALOG-MALE-1]: Opo! Super sarap po!
+[TAGALOG-FEMALE-1]: Sige! Mango shake, dalawa po.
+
+Discussing Food
+
+[TAGALOG-MALE-1]: Food naman po? Ano pa pong specialty namin?
+[TAGALOG-FEMALE-1]: Carlos, ano gusto mo?
+[TAGALOG-FEMALE-2]: Maria, ikaw bahala. Masarap po ba yung prawns?
+[TAGALOG-MALE-1]: Opo! Specialty po namin yan. Super fresh!
+[TAGALOG-FEMALE-1]: Sige, prawns po and rice.
+[TAGALOG-MALE-1]: Perfect choice po!
+
+After the Meal
+
+[TAGALOG-FEMALE-1]: Waiter! Sobrang sarap po ng food!
+[TAGALOG-MALE-1]: Salamat po! Masaya kami na nagustuhan ninyo.
+[TAGALOG-FEMALE-2]: Opo! Super sarap talaga!
+[TAGALOG-MALE-1]: Maraming salamat po! Babalik po kayo?
+[TAGALOG-FEMALE-1]: Opo! Definitely babalik kami!
+
+[NARRATOR]: Slow Speed
+
+Arriving at the Restaurant
+
+[TAGALOG-MALE-1]: Good... evening!... Para... sa... ilan... po?
+[TAGALOG-FEMALE-1]: Para... sa... dalawa... po.
+[TAGALOG-MALE-1]: Dalawa... po... kayo?... This... way... po.
+[TAGALOG-FEMALE-1]: Salamat... po!
+[TAGALOG-MALE-1]: Outside... po... ba... or... inside?
+[TAGALOG-FEMALE-1]: Outside... po... May... table... po... ba?
+[TAGALOG-MALE-1]: Meron... po!... Here... po.
+
+Ordering Drinks
+
+[TAGALOG-MALE-1]: Ano... po... ang... gusto... ninyong... drinks?
+[TAGALOG-FEMALE-1]: Tubig... lang... po... for... now.
+[TAGALOG-MALE-1]: Tubig... lang... po?
+[TAGALOG-FEMALE-1]: Actually... ano... pa... pong... specialty... drinks?
+[TAGALOG-MALE-1]: Mango... shake... po... masarap... po... yan!
+[TAGALOG-FEMALE-1]: Masarap... po... ba... talaga?
+[TAGALOG-MALE-1]: Opo!... Super... sarap... po!
+[TAGALOG-FEMALE-1]: Sige!... Mango... shake... dalawa... po.
+
+Discussing Food
+
+[TAGALOG-MALE-1]: Food... naman... po?... Ano... pa... pong... specialty... namin?
+[TAGALOG-FEMALE-1]: Carlos... ano... gusto... mo?
+[TAGALOG-FEMALE-2]: Maria... ikaw... bahala... Masarap... po... ba... yung... prawns?
+[TAGALOG-MALE-1]: Opo!... Specialty... po... namin... yan... Super... fresh!
+[TAGALOG-FEMALE-1]: Sige... prawns... po... and... rice.
+[TAGALOG-MALE-1]: Perfect... choice... po!
+
+After the Meal
+
+[TAGALOG-FEMALE-1]: Waiter!... Sobrang... sarap... po... ng... food!
+[TAGALOG-MALE-1]: Salamat... po!... Masaya... kami... na... nagustuhan... ninyo.
+[TAGALOG-FEMALE-2]: Opo!... Super... sarap... talaga!
+[TAGALOG-MALE-1]: Maraming... salamat... po!... Babalik... po... kayo?
+[TAGALOG-FEMALE-1]: Opo!... Definitely... babalik... kami!
+
+[NARRATOR]: Translated
+
+Arriving at the Restaurant
+
+[TAGALOG-MALE-1]: Good evening! Para sa ilan po?
+[NARRATOR]: Good evening! For how many?
+[TAGALOG-FEMALE-1]: Para sa dalawa po.
+[NARRATOR]: For two please.
+[TAGALOG-MALE-1]: Dalawa po kayo? This way po.
+[NARRATOR]: Two of you? This way please.
+[TAGALOG-FEMALE-1]: Salamat po!
+[NARRATOR]: Thank you!
+[TAGALOG-MALE-1]: Outside po ba or inside?
+[NARRATOR]: Outside or inside?
+[TAGALOG-FEMALE-1]: Outside po. May table po ba?
+[NARRATOR]: Outside please. Is there a table?
+[TAGALOG-MALE-1]: Meron po! Here po.
+[NARRATOR]: There is! Here.
+
+Ordering Drinks
+
+[TAGALOG-MALE-1]: Ano po ang gusto ninyong drinks?
+[NARRATOR]: What drinks would you like?
+[TAGALOG-FEMALE-1]: Tubig lang po for now.
+[NARRATOR]: Just water for now.
+[TAGALOG-MALE-1]: Tubig lang po?
+[NARRATOR]: Just water?
+[TAGALOG-FEMALE-1]: Actually, ano pa pong specialty drinks?
+[NARRATOR]: Actually, what other specialty drinks?
+[TAGALOG-MALE-1]: Mango shake po, masarap po yan!
+[NARRATOR]: Mango shake, that's delicious!
+[TAGALOG-FEMALE-1]: Masarap po ba talaga?
+[NARRATOR]: Is it really delicious?
+[TAGALOG-MALE-1]: Opo! Super sarap po!
+[NARRATOR]: Yes! Super delicious!
+[TAGALOG-FEMALE-1]: Sige! Mango shake, dalawa po.
+[NARRATOR]: Okay! Mango shake, two please.
+
+Discussing Food
+
+[TAGALOG-MALE-1]: Food naman po? Ano pa pong specialty namin?
+[NARRATOR]: How about food? What other specialties do we have?
+[TAGALOG-FEMALE-1]: Carlos, ano gusto mo?
+[NARRATOR]: Carlos, what do you want?
+[TAGALOG-FEMALE-2]: Maria, ikaw bahala. Masarap po ba yung prawns?
+[NARRATOR]: Maria, you decide. Are the prawns delicious?
+[TAGALOG-MALE-1]: Opo! Specialty po namin yan. Super fresh!
+[NARRATOR]: Yes! That's our specialty. Super fresh!
+[TAGALOG-FEMALE-1]: Sige, prawns po and rice.
+[NARRATOR]: Okay, prawns and rice.
+[TAGALOG-MALE-1]: Perfect choice po!
+[NARRATOR]: Perfect choice!
+
+After the Meal
+
+[TAGALOG-FEMALE-1]: Waiter! Sobrang sarap po ng food!
+[NARRATOR]: Waiter! The food is so delicious!
+[TAGALOG-MALE-1]: Salamat po! Masaya kami na nagustuhan ninyo.
+[NARRATOR]: Thank you! We're happy that you liked it.
+[TAGALOG-FEMALE-2]: Opo! Super sarap talaga!
+[NARRATOR]: Yes! Really super delicious!
+[TAGALOG-MALE-1]: Maraming salamat po! Babalik po kayo?
+[NARRATOR]: Thank you very much! Will you come back?
+[TAGALOG-FEMALE-1]: Opo! Definitely babalik kami!
+[NARRATOR]: Yes! We'll definitely come back!
