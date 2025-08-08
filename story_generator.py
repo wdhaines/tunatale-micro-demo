@@ -336,7 +336,9 @@ class ContentGenerator:
             logging.info(f"  - Difficulty: {srs_data['difficulty_level']}")
             
             # Generate content using LLM
-            response = self.llm.get_response(complete_prompt)
+            logging.info(f"Calling MockLLM with response_type='story'")
+            logging.debug(f"Prompt length: {len(complete_prompt)} characters")
+            response = self.llm.get_response(complete_prompt, response_type="story")
             
             if not response or 'choices' not in response:
                 logging.error("Invalid LLM response format")

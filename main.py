@@ -34,6 +34,7 @@ except ImportError:
 from curriculum_service import CurriculumGenerator
 from collocation_extractor import CollocationExtractor
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
+from content_strategy import ContentStrategy
 import logging
 
 
@@ -213,9 +214,15 @@ class CLI:
         # Generate day command
         story_day_parser = subparsers.add_parser(
             'generate-day',
-            help='Generate story for specific curriculum day with SRS'
+            help='Generate story for specific curriculum day with SRS and strategy support'
         )
         story_day_parser.add_argument('day', type=int, help='Day number (1-5)')
+        story_day_parser.add_argument('--strategy', choices=['balanced', 'wider', 'deeper'], 
+                                    default='balanced', help='Content generation strategy')
+        story_day_parser.add_argument('--source-day', type=int, 
+                                    help='Source day for DEEPER strategy (which day to enhance)')
+        story_day_parser.add_argument('--objective', type=str,
+                                    help='Custom learning objective override')
         
         # Comprehensive curriculum generation
         comprehensive_parser = subparsers.add_parser(
@@ -503,9 +510,9 @@ class CLI:
             return 1
 
     def _handle_generate_day(self, args: argparse.Namespace) -> int:
-        """Handle the generate-day command."""
+        """Handle the generate-day command with new SRS and strategy support."""
         logger = logging.getLogger(__name__)
-        logger.info(f"Starting story generation for day {args.day}")
+        logger.info(f"Starting story generation for day {args.day} with strategy {args.strategy}")
         
         from story_generator import ContentGenerator
         from srs_tracker import SRSTracker
@@ -516,62 +523,108 @@ class CLI:
             print(f"Error: Day must be >= 1, got {args.day}", file=sys.stderr)
             return 1
         
-        # Check if curriculum exists
-        logger.debug(f"Checking curriculum path: {CURRICULUM_PATH}")
-        if not CURRICULUM_PATH.exists():
-            logger.error(f"Curriculum file not found at {CURRICULUM_PATH}")
-            print("Error: No curriculum found. Please generate a curriculum first using 'generate' command.", 
-                  file=sys.stderr)
-            print("\nWorkflow: generate -> extract -> generate-day -> continue...")
+        # Convert strategy string to enum
+        strategy_map = {
+            'balanced': ContentStrategy.BALANCED,
+            'wider': ContentStrategy.WIDER, 
+            'deeper': ContentStrategy.DEEPER
+        }
+        strategy = strategy_map[args.strategy]
+        
+        # Validate DEEPER strategy requirements
+        if strategy == ContentStrategy.DEEPER and not args.source_day:
+            print("Error: --source-day is required when using 'deeper' strategy", file=sys.stderr)
             return 1
-            
+        
+        # Check if curriculum exists (for legacy functionality)
+        logger.debug(f"Checking curriculum path: {CURRICULUM_PATH}")
+        curriculum_exists = CURRICULUM_PATH.exists()
+        
         try:
-            # Load the curriculum to verify the requested day exists
-            logger.debug("Loading curriculum to verify day exists")
-            curriculum = Curriculum.load(CURRICULUM_PATH)
-            max_days = len(curriculum.days)
-            logger.debug(f"Curriculum has {max_days} days, requested day {args.day}")
-            
-            if args.day > max_days:
-                logger.error(f"Requested day {args.day} exceeds curriculum days {max_days}")
-                print(f"Error: Day {args.day} is not in the curriculum (max day: {max_days})", 
-                      file=sys.stderr)
-                print(f"Tip: Use 'python main.py extend {args.day}' to extend the curriculum first")
-                return 1
-                
-            logger.info(f"Starting content generation for day {args.day}")
-            print(f"Generating content for day {args.day}...")
+            logger.info(f"Starting content generation for day {args.day} using {args.strategy} strategy")
+            print(f"Generating content for day {args.day} using {args.strategy.upper()} strategy...")
             generator = ContentGenerator()
             
-            # Generate the day's content
-            logger.debug("Calling generate_day_story")
-            result = generator.generate_day_story(args.day)
-            if not result:
-                print(f"Failed to generate content for day {args.day}", file=sys.stderr)
-                return 1
+            # Try new architecture first, fall back to legacy if needed
+            if generator.prompt_generator and generator.mock_srs:
+                print("Using enhanced SRS-informed generation...")
+                logger.info("Using new two-part prompt architecture")
                 
-            # Unpack the result (story, collocation_report)
-            story, collocation_report = result
-            
-            # Display collocation information
-            print("\n=== Collocations ===")
-            if collocation_report.get('new'):
-                print(f"\nNew collocations introduced:")
-                for colloc in collocation_report['new']:
-                    print(f"- {colloc}")
+                story = generator.generate_day_with_srs(
+                    day=args.day,
+                    strategy=strategy,
+                    source_day=args.source_day,
+                    learning_objective=args.objective
+                )
+                
+                if story:
+                    print(f"\nSuccessfully generated {len(story)} character story for day {args.day}")
+                    print(f"Story saved to instance/data/stories/")
                     
-            if collocation_report.get('reviewed'):
-                print(f"\nCollocations reviewed:")
-                for colloc in collocation_report['reviewed']:
-                    print(f"- {colloc}")
+                    # Show strategy-specific information
+                    if strategy == ContentStrategy.DEEPER and args.source_day:
+                        print(f"Enhanced version of Day {args.source_day} content with advanced language complexity")
+                    elif strategy == ContentStrategy.WIDER:
+                        print(f"New scenario content maintaining similar difficulty level")
+                    else:
+                        print(f"Balanced content with vocabulary reinforcement")
                     
-            if collocation_report.get('bonus'):
-                print(f"\nBonus collocations found:")
-                for colloc in collocation_report['bonus']:
-                    print(f"- {colloc}")
-            
-            print(f"\nSuccessfully generated content for day {args.day}")
-            return 0
+                    return 0
+                else:
+                    print("Failed to generate story using enhanced architecture", file=sys.stderr)
+                    return 1
+                    
+            else:
+                # Fall back to legacy architecture
+                if not curriculum_exists:
+                    logger.error(f"Curriculum file not found at {CURRICULUM_PATH}")
+                    print("Error: No curriculum found. Please generate a curriculum first using 'generate' command.", 
+                          file=sys.stderr)
+                    print("\nWorkflow: generate -> extract -> generate-day -> continue...")
+                    return 1
+                
+                print("Using legacy story generation (enhanced architecture not available)...")
+                logger.info("Falling back to legacy generation")
+                
+                # Load the curriculum to verify the requested day exists
+                curriculum = Curriculum.load(CURRICULUM_PATH)
+                max_days = len(curriculum.days)
+                
+                if args.day > max_days:
+                    logger.error(f"Requested day {args.day} exceeds curriculum days {max_days}")
+                    print(f"Error: Day {args.day} is not in the curriculum (max day: {max_days})", 
+                          file=sys.stderr)
+                    print(f"Tip: Use 'python main.py extend {args.day}' to extend the curriculum first")
+                    return 1
+                
+                # Generate using legacy method
+                result = generator.generate_day_story(args.day)
+                if not result:
+                    print(f"Failed to generate content for day {args.day}", file=sys.stderr)
+                    return 1
+                    
+                # Unpack the result (story, collocation_report)
+                story, collocation_report = result
+                
+                # Display collocation information
+                print("\n=== Collocations ===")
+                if collocation_report.get('new'):
+                    print(f"\nNew collocations introduced:")
+                    for colloc in collocation_report['new']:
+                        print(f"- {colloc}")
+                        
+                if collocation_report.get('reviewed'):
+                    print(f"\nCollocations reviewed:")
+                    for colloc in collocation_report['reviewed']:
+                        print(f"- {colloc}")
+                        
+                if collocation_report.get('bonus'):
+                    print(f"\nBonus collocations found:")
+                    for colloc in collocation_report['bonus']:
+                        print(f"- {colloc}")
+                
+                print(f"\nSuccessfully generated content for day {args.day}")
+                return 0
             
         except Exception as e:
             print(f"Error generating content for day {args.day}: {e}", file=sys.stderr)
