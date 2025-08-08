@@ -14,7 +14,8 @@ try:
         COLLOCATIONS_PATH, 
         DATA_DIR, 
         DEFAULT_STORY_LENGTH,
-        STORIES_DIR
+        STORIES_DIR,
+        DEBUG_LOG_PATH
     )
 except ImportError:
     # Fallback values for testing
@@ -24,6 +25,7 @@ except ImportError:
     COLLOCATIONS_PATH = DATA_DIR / 'collocations.json'
     DEFAULT_STORY_LENGTH = 500
     STORIES_DIR = DATA_DIR / 'stories'
+    DEBUG_LOG_PATH = DATA_DIR / 'debug.log'
     
     # Ensure test directories exist
     DATA_DIR.mkdir(exist_ok=True, parents=True)
@@ -32,6 +34,44 @@ except ImportError:
 from curriculum_service import CurriculumGenerator
 from collocation_extractor import CollocationExtractor
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
+import logging
+
+
+def setup_logging():
+    """Configure comprehensive logging to both console and debug file."""
+    # Create formatter
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    # Setup root logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    
+    # Remove existing handlers to avoid duplicates
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
+    # Console handler (INFO and above)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    # File handler (DEBUG and above)
+    try:
+        file_handler = logging.FileHandler(DEBUG_LOG_PATH, mode='w')  # Overwrite each run
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        
+        # Log the startup
+        logger.info(f"Logging initialized. Debug log: {DEBUG_LOG_PATH}")
+        logger.debug("Debug logging enabled")
+        
+    except Exception as e:
+        console_handler.setLevel(logging.DEBUG)  # Show debug in console if file fails
+        logger.error(f"Failed to setup file logging: {e}")
 
 
 @dataclass
@@ -45,6 +85,8 @@ class CLI:
     """Command Line Interface handler for TunaTale application."""
     
     def __init__(self):
+        setup_logging()  # Initialize logging first
+        self.logger = logging.getLogger(__name__)
         self.parser = self._create_parser()
         self.commands: Dict[str, Command] = {}
         self._setup_commands()
@@ -59,8 +101,9 @@ class CLI:
             Workflow:
               1. generate    - Create a new curriculum
               2. extract     - Extract collocations from the curriculum
-              3. generate-day X - Generate content for a specific day
-              4. continue    - Continue to the next day's content
+              3. extend X    - Extend curriculum to X total days (optional)
+              4. generate-day X - Generate content for a specific day
+              5. continue    - Continue to the next day's content
               
             View progress with: view, analyze
             ''',
@@ -134,6 +177,21 @@ class CLI:
         subparsers.add_parser(
             'extract',
             help='Extract collocations from curriculum'
+        )
+        
+        # Extend curriculum command
+        extend_parser = subparsers.add_parser(
+            'extend',
+            help='Extend existing curriculum with additional days'
+        )
+        extend_parser.add_argument(
+            'days',
+            type=int,
+            help='Total number of days the curriculum should have after extension'
+        )
+        extend_parser.add_argument(
+            '--curriculum',
+            help='Path to curriculum file to extend (default: uses current curriculum)'
         )
         
         # Story generation command
@@ -318,6 +376,10 @@ class CLI:
                 handler=self._handle_extract,
                 help='Extract collocations from curriculum (second step)'
             ),
+            'extend': Command(
+                handler=self._handle_extend,
+                help='Extend existing curriculum with additional days'
+            ),
             'generate-day': Command(
                 handler=self._handle_generate_day,
                 help='Generate story for specific curriculum day with SRS (third step)'
@@ -390,18 +452,74 @@ class CLI:
             print(f"Error saving curriculum: {e}", file=sys.stderr)
             return 1
 
+    def _handle_extend(self, args: argparse.Namespace) -> int:
+        """Handle the extend command."""
+        logger = logging.getLogger(__name__)
+        logger.info(f"Starting curriculum extension to {args.days} days")
+        
+        try:
+            from curriculum_service import CurriculumGenerator
+            
+            target_days = args.days
+            curriculum_path = args.curriculum if args.curriculum else None
+            
+            logger.debug(f"Target days: {target_days}, Curriculum path: {curriculum_path}")
+            print(f"Extending curriculum to {target_days} days...")
+            
+            # Create curriculum generator
+            logger.debug("Creating CurriculumGenerator instance")
+            generator = CurriculumGenerator()
+            
+            # Extend the curriculum
+            logger.debug("Calling extend_curriculum method")
+            extended_curriculum = generator.extend_curriculum(target_days, curriculum_path)
+            
+            current_days = len(extended_curriculum.get('days', []))
+            logger.info(f"Extension completed successfully: {current_days} days total")
+            print(f"✓ Successfully extended curriculum to {current_days} days")
+            
+            # Show the new days that were added
+            if current_days >= target_days:
+                new_days_count = current_days - (target_days - 1)
+                if new_days_count > 0:
+                    print("\nNew days added:")
+                    start_day = current_days - new_days_count + 1
+                    for day_num in range(start_day, current_days + 1):
+                        day_key = f'day_{day_num}'
+                        if day_key in extended_curriculum['days']:
+                            day_data = extended_curriculum['days'][day_key]
+                            title = day_data.get('title', 'Untitled')
+                            print(f"  Day {day_num}: {title}")
+                            logger.debug(f"Added day {day_num}: {title}")
+            
+            return 0
+            
+        except Exception as e:
+            logger.error(f"Error extending curriculum: {e}", exc_info=True)
+            print(f"Error extending curriculum: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:
+                import traceback
+                traceback.print_exc()
+            return 1
+
     def _handle_generate_day(self, args: argparse.Namespace) -> int:
         """Handle the generate-day command."""
+        logger = logging.getLogger(__name__)
+        logger.info(f"Starting story generation for day {args.day}")
+        
         from story_generator import ContentGenerator
         from srs_tracker import SRSTracker
         from curriculum_models import Curriculum
         
-        if not 1 <= args.day <= 5:
-            print(f"Error: Day must be between 1 and 5, got {args.day}", file=sys.stderr)
+        if args.day < 1:
+            logger.error(f"Invalid day number: {args.day}")
+            print(f"Error: Day must be >= 1, got {args.day}", file=sys.stderr)
             return 1
         
         # Check if curriculum exists
+        logger.debug(f"Checking curriculum path: {CURRICULUM_PATH}")
         if not CURRICULUM_PATH.exists():
+            logger.error(f"Curriculum file not found at {CURRICULUM_PATH}")
             print("Error: No curriculum found. Please generate a curriculum first using 'generate' command.", 
                   file=sys.stderr)
             print("\nWorkflow: generate -> extract -> generate-day -> continue...")
@@ -409,23 +527,31 @@ class CLI:
             
         try:
             # Load the curriculum to verify the requested day exists
+            logger.debug("Loading curriculum to verify day exists")
             curriculum = Curriculum.load(CURRICULUM_PATH)
-            if args.day > len(curriculum.days):
-                print(f"Error: Day {args.day} is not in the curriculum (max day: {len(curriculum.days)})", 
+            max_days = len(curriculum.days)
+            logger.debug(f"Curriculum has {max_days} days, requested day {args.day}")
+            
+            if args.day > max_days:
+                logger.error(f"Requested day {args.day} exceeds curriculum days {max_days}")
+                print(f"Error: Day {args.day} is not in the curriculum (max day: {max_days})", 
                       file=sys.stderr)
+                print(f"Tip: Use 'python main.py extend {args.day}' to extend the curriculum first")
                 return 1
                 
+            logger.info(f"Starting content generation for day {args.day}")
             print(f"Generating content for day {args.day}...")
             generator = ContentGenerator()
             
             # Generate the day's content
-            result = generator.generate_day_content(args.day)
+            logger.debug("Calling generate_day_story")
+            result = generator.generate_day_story(args.day)
             if not result:
                 print(f"Failed to generate content for day {args.day}", file=sys.stderr)
                 return 1
                 
-            # Unpack the result (story, collocation_report, srs_update)
-            story, collocation_report, srs_update = result
+            # Unpack the result (story, collocation_report)
+            story, collocation_report = result
             
             # Display collocation information
             print("\n=== Collocations ===")
@@ -836,8 +962,8 @@ class CLI:
             srs = SRSTracker()
             
             if args.day is not None:
-                if not 1 <= args.day <= 5:
-                    print(f"Error: Day must be between 1 and 5, got {args.day}", file=sys.stderr)
+                if not 1 <= args.day <= 7:
+                    print(f"Error: Day must be between 1 and 7, got {args.day}", file=sys.stderr)
                     return 1
                 
                 due = srs.get_due_collocations(args.day)
