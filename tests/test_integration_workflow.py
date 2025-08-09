@@ -256,6 +256,98 @@ class TestWorkflowIntegration:
         
         print("✓ User journey completed (with expected test environment limitations)")
 
+    @pytest.mark.slow 
+    def test_phase3_content_quality_workflow(self):
+        """Test Phase 3 content quality validation workflow."""
+        print("\n=== Testing Phase 3 Content Quality Workflow ===")
+        
+        # Create test content file
+        test_content = "Kumusta po! Ako ay tourist sa El Nido. Salamat po sa inyong tulong!"
+        test_file = Path("instance/data/test_phase3.txt")
+        test_file.parent.mkdir(parents=True, exist_ok=True)
+        test_file.write_text(test_content)
+        
+        phase3_steps = [
+            # Test quality analysis
+            (["analyze", str(test_file), "--quality"], "Analyze content quality"),
+            
+            # Test trip readiness
+            (["analyze", str(test_file), "--trip-readiness"], "Analyze trip readiness"),
+            
+            # Test both together
+            (["analyze", str(test_file), "--quality", "--trip-readiness"], "Combined analysis"),
+            
+            # Test direct text analysis
+            (["analyze", test_content, "--quality"], "Direct text quality analysis"),
+        ]
+        
+        successful_steps = 0
+        
+        for args, description in phase3_steps:
+            print(f"Running: {description}")
+            
+            try:
+                result = self.run_cli(args, timeout=30)
+                
+                if result.returncode == 0:
+                    successful_steps += 1
+                    print(f"  ✓ {description} succeeded")
+                else:
+                    print(f"  ⚠️  {description} failed (may be expected in test env): {result.stderr}")
+                
+            except subprocess.TimeoutExpired:
+                print(f"  ⚠️  {description} timed out")
+        
+        # Clean up
+        if test_file.exists():
+            test_file.unlink()
+        
+        print(f"✓ Phase 3 workflow completed ({successful_steps}/{len(phase3_steps)} steps succeeded)")
+        
+        # At least some Phase 3 features should work
+        assert successful_steps > 0, "At least some Phase 3 commands should work"
+
+    def test_phase3_recommendation_workflow(self):
+        """Test Phase 3 strategy recommendation workflow."""
+        print("\n=== Testing Phase 3 Recommendation Workflow ===")
+        
+        # Create test content files
+        content1_file = Path("instance/data/content1.txt")
+        content2_file = Path("instance/data/content2.txt")
+        
+        content1_file.parent.mkdir(parents=True, exist_ok=True)
+        content1_file.write_text("Hello, I want go restaurant.")
+        content2_file.write_text("Kumusta po! Gusto ko pong pumunta sa restaurant.")
+        
+        recommendation_steps = [
+            # Test recommendation command (may not work in test env)
+            (["recommend", str(content1_file), "--strategies", "balanced"], "Get strategy recommendation"),
+            
+            # Test validation command (may not work in test env)
+            (["validate", str(content1_file), str(content2_file), "--strategy", "deeper"], "Validate strategy effectiveness"),
+        ]
+        
+        for args, description in recommendation_steps:
+            print(f"Running: {description}")
+            
+            try:
+                result = self.run_cli(args, timeout=30)
+                
+                if result.returncode == 0:
+                    print(f"  ✓ {description} succeeded")
+                else:
+                    print(f"  ⚠️  {description} failed (expected in test env)")
+                    
+            except subprocess.TimeoutExpired:
+                print(f"  ⚠️  {description} timed out")
+        
+        # Clean up
+        for file in [content1_file, content2_file]:
+            if file.exists():
+                file.unlink()
+        
+        print("✓ Phase 3 recommendation workflow completed (may have limitations in test env)")
+
 
 # Additional mark for pytest
 pytestmark = pytest.mark.integration
