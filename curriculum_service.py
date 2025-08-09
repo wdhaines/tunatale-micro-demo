@@ -7,26 +7,12 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Union, Any, Type, TypeVar
+from typing import Dict, List, Optional, Union, Any, Type
 
-# Try to import config values, with fallbacks for testing
-try:
-    from config import PROMPTS_DIR, CURRICULUM_PATH, DATA_DIR
-except ImportError:
-    # Fallback values for testing
-    TEST_DIR = Path(__file__).parent.parent / 'tests'
-    PROMPTS_DIR = TEST_DIR / 'prompts'
-    DATA_DIR = TEST_DIR / 'test_data'
-    CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
-    
-    # Ensure test directories exist
-    PROMPTS_DIR.mkdir(exist_ok=True, parents=True)
-    DATA_DIR.mkdir(exist_ok=True, parents=True)
+from config import PROMPTS_DIR, CURRICULUM_PATH, DATA_DIR
 
 from llm_mock import MockLLM
 
-# Type variable for generic type hints
-T = TypeVar('T', bound='CurriculumError')
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -727,7 +713,7 @@ class CurriculumGenerator:
                     "\n- Weekly format (e.g., 'Week 1 (Days 1-7):', 'Week 2 (Days 8-14):'...)"
                 )
     
-    def _parse_curriculum_days(self, curriculum_text: str) -> Dict[str, Dict[str, Any]]:
+    def _parse_curriculum_days(self, curriculum_text: str) -> List[Dict[str, Any]]:
         """
         Parse the curriculum text into structured day-by-day content.
         
@@ -741,12 +727,12 @@ class CurriculumGenerator:
             curriculum_text: The raw curriculum text to parse
             
         Returns:
-            Dict mapping day keys to structured day content
+            List of structured day content dictionaries
             
         Raises:
             ParserError: If there's an error in the curriculum format
         """
-        days = {}
+        days = []
         current_day = None
         current_content = []
         current_metadata = {}
@@ -757,6 +743,7 @@ class CurriculumGenerator:
         def save_current_day():
             if current_day and (current_content or current_metadata):
                 day_data = {
+                    'day': current_day,
                     'title': current_metadata.get('title', f'Day {current_day}'),
                     'content': '\n'.join(current_content).strip(),
                     'focus': current_metadata.get('focus', ''),
@@ -764,7 +751,7 @@ class CurriculumGenerator:
                     'vocabulary': current_metadata.get('vocabulary', []),
                     'activities': current_metadata.get('activities', [])
                 }
-                days[f'day_{current_day}'] = day_data
+                days.append(day_data)
         
         for line in lines:
             line = line.strip()
@@ -821,24 +808,26 @@ class CurriculumGenerator:
             sections = re.split(r'(?i)(?:^|\n)(?=##?\s*(?:Day|Week)\s+\d+)', curriculum_text)
             if len(sections) > 1:
                 for i, section in enumerate(sections[1:], 1):
-                    days[f'day_{i}'] = {
+                    days.append({
+                        'day': str(i),
                         'title': f'Day {i}',
                         'content': section.strip(),
                         'focus': '',
                         'collocations': [],
                         'vocabulary': [],
                         'activities': []
-                    }
+                    })
             else:
                 # If all else fails, create a single day with all content
-                days['day_1'] = {
+                days.append({
+                    'day': '1',
                     'title': 'Complete Curriculum',
                     'content': curriculum_text.strip(),
                     'focus': '',
                     'collocations': [],
                     'vocabulary': [],
                     'activities': []
-                }
+                })
             
         return days
 
@@ -900,16 +889,8 @@ class CurriculumGenerator:
             # Convert new days to list format and merge with existing curriculum
             extended_curriculum = current_curriculum.copy()
             
-            # Convert new_days dictionary to list format
-            new_days_list = []
-            for day_key, day_data in new_days.items():
-                day_num = int(day_key.split('_')[1])
-                day_entry = day_data.copy()
-                day_entry['day'] = day_num
-                new_days_list.append(day_entry)
-            
-            # Extend the days list
-            extended_curriculum['days'].extend(new_days_list)
+            # Extend the days list (new_days is already in list format)
+            extended_curriculum['days'].extend(new_days)
             
             # Update metadata
             extended_curriculum['last_modified'] = datetime.datetime.now(timezone.utc).isoformat()
