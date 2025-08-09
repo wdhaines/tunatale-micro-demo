@@ -235,6 +235,46 @@ class CLI:
         enhance_parser.add_argument('--day', type=int, required=True, help='Day to enhance')
         enhance_parser.add_argument('--target', choices=['intermediate', 'advanced'], default='intermediate', help='Target difficulty level')
         
+        # Strategy recommendation command
+        recommend_parser = subparsers.add_parser(
+            'recommend',
+            help='Get intelligent strategy recommendations based on content analysis'
+        )
+        recommend_parser.add_argument(
+            '--target',
+            choices=['el-nido-trip', 'general-learning'],
+            default='el-nido-trip',
+            help='Target learning objective'
+        )
+        recommend_parser.add_argument(
+            '--days',
+            type=str,
+            default='1-8',
+            help='Day range to analyze (e.g., "1-5" or "all")'
+        )
+        
+        # Content validation command  
+        validate_parser = subparsers.add_parser(
+            'validate',
+            help='Validate content for trip scenarios and vocabulary gaps'
+        )
+        validate_parser.add_argument(
+            '--trip-scenarios',
+            action='store_true',
+            help='Validate coverage of essential trip scenarios'
+        )
+        validate_parser.add_argument(
+            '--vocabulary-gaps',
+            action='store_true', 
+            help='Identify missing essential vocabulary'
+        )
+        validate_parser.add_argument(
+            '--days',
+            type=str,
+            default='1-8',
+            help='Day range to validate (e.g., "1-5" or "all")'
+        )
+        
         # Analyze command
         analyze_parser = subparsers.add_parser(
             "analyze",
@@ -278,6 +318,26 @@ class CLI:
             "--verbose",
             action="store_true",
             help="Show detailed output including all unique words"
+        )
+        analyze_parser.add_argument(
+            "--quality",
+            action="store_true",
+            help="Analyze content quality for Filipino authenticity and learning effectiveness"
+        )
+        analyze_parser.add_argument(
+            "--trip-readiness",
+            action="store_true", 
+            help="Analyze content for El Nido trip preparation readiness"
+        )
+        analyze_parser.add_argument(
+            "--strategy-effectiveness",
+            action="store_true",
+            help="Compare strategy effectiveness (requires --compare-with)"
+        )
+        analyze_parser.add_argument(
+            "--compare-with",
+            type=str,
+            help="File path to compare content against for strategy effectiveness"
         )
         
         return parser
@@ -404,6 +464,14 @@ class CLI:
             'enhance': Command(
                 handler=self._handle_enhance,
                 help='Enhance existing day content using DEEPER strategy'
+            ),
+            'recommend': Command(
+                handler=self._handle_recommend,
+                help='Get intelligent strategy recommendations based on content analysis'
+            ),
+            'validate': Command(
+                handler=self._handle_validate,
+                help='Validate content for trip scenarios and vocabulary gaps'
             )
         }
 
@@ -733,6 +801,7 @@ class CLI:
         Returns:
             int: 0 on success, 1 on error
         """
+        print("DEBUG: Entering _handle_analyze")
         from pathlib import Path
         from textwrap import fill
         import time
@@ -790,6 +859,51 @@ class CLI:
             print("\nLoading vocabulary analyzer...")
             extractor = CollocationExtractor()
             
+            # Check if Phase 3 analysis is requested
+            quality_requested = hasattr(args, 'quality') and args.quality
+            trip_requested = hasattr(args, 'trip_readiness') and args.trip_readiness
+            
+            if quality_requested or trip_requested:
+                phase3_results = []
+                
+                if quality_requested:
+                    print("Running CONTENT QUALITY ANALYSIS...")
+                    from content_quality_analyzer import ContentQualityAnalyzer
+                    
+                    analyzer = ContentQualityAnalyzer()
+                    quality_metrics = analyzer.analyze_content_quality(text)
+                    phase3_results.append(('CONTENT QUALITY ANALYSIS', quality_metrics))
+                
+                if trip_requested:
+                    print("Running EL NIDO TRIP READINESS ANALYSIS...")
+                    from el_nido_trip_validator import ElNidoTripValidator
+                    
+                    validator = ElNidoTripValidator()
+                    trip_metrics = validator.calculate_trip_readiness([text])
+                    phase3_results.append(('EL NIDO TRIP READINESS ANALYSIS', trip_metrics))
+                
+                # Print all Phase 3 analysis results
+                for title, metrics in phase3_results:
+                    print("\n" + "="*60)
+                    print(title.center(60))
+                    print("="*60)
+                    
+                    if 'QUALITY' in title:
+                        print(f"Filipino authenticity: {metrics.filipino_ratio:.2f}")
+                        print(f"Po usage score: {metrics.po_usage_score:.2f}")
+                        print(f"Cultural expressions: {metrics.cultural_expression_count}")
+                        print(f"Overall quality score: {metrics.overall_quality_score:.2f}")
+                    else:  # Trip readiness
+                        print(f"Overall trip readiness: {metrics.overall_readiness_score:.2f}")
+                        print("\nScenario coverage:")
+                        print(f"  Accommodation: {metrics.accommodation_coverage:.2f}")
+                        print(f"  Transportation: {metrics.transportation_coverage:.2f}")
+                        print(f"  Restaurant: {metrics.restaurant_coverage:.2f}")
+                        print(f"  Activities: {metrics.activity_coverage:.2f}")
+                        print(f"  Emergency: {metrics.emergency_coverage:.2f}")
+                
+                # Phase 3 analysis complete, continue to vocabulary analysis
+                
             print("Analyzing text...")
             try:
                 analysis = extractor.analyze_vocabulary_distribution(text)
@@ -804,6 +918,8 @@ class CLI:
                     import traceback
                     traceback.print_exc()
                 return 1
+                
+            # Define column widths and print function after successful analysis
             col1_width = 30
             col2_width = 20
             
@@ -1088,6 +1204,204 @@ class CLI:
             if 'pytest' not in sys.modules:
                 import traceback
                 traceback.print_exc()
+            return 1
+    
+    def _handle_recommend(self, args: argparse.Namespace) -> int:
+        """Handle the recommend command for intelligent strategy suggestions."""
+        try:
+            from strategy_recommendation_engine import StrategyRecommendationEngine
+            from pathlib import Path
+            
+            # Collect existing content
+            content_history = []
+            strategies_used = []
+            
+            # Parse day range
+            if args.days == 'all':
+                day_range = range(1, 20)  # Search up to day 20
+            else:
+                start, end = map(int, args.days.split('-'))
+                day_range = range(start, end + 1)
+            
+            # Load content for specified days
+            stories_dir = Path("instance/data/stories")
+            for day in day_range:
+                story_pattern = f"*day{day:02d}*"
+                story_files = list(stories_dir.glob(story_pattern))
+                
+                for story_file in story_files:
+                    try:
+                        with open(story_file, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            content_history.append(content)
+                            
+                            # Try to detect strategy from filename
+                            if 'deeper' in story_file.name.lower():
+                                strategies_used.append('deeper')
+                            elif 'wider' in story_file.name.lower():
+                                strategies_used.append('wider')
+                            else:
+                                strategies_used.append('balanced')
+                    except Exception:
+                        continue
+            
+            if not content_history:
+                print("No content found for analysis. Generate some lessons first.", file=sys.stderr)
+                return 1
+            
+            # Get recommendation
+            engine = StrategyRecommendationEngine()
+            recommendation = engine.recommend_next_action(
+                content_history, strategies_used, args.target.replace('-', '_')
+            )
+            
+            print("\nSTRATEGY RECOMMENDATION")
+            print("=" * 50)
+            print(f"Recommended Strategy: {recommendation.recommended_strategy.value.upper()}")
+            print(f"Confidence Score: {recommendation.confidence_score:.2f}")
+            print(f"\nPrimary Reason:")
+            print(f"  {recommendation.primary_reason}")
+            
+            if recommendation.specific_actions:
+                print(f"\nSpecific Actions:")
+                for action in recommendation.specific_actions:
+                    print(f"  • {action}")
+            
+            if recommendation.expected_improvements:
+                print(f"\nExpected Improvements:")
+                for improvement in recommendation.expected_improvements:
+                    print(f"  • {improvement}")
+            
+            if recommendation.alternative_strategy:
+                print(f"\nAlternative Strategy: {recommendation.alternative_strategy.value}")
+            
+            if recommendation.warning_notes:
+                print(f"\nWarning Notes:")
+                for warning in recommendation.warning_notes:
+                    print(f"  ⚠️  {warning}")
+            
+            # Provide CLI command suggestion
+            print(f"\nSuggested Command:")
+            if recommendation.recommended_strategy.value == 'balanced':
+                print(f"  tunatale generate-day {len(content_history) + 1}")
+            else:
+                source_day = max(1, len(content_history))
+                print(f"  tunatale generate-day {len(content_history) + 1} --strategy={recommendation.recommended_strategy.value} --source-day={source_day}")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"Error generating recommendation: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            return 1
+    
+    def _handle_validate(self, args: argparse.Namespace) -> int:
+        """Handle the validate command for trip scenario and vocabulary validation."""
+        try:
+            from el_nido_trip_validator import ElNidoTripValidator
+            from pathlib import Path
+            
+            # Collect content for validation
+            content_list = []
+            
+            # Parse day range  
+            if args.days == 'all':
+                day_range = range(1, 20)  # Search up to day 20
+            else:
+                start, end = map(int, args.days.split('-'))
+                day_range = range(start, end + 1)
+            
+            # Load content for specified days
+            stories_dir = Path("instance/data/stories")
+            days_found = []
+            
+            for day in day_range:
+                story_pattern = f"*day{day:02d}*"
+                story_files = list(stories_dir.glob(story_pattern))
+                
+                for story_file in story_files:
+                    try:
+                        with open(story_file, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            content_list.append(content)
+                            days_found.append(day)
+                            break  # Use first file found for each day
+                    except Exception:
+                        continue
+            
+            if not content_list:
+                print("No content found for validation. Generate some lessons first.", file=sys.stderr)
+                return 1
+            
+            print(f"Validating content from {len(days_found)} days: {', '.join(map(str, sorted(set(days_found))))}")
+            
+            validator = ElNidoTripValidator()
+            
+            if args.trip_scenarios:
+                # Validate trip scenario coverage
+                coverage = validator.validate_scenario_coverage(content_list)
+                
+                print("\nTRIP SCENARIO COVERAGE")
+                print("=" * 50)
+                print(f"Accommodation: {coverage['accommodation_coverage']:.1%}")
+                print(f"Transportation: {coverage['transportation_coverage']:.1%}")
+                print(f"Restaurant: {coverage['restaurant_coverage']:.1%}")
+                print(f"Activities: {coverage['activity_coverage']:.1%}")
+                print(f"Emergency: {coverage['emergency_coverage']:.1%}")
+                
+                # Overall assessment
+                avg_coverage = sum(coverage.values()) / len(coverage)
+                readiness_level = 'Excellent' if avg_coverage >= 0.9 else \
+                                'Good' if avg_coverage >= 0.7 else \
+                                'Adequate' if avg_coverage >= 0.5 else 'Needs Improvement'
+                
+                print(f"\nOverall Coverage: {avg_coverage:.1%} ({readiness_level})")
+                
+            if args.vocabulary_gaps:
+                # Identify vocabulary gaps
+                gaps = validator.identify_vocabulary_gaps(content_list)
+                
+                print("\nVOCABULARY GAPS ANALYSIS")
+                print("=" * 50)
+                
+                if gaps:
+                    for category, missing_words in gaps.items():
+                        if missing_words:
+                            print(f"\n{category.title().replace('_', ' ')}:")
+                            for word in missing_words[:8]:  # Show up to 8 missing words per category
+                                print(f"  • {word}")
+                            if len(missing_words) > 8:
+                                print(f"  ... and {len(missing_words) - 8} more")
+                else:
+                    print("✅ All essential vocabulary covered!")
+            
+            if not args.trip_scenarios and not args.vocabulary_gaps:
+                # Comprehensive validation
+                validation = validator.validate_content_for_trip(content_list)
+                
+                print("\nCOMPREHENSIVE TRIP VALIDATION")
+                print("=" * 50)
+                print(f"Trip Readiness Level: {validation['trip_readiness_level'].upper()}")
+                print(f"Readiness Percentage: {validation['readiness_percentage']:.1f}%")
+                print(f"Cultural Appropriateness: {validation['cultural_appropriateness'].upper()}")
+                
+                if validation['critical_gaps']:
+                    print(f"\nCritical Gaps:")
+                    for gap in validation['critical_gaps'][:5]:
+                        print(f"  🚨 {gap}")
+                
+                if validation['recommendations']:
+                    print(f"\nRecommendations:")
+                    for rec in validation['recommendations'][:3]:
+                        print(f"  💡 {rec}")
+                
+            return 0
+            
+        except Exception as e:
+            print(f"Error during validation: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
             return 1
     
     def run(self) -> int:
