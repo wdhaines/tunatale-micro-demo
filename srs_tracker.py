@@ -5,6 +5,26 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, TypedDict
 
+try:
+    from content_strategy import ContentStrategy, StrategyConfig, get_strategy_config
+except ImportError:
+    # Fallback if content_strategy module not available
+    from enum import Enum
+    
+    class ContentStrategy(Enum):
+        BALANCED = "balanced"
+        WIDER = "wider" 
+        DEEPER = "deeper"
+        
+    class StrategyConfig:
+        def __init__(self, **kwargs):
+            self.max_new_collocations = kwargs.get('max_new_collocations', 5)
+            self.min_review_collocations = kwargs.get('min_review_collocations', 3)
+            self.review_interval_multiplier = kwargs.get('review_interval_multiplier', 1.0)
+    
+    def get_strategy_config(strategy):
+        return StrategyConfig()
+
 
 class CollocationData(TypedDict):
     """Type hint for collocation data in JSON."""
@@ -201,19 +221,30 @@ class SRSTracker:
         # Otherwise, it's still in the "learning" phase
         return "learning"
 
-    def get_due_collocations(self, day: int, min_items: int = 3, max_items: int = 5) -> List[str]:
+    def get_due_collocations(self, day: int, min_items: int = 3, max_items: int = 5, 
+                           strategy: Optional[ContentStrategy] = None) -> List[str]:
         """Get collocations that are due for review on the given day.
         
         Args:
             day: The current day
             min_items: Minimum number of collocations to return if available
             max_items: Maximum number of collocations to return
+            strategy: Optional strategy to adjust parameters
             
         Returns:
             List of collocation texts that are due for review, prioritized by:
             1. Most overdue (days since due)
             2. Stability score (least stable first)
         """
+        # Apply strategy-specific parameters if provided
+        if strategy:
+            try:
+                config = get_strategy_config(strategy)
+                min_items = config.min_review_collocations
+                max_items = config.max_new_collocations + config.min_review_collocations
+            except:
+                pass  # Use default values if strategy config fails
+        
         due_collocations = []
         
         # First get all due collocations with days overdue and sort
@@ -231,6 +262,99 @@ class SRSTracker:
         # Take up to max_items, but at least min_items if available
         result_count = min(max(min_items, len(due_collocations)), max_items)
         return [colloc[2] for colloc in due_collocations[:result_count]]
+
+    def get_strategy_collocations(self, day: int, strategy: ContentStrategy) -> Dict[str, List[str]]:
+        """Get collocations organized by strategy requirements.
+        
+        Args:
+            day: Current day
+            strategy: Content strategy to use
+            
+        Returns:
+            Dictionary with 'new' and 'review' collocation lists optimized for the strategy
+        """
+        try:
+            config = get_strategy_config(strategy)
+        except:
+            # Fallback to default behavior
+            return {
+                'new': [],
+                'review': self.get_due_collocations(day, 3, 5)
+            }
+        
+        # Get due collocations with strategy-specific parameters
+        review_collocations = self.get_due_collocations(
+            day, 
+            config.min_review_collocations,
+            config.min_review_collocations + 2,  # Allow slight overflow
+            strategy
+        )
+        
+        # For now, new collocations are handled by the story generator
+        # This method provides the review portion
+        return {
+            'new': [],  # Will be filled by story generation process
+            'review': review_collocations
+        }
+    
+    def update_with_strategy(self, collocations: List[str], day: int, strategy: ContentStrategy) -> None:
+        """Update collocations using strategy-specific intervals.
+        
+        Args:
+            collocations: List of collocations to update
+            day: Current day
+            strategy: Strategy to use for interval calculations
+        """
+        try:
+            config = get_strategy_config(strategy)
+            multiplier = config.review_interval_multiplier
+        except:
+            multiplier = 1.0  # Fallback to default
+        
+        # Store current_day for restoration
+        original_day = self.current_day
+        self.current_day = day
+        
+        for text in collocations:
+            text = text.strip()
+            if not text:
+                continue
+                
+            if text in self.collocations:
+                # Update existing collocation with strategy-specific interval
+                colloc = self.collocations[text]
+                colloc.last_seen_day = day
+                colloc.appearances.append(day)
+                colloc.review_count += 1
+                
+                # Apply strategy-specific interval multiplier
+                base_interval = max(1, int(colloc.stability * 2 ** (colloc.review_count - 1)))
+                adjusted_interval = max(1, int(base_interval * multiplier))
+                colloc.next_review_day = day + adjusted_interval
+                
+                # Stability adjustment based on strategy
+                if strategy == ContentStrategy.DEEPER:
+                    # Slower progression for deeper learning
+                    colloc.stability *= 1.1
+                elif strategy == ContentStrategy.WIDER:
+                    # Faster progression to make room for new content
+                    colloc.stability *= 1.3
+                else:
+                    # Balanced approach
+                    colloc.stability *= 1.2
+            else:
+                # New collocation - add with strategy considerations
+                self.collocations[text] = CollocationStatus(
+                    text=text,
+                    first_seen_day=day,
+                    last_seen_day=day,
+                    appearances=[day],
+                    review_count=0,
+                    next_review_day=day,
+                    stability=1.0
+                )
+        
+        self._save_state()
 
     def __enter__(self):
         return self
