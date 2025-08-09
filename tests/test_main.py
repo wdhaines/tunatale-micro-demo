@@ -8,7 +8,6 @@ from unittest.mock import patch, MagicMock, ANY, mock_open
 import pytest
 
 from story_generator import CEFRLevel, ContentGenerator, StoryParams
-from main import CLI, main
 
 
 def test_cli_help() -> None:
@@ -26,7 +25,7 @@ def test_cli_help() -> None:
     assert "usage: main.py" in output
     assert "positional arguments:" in output or "commands:" in output
     assert "optional arguments:" in output or "options:" in output
-    assert "For help on a specific command, use: <command> -h" in output
+    assert "use <command> -h for help" in output
     
     # Test help for the generate command
     result = subprocess.run(

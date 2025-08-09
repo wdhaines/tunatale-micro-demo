@@ -450,10 +450,10 @@ class TestRefactorSafetyChecks:
         
         cli = CLI()
         
-        # Test that parser still has all original commands
+        # Test that parser still has all original commands (excluding removed commands)
         original_commands = [
             'generate', 'extract', 'extend', 'generate-day', 
-            'continue', 'generate-comprehensive', 'view', 'analyze'
+            'continue', 'view', 'analyze'
         ]
         
         for command in original_commands:

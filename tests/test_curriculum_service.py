@@ -214,8 +214,8 @@ class TestCurriculumGenerator:
         # Test with a valid curriculum
         result = curriculum_generator._parse_curriculum_days(SAMPLE_CURRICULUM)
         
-        # Verify the result is a dictionary with the expected structure
-        assert isinstance(result, dict)
+        # Verify the result is a list with the expected structure
+        assert isinstance(result, list)
         
         # Verify we have the expected number of days (5 in SAMPLE_CURRICULUM)
         expected_days = 5
@@ -223,9 +223,8 @@ class TestCurriculumGenerator:
         
         # Verify each day has the expected structure
         for day_num in range(1, expected_days + 1):
-            day_key = f'day_{day_num}'
-            assert day_key in result
-            day_data = result[day_key]
+            day_data = result[day_num - 1]  # List is 0-indexed
+            assert day_data['day'] == str(day_num)
             
             # Check required fields
             assert 'content' in day_data
@@ -277,22 +276,25 @@ class TestCurriculumGenerator:
     
     def test_parse_curriculum_empty_content(self, curriculum_generator):
         """Test parsing empty curriculum content returns dict with empty day_1."""
-        # Test with empty string - returns dict with empty day_1
+        # Test with empty string - returns list with empty day
         result = curriculum_generator._parse_curriculum_days("")
-        assert isinstance(result, dict)
-        assert 'day_1' in result
-        assert result['day_1']['content'] == ''
-        assert result['day_1']['focus'] == ''
-        assert result['day_1']['title'] == 'Complete Curriculum'
-        assert result['day_1']['collocations'] == []
-        assert result['day_1']['activities'] == []
+        assert isinstance(result, list)
+        assert len(result) == 1
+        day1 = result[0]
+        assert day1['day'] == '1'
+        assert day1['content'] == ''
+        assert day1['focus'] == ''
+        assert day1['title'] == 'Complete Curriculum'
+        assert day1['collocations'] == []
+        assert day1['activities'] == []
             
         # Test with whitespace only - same behavior as empty string
         result = curriculum_generator._parse_curriculum_days("   \n  \t  ")
-        assert isinstance(result, dict)
-        assert 'day_1' in result
-        assert result['day_1']['content'] == ''  # Whitespace is stripped
-        assert result['day_1']['focus'] == ''
+        assert isinstance(result, list)
+        assert len(result) == 1
+        day1 = result[0]
+        assert day1['content'] == ''  # Whitespace is stripped
+        assert day1['focus'] == ''
     
     def test_parse_curriculum_malformed(self, curriculum_generator):
         """Test parsing malformed curriculum text."""
@@ -314,12 +316,12 @@ class TestCurriculumGenerator:
         result = curriculum_generator._parse_curriculum_days(malformed_curriculum)
         
         # Verify we get a result with the expected days
-        assert isinstance(result, dict)
+        assert isinstance(result, list)
         assert len(result) == 2  # Should have 2 days
         
-        # Check first day (with missing sections)
-        assert 'day_1' in result
-        day1 = result['day_1']
+        # Check first day (with missing sections)  
+        day1 = result[0]
+        assert day1['day'] == '1'
         assert 'content' in day1
         assert 'Topics: Greetings' in day1['content']
         assert 'Grammar: Present simple' in day1['content']
@@ -327,24 +329,26 @@ class TestCurriculumGenerator:
         assert 'Activities:' not in day1['content']  # Missing section
         
         # Check second day (complete)
-        assert 'day_2' in result
-        day2 = result['day_2']
+        day2 = result[1]
+        assert day2['day'] == '2'
         assert 'content' in day2
         assert 'Topics: Introductions' in day2['content']
         assert 'Grammar: Questions' in day2['content']
         assert 'Vocabulary: name, where, from' in day2['content']
         assert 'Activities: Introduce yourself to a classmate' in day2['content']
         
-        # Test with completely malformed content - returns dict with day_1 containing the content
+        # Test with completely malformed content - returns list with day containing the content
         malformed_content = "This is not a valid curriculum"
         result = curriculum_generator._parse_curriculum_days(malformed_content)
-        assert isinstance(result, dict)
-        assert 'day_1' in result
-        assert result['day_1']['content'] == malformed_content
-        assert result['day_1']['focus'] == ''
-        assert result['day_1']['title'] == 'Complete Curriculum'
-        assert result['day_1']['collocations'] == []
-        assert result['day_1']['activities'] == []
+        assert isinstance(result, list)
+        assert len(result) == 1
+        day1 = result[0]
+        assert day1['day'] == '1'
+        assert day1['content'] == malformed_content
+        assert day1['focus'] == ''
+        assert day1['title'] == 'Complete Curriculum'
+        assert day1['collocations'] == []
+        assert day1['activities'] == []
     
     def test_generate_curriculum_non_string_goal(self, curriculum_generator):
         """Test curriculum generation with non-string learning goal."""

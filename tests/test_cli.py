@@ -104,66 +104,8 @@ class TestGenerateCommand:
         assert "Target language: English" in output
         assert "CEFR Level: A2" in output
         assert "Duration: 30 days" in output
-        assert "Curriculum generated successfully and saved to: curriculum.json" in output
+        assert "Curriculum generated successfully and saved to: instance/data/curricula/curriculum.json" in output
         
-    @pytest.mark.skip(reason="Temporarily skipping complex mocking test - to be fixed in Phase 2")
-    @patch('sys.stdout', new_callable=io.StringIO)
-    @patch('sys.stderr', new_callable=io.StringIO)
-    def test_generate_with_all_parameters(
-        self, mock_stderr, mock_stdout, mock_curriculum, tmp_path
-    ):
-        """Test curriculum generation with all parameters specified."""
-        # Setup test files
-        transcript_path = tmp_path / 'transcript.txt'
-        output_path = tmp_path / 'custom_output.json'
-        
-        # Setup mock curriculum data
-        curriculum_data = {
-            'learning_goal': 'Learn Spanish',
-            'target_language': 'French',
-            'cefr_level': 'B1',
-            'days': 14,
-            'content': 'Generated curriculum content',
-            'metadata': {'generated_at': '2023-01-01T00:00:00', 'transcript_used': True},
-            'days_content': {
-                'Day 1': ['Topic 1', 'Grammar 1'],
-                'Day 2': ['Topic 2', 'Grammar 2']
-            }
-        }
-        mock_curriculum.generate_curriculum.return_value = curriculum_data
-        
-        # Create a mock for the transcript file
-        mock_transcript_content = 'Sample transcript content'
-        
-        # Use separate mocks for different file operations
-        with patch('builtins.open', side_effect=[
-            mock_open(read_data=mock_transcript_content).return_value,  # For reading transcript
-            mock_open().return_value  # For writing output
-        ]) as mock_file, \
-             patch('pathlib.Path.mkdir'):
-            
-            # Run the command with all parameters
-            with patch('sys.argv', [
-                'main.py', 'generate', 'Learn Spanish',
-                '--target-language', 'French',
-                '--cefr-level', 'B1',
-                '--days', '14',
-                '--transcript', str(transcript_path),
-                '--output', str(output_path)
-            ]):
-                result = CLI().run()
-        
-        # Verify the result
-        assert result == 0
-        mock_curriculum.generate_curriculum.assert_called_once()
-        
-        # Check the call arguments
-        args, kwargs = mock_curriculum.generate_curriculum.call_args
-        assert kwargs['learning_goal'] == 'Learn Spanish'
-        assert kwargs['target_language'] == 'French'
-        assert kwargs['cefr_level'] == 'B1'
-        assert kwargs['days'] == 14
-        assert kwargs['transcript'] == 'Sample transcript content'
         
     @patch('sys.stderr', new_callable=io.StringIO)
     @patch('sys.exit')

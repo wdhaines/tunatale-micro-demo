@@ -39,7 +39,10 @@ def test_actual_collocations_data_quality():
     print(f"Voice tags found: {len(voice_tags)} entries")
     print(f"System markers found: {len(system_markers)} entries") 
     print(f"Clean collocations: {len(clean_collocations)} entries")
-    print(f"Total corruption rate: {(len(voice_tags) + len(system_markers)) / len(collocations) * 100:.1f}%")
+    # Calculate corruption rate (avoid division by zero)
+    total_corruption = len(voice_tags) + len(system_markers)
+    corruption_rate = (total_corruption / len(collocations) * 100) if len(collocations) > 0 else 0.0
+    print(f"Total corruption rate: {corruption_rate:.1f}%")
     
     if voice_tags:
         print(f"\nTop voice tags:")
@@ -55,7 +58,7 @@ def test_actual_collocations_data_quality():
         'voice_tags': len(voice_tags),
         'system_markers': len(system_markers), 
         'clean': len(clean_collocations),
-        'corruption_rate': (len(voice_tags) + len(system_markers)) / len(collocations)
+        'corruption_rate': corruption_rate / 100  # Convert back to decimal
     }
 
 
