@@ -95,12 +95,18 @@ class ContentGenerator:
     def __init__(self):
         self.llm = MockLLM()
         # Legacy prompts (for backward compatibility)
-        self.story_prompt = self._load_prompt('story_prompt_template.txt')
-        # Try to load deeper prompt, but don't fail if not available (for tests)
+        self.story_prompt = self._load_prompt('story_prompt_template.txt')  # Default/BALANCED
+        
+        # Try to load strategy-specific prompts, but don't fail if not available (for tests)
         try:
             self.story_prompt_deeper = self._load_prompt('story_prompt_deeper.txt')
         except FileNotFoundError:
             self.story_prompt_deeper = None  # For testing environments
+            
+        try:
+            self.story_prompt_wider = self._load_prompt('story_prompt_wider.txt')
+        except FileNotFoundError:
+            self.story_prompt_wider = None  # For testing environments
         
         # New two-part prompt architecture (with safe initialization)
         try:
@@ -207,10 +213,12 @@ class ContentGenerator:
         """
         try:
             # Select appropriate prompt based on strategy
-            if params.content_strategy == ContentStrategy.DEEPER:
+            if params.content_strategy == ContentStrategy.DEEPER and self.story_prompt_deeper:
                 prompt_template = self.story_prompt_deeper
+            elif params.content_strategy == ContentStrategy.WIDER and self.story_prompt_wider:
+                prompt_template = self.story_prompt_wider
             else:
-                # Use default template for BALANCED and WIDER
+                # Use default template for BALANCED or fallback
                 prompt_template = self.story_prompt
             
             # Get strategy configuration
@@ -231,9 +239,35 @@ class ContentGenerator:
                 'phase': params.phase
             }
             
-            # Add DEEPER-specific parameters
+            # Add strategy-specific parameters
             if params.content_strategy == ContentStrategy.DEEPER and params.source_day:
                 prompt_params['source_day'] = params.source_day
+            elif params.content_strategy == ContentStrategy.WIDER:
+                # Add WIDER-specific parameters from strategy configuration
+                if hasattr(strategy_config, 'expansion_settings') and strategy_config.expansion_settings:
+                    expansion = strategy_config.expansion_settings
+                    prompt_params.update({
+                        'source_day': params.source_day or 'previous day',
+                        'scenario_types': ', '.join(expansion.scenario_types),
+                        'character_variety': expansion.character_variety,
+                        'setting_complexity': expansion.setting_complexity,
+                        'interaction_types': ', '.join(expansion.interaction_types),
+                        'maintain_difficulty': str(expansion.maintain_difficulty_level).lower(),
+                        'max_new_words': expansion.max_new_words_per_scenario,
+                        'reuse_patterns': str(expansion.reuse_familiar_patterns).lower()
+                    })
+                else:
+                    # Fallback values for WIDER strategy
+                    prompt_params.update({
+                        'source_day': params.source_day or 'previous day',
+                        'scenario_types': 'restaurant, transportation, shopping',
+                        'character_variety': '3',
+                        'setting_complexity': '2',
+                        'interaction_types': 'ordering, asking_directions, negotiating_price',
+                        'maintain_difficulty': 'true',
+                        'max_new_words': '5',
+                        'reuse_patterns': 'true'
+                    })
             
             # Format the prompt
             prompt = prompt_template.format(**prompt_params)
