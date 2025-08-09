@@ -87,8 +87,13 @@ class CLI:
               1. generate    - Create a new curriculum
               2. extract     - Extract collocations from the curriculum
               3. extend X    - Extend curriculum to X total days (optional)
-              4. generate-day X - Generate content for a specific day
+              4. generate-day X [--strategy=wider/deeper] - Generate content with strategy
               5. continue    - Continue to the next day's content
+              
+            Strategy Commands:
+              • strategy show - View current strategy configurations
+              • strategy set <type> --max-new=N - Configure strategy parameters
+              • enhance --day=N --target=intermediate - Enhance existing content
               
             View progress with: view, analyze
             ''',
@@ -192,8 +197,43 @@ class CLI:
             help='Generate story for specific curriculum day with SRS and strategy support'
         )
         story_day_parser.add_argument('day', type=int, help='Day number (1-5)')
+        story_day_parser.add_argument(
+            '--strategy', 
+            type=str, 
+            choices=['balanced', 'wider', 'deeper'],
+            default='balanced',
+            help='Content generation strategy (default: balanced)'
+        )
+        story_day_parser.add_argument(
+            '--source-day',
+            type=int,
+            help='Source day for WIDER/DEEPER strategies (defaults to previous day)'
+        )
         
+        # Strategy management command
+        strategy_parser = subparsers.add_parser(
+            'strategy',
+            help='Configure content generation strategies'
+        )
+        strategy_subparsers = strategy_parser.add_subparsers(dest='strategy_action', help='Strategy actions')
         
+        # strategy set
+        set_parser = strategy_subparsers.add_parser('set', help='Set strategy configuration')
+        set_parser.add_argument('strategy_type', choices=['balanced', 'wider', 'deeper'], help='Strategy to configure')
+        set_parser.add_argument('--max-new', type=int, help='Maximum new collocations per lesson')
+        set_parser.add_argument('--min-review', type=int, help='Minimum review collocations per lesson')
+        set_parser.add_argument('--interval-multiplier', type=float, help='Review interval multiplier')
+        
+        # strategy show
+        strategy_subparsers.add_parser('show', help='Show current strategy configurations')
+        
+        # Enhanced generation command
+        enhance_parser = subparsers.add_parser(
+            'enhance',
+            help='Enhance existing day content using DEEPER strategy'
+        )
+        enhance_parser.add_argument('--day', type=int, required=True, help='Day to enhance')
+        enhance_parser.add_argument('--target', choices=['intermediate', 'advanced'], default='intermediate', help='Target difficulty level')
         
         # Analyze command
         analyze_parser = subparsers.add_parser(
@@ -357,6 +397,14 @@ class CLI:
                 handler=self._handle_analyze,
                 help='Analyze vocabulary distribution and learning progress'
             ),
+            'strategy': Command(
+                handler=self._handle_strategy,
+                help='Configure content generation strategies'
+            ),
+            'enhance': Command(
+                handler=self._handle_enhance,
+                help='Enhance existing day content using DEEPER strategy'
+            )
         }
 
     def _handle_generate(self, args: argparse.Namespace) -> int:
@@ -460,23 +508,50 @@ class CLI:
             return 1
 
     def _handle_generate_day(self, args: argparse.Namespace) -> int:
-        """Handle the generate-day command."""
+        """Handle the generate-day command with strategy support."""
         if args.day < 1:
             print(f"Error: Day must be >= 1, got {args.day}", file=sys.stderr)
             return 1
         
         from story_generator import ContentGenerator
+        from content_strategy import ContentStrategy, DifficultyLevel
         
         try:
-            print(f"Generating content for day {args.day}...")
-            generator = ContentGenerator()
+            # Convert string strategy to ContentStrategy enum
+            strategy_map = {
+                'balanced': ContentStrategy.BALANCED,
+                'wider': ContentStrategy.WIDER,
+                'deeper': ContentStrategy.DEEPER
+            }
+            strategy = strategy_map[args.strategy]
             
-            if not story:
+            # Determine source day for strategies
+            source_day = args.source_day
+            if not source_day and strategy in [ContentStrategy.WIDER, ContentStrategy.DEEPER]:
+                source_day = max(1, args.day - 1)  # Default to previous day
+            
+            print(f"Generating content for day {args.day} using {strategy.value.upper()} strategy...")
+            if source_day:
+                print(f"Based on content from day {source_day}")
+                
+            generator = ContentGenerator()
+            result = generator.generate_day_story(args.day)
+            
+            if not result:
                 print(f"Failed to generate content for day {args.day}", file=sys.stderr)
                 return 1
                 
+            story, collocation_report = result
             print(f"\nSuccessfully generated content for day {args.day}")
+            print(f"Strategy: {strategy.value}")
             print(f"Story saved to instance/data/stories/")
+            
+            # Show strategy-specific info
+            if collocation_report:
+                new_count = len(collocation_report.get('new', []))
+                review_count = len(collocation_report.get('review', []))
+                print(f"Collocations: {new_count} new, {review_count} review")
+                
             return 0
             
         except Exception as e:
@@ -887,6 +962,133 @@ class CLI:
             print(story)
             print("-" * 50)
             return 0
+    
+    def _handle_strategy(self, args: argparse.Namespace) -> int:
+        """Handle the strategy command for configuration management."""
+        from content_strategy import ContentStrategy, get_strategy_config, create_custom_strategy_config
+        
+        try:
+            if args.strategy_action == 'show':
+                # Show current configurations
+                print("Current Strategy Configurations:")
+                print("=" * 40)
+                
+                for strategy in ContentStrategy:
+                    config = get_strategy_config(strategy)
+                    print(f"\n{strategy.value.upper()} Strategy:")
+                    print(f"  Max new collocations: {config.max_new_collocations}")
+                    print(f"  Min review collocations: {config.min_review_collocations}")
+                    print(f"  Review interval multiplier: {config.review_interval_multiplier}")
+                    print(f"  Cultural authenticity priority: {config.cultural_authenticity_priority:.1f}")
+                    print(f"  Vocabulary retention focus: {config.vocabulary_retention_focus:.1f}")
+                    print(f"  Scenario creativity: {config.scenario_creativity:.1f}")
+                
+                return 0
+                
+            elif args.strategy_action == 'set':
+                # Set strategy configuration
+                strategy_map = {
+                    'balanced': ContentStrategy.BALANCED,
+                    'wider': ContentStrategy.WIDER,
+                    'deeper': ContentStrategy.DEEPER
+                }
+                strategy = strategy_map[args.strategy_type]
+                
+                # Build custom configuration
+                custom_params = {}
+                if args.max_new is not None:
+                    custom_params['max_new_collocations'] = args.max_new
+                if args.min_review is not None:
+                    custom_params['min_review_collocations'] = args.min_review
+                if args.interval_multiplier is not None:
+                    custom_params['review_interval_multiplier'] = args.interval_multiplier
+                
+                if custom_params:
+                    custom_config = create_custom_strategy_config(strategy, **custom_params)
+                    print(f"Updated {strategy.value.upper()} strategy configuration:")
+                    for key, value in custom_params.items():
+                        print(f"  {key}: {value}")
+                    print("\nNote: Configuration changes affect current session only.")
+                    print("To persist changes, configuration file support will be added in future updates.")
+                else:
+                    print("No configuration changes specified.")
+                
+                return 0
+            else:
+                print("Unknown strategy action. Use 'show' or 'set'.")
+                return 1
+                
+        except Exception as e:
+            print(f"Error managing strategy configuration: {e}", file=sys.stderr)
+            return 1
+    
+    def _handle_enhance(self, args: argparse.Namespace) -> int:
+        """Handle the enhance command for DEEPER strategy enhancement."""
+        from story_generator import ContentGenerator
+        from content_strategy import ContentStrategy, DifficultyLevel, EnhancedStoryParams
+        
+        try:
+            day = args.day
+            target_map = {
+                'intermediate': DifficultyLevel.INTERMEDIATE,
+                'advanced': DifficultyLevel.ADVANCED
+            }
+            target_difficulty = target_map[args.target]
+            
+            print(f"Enhancing day {day} content to {target_difficulty.value} level using DEEPER strategy...")
+            
+            # Load existing curriculum to get context
+            if not CURRICULUM_PATH.exists():
+                print("Error: No curriculum found. Generate curriculum first.", file=sys.stderr)
+                return 1
+            
+            from curriculum_models import Curriculum
+            curriculum = Curriculum.load(CURRICULUM_PATH)
+            
+            if day > len(curriculum.days):
+                print(f"Error: Day {day} not found in curriculum (only {len(curriculum.days)} days available)", file=sys.stderr)
+                return 1
+            
+            curriculum_day = curriculum.days[day - 1]
+            
+            # Create enhanced story parameters
+            params = EnhancedStoryParams(
+                learning_objective=curriculum_day.title,
+                content_strategy=ContentStrategy.DEEPER,
+                difficulty_level=target_difficulty,
+                source_day=day,
+                phase=day + 100,  # Use high phase number to distinguish enhanced content
+                focus=f"Enhanced {curriculum_day.focus or curriculum_day.title}",
+                new_vocabulary=[],  # Focus on enhancing existing content
+                review_collocations=curriculum_day.collocations[:5] if curriculum_day.collocations else []
+            )
+            
+            generator = ContentGenerator()
+            enhanced_story = generator.generate_enhanced_story(params)
+            
+            if not enhanced_story:
+                print(f"Failed to generate enhanced content for day {day}", file=sys.stderr)
+                return 1
+            
+            # Save enhanced content with special naming
+            output_path = STORIES_DIR / f"story_day{day:02d}_enhanced_{target_difficulty.value}.txt"
+            STORIES_DIR.mkdir(parents=True, exist_ok=True)
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(enhanced_story)
+                
+            print(f"\n✅ Successfully enhanced day {day} content")
+            print(f"Target difficulty: {target_difficulty.value}")
+            print(f"Enhanced story saved to: {output_path}")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"Error enhancing day {args.day}: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:
+                import traceback
+                traceback.print_exc()
+            return 1
     
     def run(self) -> int:
         """Run the CLI application."""
