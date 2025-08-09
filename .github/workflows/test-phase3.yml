@@ -1,0 +1,65 @@
+name: Phase 3 Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'tests/test_phase3_*.py'
+      - 'tests/test_strategy_*.py' 
+      - 'tests/test_recommendation_*.py'
+      - 'tests/test_el_nido_*.py'
+      - 'content_quality_analyzer.py'
+      - 'el_nido_trip_validator.py'
+      - 'strategy_recommendation_engine.py'
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  fast-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.9"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-timeout
+        pip install spacy
+        python -m spacy download en_core_web_sm
+        
+    - name: Run fast Phase 3 tests only
+      run: |
+        # Only run unit tests to avoid timeouts
+        python -m pytest -c pytest-ci.ini -m "unit and phase3" --timeout=10 -v --tb=short
+        
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'push' # Only run on push, not PR
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.9"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-timeout
+        pip install spacy
+        python -m spacy download en_core_web_sm
+        
+    - name: Run integration tests
+      run: |
+        # Run integration tests with longer timeout
+        python -m pytest -c pytest-ci.ini -m "integration and phase3" --timeout=30 -v --tb=short --maxfail=3
