@@ -1,9 +1,5 @@
 import os
 from pathlib import Path
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # Base directories
 BASE_DIR = Path(__file__).parent
@@ -36,6 +32,6 @@ LOGS_DIR.mkdir(exist_ok=True)
 # Default configuration
 DEFAULT_STORY_LENGTH = int(os.getenv('DEFAULT_STORY_LENGTH', '500'))  # Default to 500 words if not set
 
-# File paths
-CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
+# File paths - standardized structure
+CURRICULUM_PATH = CURRICULA_DIR / 'curriculum.json'
 COLLOCATIONS_PATH = DATA_DIR / 'collocations.json'

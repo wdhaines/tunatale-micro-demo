@@ -1,35 +1,19 @@
 """Command Line Interface for TunaTale language learning application."""
 import sys
 import json
-import os
 import argparse
 from pathlib import Path
-from typing import Dict, Callable, Any, Optional, Tuple
+from typing import Dict, Callable, Any, Optional
 from dataclasses import dataclass
 
-# Try to import config values, with fallbacks for testing
-try:
-    from config import (
-        CURRICULUM_PATH, 
-        COLLOCATIONS_PATH, 
-        DATA_DIR, 
-        DEFAULT_STORY_LENGTH,
-        STORIES_DIR,
-        DEBUG_LOG_PATH
-    )
-except ImportError:
-    # Fallback values for testing
-    TEST_DIR = Path(__file__).parent.parent / 'tests'
-    DATA_DIR = TEST_DIR / 'test_data'
-    CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
-    COLLOCATIONS_PATH = DATA_DIR / 'collocations.json'
-    DEFAULT_STORY_LENGTH = 500
-    STORIES_DIR = DATA_DIR / 'stories'
-    DEBUG_LOG_PATH = DATA_DIR / 'debug.log'
-    
-    # Ensure test directories exist
-    DATA_DIR.mkdir(exist_ok=True, parents=True)
-    STORIES_DIR.mkdir(exist_ok=True, parents=True)
+from config import (
+    CURRICULUM_PATH, 
+    COLLOCATIONS_PATH, 
+    DATA_DIR, 
+    DEFAULT_STORY_LENGTH,
+    STORIES_DIR,
+    DEBUG_LOG_PATH
+)
 
 from curriculum_service import CurriculumGenerator
 from collocation_extractor import CollocationExtractor
@@ -124,15 +108,6 @@ class CLI:
             help='Available commands (use <command> -h for help)'
         )
         
-        # Custom help handler that shows workflow first
-        def print_help(args):
-            parser.print_help()
-            print('\nFor help on a specific command, use: <command> -h')
-            sys.exit(0)
-            
-        help_parser = subparsers.add_parser('help', help='Show this help message')
-        help_parser.set_defaults(func=print_help)
-        
         # Generate curriculum command
         gen_parser = subparsers.add_parser(
             'generate',
@@ -171,7 +146,7 @@ class CLI:
         gen_parser.add_argument(
             '--output',
             type=str,
-            help='Output file path for the generated curriculum (default: curriculum.json)'
+            help='Output file path for the generated curriculum (default: instance/data/curricula/curriculum.json)'
         )
         
         # Extract collocations command
@@ -217,29 +192,8 @@ class CLI:
             help='Generate story for specific curriculum day with SRS and strategy support'
         )
         story_day_parser.add_argument('day', type=int, help='Day number (1-5)')
-        story_day_parser.add_argument('--strategy', choices=['balanced', 'wider', 'deeper'], 
-                                    default='balanced', help='Content generation strategy')
-        story_day_parser.add_argument('--source-day', type=int, 
-                                    help='Source day for DEEPER strategy (which day to enhance)')
-        story_day_parser.add_argument('--objective', type=str,
-                                    help='Custom learning objective override')
         
-        # Comprehensive curriculum generation
-        comprehensive_parser = subparsers.add_parser(
-            'generate-comprehensive',
-            help='Generate curriculum using comprehensive prompt template'
-        )
-        comprehensive_parser.add_argument('objective', help='Learning objective')
-        comprehensive_parser.add_argument('--transcript', type=str, help='Target presentation transcript file')
-        comprehensive_parser.add_argument('--level', default='A2', help='Learner level (A1-C2)')
-        comprehensive_parser.add_argument('--days', type=int, default=30, help='Number of days (default: 30)')
         
-        # Progress command
-        progress_parser = subparsers.add_parser(
-            'progress', 
-            help='View SRS progress and collocation tracking'
-        )
-        progress_parser.add_argument('--day', type=int, help='Show due collocations for day')
         
         # Analyze command
         analyze_parser = subparsers.add_parser(
@@ -395,10 +349,6 @@ class CLI:
                 handler=self._handle_continue,
                 help='Continue to the next day, generating content and updating SRS'
             ),
-            'generate-comprehensive': Command(
-                handler=self._handle_comprehensive_generate,
-                help='Generate curriculum using comprehensive template (advanced)'
-            ),
             'view': Command(
                 handler=self._handle_view,
                 help='View generated content and progress'
@@ -427,8 +377,8 @@ class CLI:
                 print(f"Warning: Could not read transcript file: {e}", file=sys.stderr)
                 # Continue without transcript
         
-        # Set default output path
-        output_path = Path(args.output) if args.output else Path('curriculum.json')
+        # Set default output path to proper data directory
+        output_path = Path(args.output) if args.output else Path('instance/data/curricula/curriculum.json')
         
         # Generate the curriculum
         generator = CurriculumGenerator()
@@ -510,121 +460,24 @@ class CLI:
             return 1
 
     def _handle_generate_day(self, args: argparse.Namespace) -> int:
-        """Handle the generate-day command with new SRS and strategy support."""
-        logger = logging.getLogger(__name__)
-        logger.info(f"Starting story generation for day {args.day} with strategy {args.strategy}")
-        
-        from story_generator import ContentGenerator
-        from srs_tracker import SRSTracker
-        from curriculum_models import Curriculum
-        
+        """Handle the generate-day command."""
         if args.day < 1:
-            logger.error(f"Invalid day number: {args.day}")
             print(f"Error: Day must be >= 1, got {args.day}", file=sys.stderr)
             return 1
         
-        # Convert strategy string to enum
-        strategy_map = {
-            'balanced': ContentStrategy.BALANCED,
-            'wider': ContentStrategy.WIDER, 
-            'deeper': ContentStrategy.DEEPER
-        }
-        strategy = strategy_map[args.strategy]
-        
-        # Validate DEEPER strategy requirements
-        if strategy == ContentStrategy.DEEPER and not args.source_day:
-            print("Error: --source-day is required when using 'deeper' strategy", file=sys.stderr)
-            return 1
-        
-        # Check if curriculum exists (for legacy functionality)
-        logger.debug(f"Checking curriculum path: {CURRICULUM_PATH}")
-        curriculum_exists = CURRICULUM_PATH.exists()
+        from story_generator import ContentGenerator
         
         try:
-            logger.info(f"Starting content generation for day {args.day} using {args.strategy} strategy")
-            print(f"Generating content for day {args.day} using {args.strategy.upper()} strategy...")
+            print(f"Generating content for day {args.day}...")
             generator = ContentGenerator()
             
-            # Try new architecture first, fall back to legacy if needed
-            if generator.prompt_generator and generator.mock_srs:
-                print("Using enhanced SRS-informed generation...")
-                logger.info("Using new two-part prompt architecture")
+            if not story:
+                print(f"Failed to generate content for day {args.day}", file=sys.stderr)
+                return 1
                 
-                story = generator.generate_day_with_srs(
-                    day=args.day,
-                    strategy=strategy,
-                    source_day=args.source_day,
-                    learning_objective=args.objective
-                )
-                
-                if story:
-                    print(f"\nSuccessfully generated {len(story)} character story for day {args.day}")
-                    print(f"Story saved to instance/data/stories/")
-                    
-                    # Show strategy-specific information
-                    if strategy == ContentStrategy.DEEPER and args.source_day:
-                        print(f"Enhanced version of Day {args.source_day} content with advanced language complexity")
-                    elif strategy == ContentStrategy.WIDER:
-                        print(f"New scenario content maintaining similar difficulty level")
-                    else:
-                        print(f"Balanced content with vocabulary reinforcement")
-                    
-                    return 0
-                else:
-                    print("Failed to generate story using enhanced architecture", file=sys.stderr)
-                    return 1
-                    
-            else:
-                # Fall back to legacy architecture
-                if not curriculum_exists:
-                    logger.error(f"Curriculum file not found at {CURRICULUM_PATH}")
-                    print("Error: No curriculum found. Please generate a curriculum first using 'generate' command.", 
-                          file=sys.stderr)
-                    print("\nWorkflow: generate -> extract -> generate-day -> continue...")
-                    return 1
-                
-                print("Using legacy story generation (enhanced architecture not available)...")
-                logger.info("Falling back to legacy generation")
-                
-                # Load the curriculum to verify the requested day exists
-                curriculum = Curriculum.load(CURRICULUM_PATH)
-                max_days = len(curriculum.days)
-                
-                if args.day > max_days:
-                    logger.error(f"Requested day {args.day} exceeds curriculum days {max_days}")
-                    print(f"Error: Day {args.day} is not in the curriculum (max day: {max_days})", 
-                          file=sys.stderr)
-                    print(f"Tip: Use 'python main.py extend {args.day}' to extend the curriculum first")
-                    return 1
-                
-                # Generate using legacy method
-                result = generator.generate_day_story(args.day)
-                if not result:
-                    print(f"Failed to generate content for day {args.day}", file=sys.stderr)
-                    return 1
-                    
-                # Unpack the result (story, collocation_report)
-                story, collocation_report = result
-                
-                # Display collocation information
-                print("\n=== Collocations ===")
-                if collocation_report.get('new'):
-                    print(f"\nNew collocations introduced:")
-                    for colloc in collocation_report['new']:
-                        print(f"- {colloc}")
-                        
-                if collocation_report.get('reviewed'):
-                    print(f"\nCollocations reviewed:")
-                    for colloc in collocation_report['reviewed']:
-                        print(f"- {colloc}")
-                        
-                if collocation_report.get('bonus'):
-                    print(f"\nBonus collocations found:")
-                    for colloc in collocation_report['bonus']:
-                        print(f"- {colloc}")
-                
-                print(f"\nSuccessfully generated content for day {args.day}")
-                return 0
+            print(f"\nSuccessfully generated content for day {args.day}")
+            print(f"Story saved to instance/data/stories/")
+            return 0
             
         except Exception as e:
             print(f"Error generating content for day {args.day}: {e}", file=sys.stderr)
@@ -633,55 +486,6 @@ class CLI:
                 traceback.print_exc()
             return 1
             
-    def _handle_comprehensive_generate(self, args: argparse.Namespace) -> int:
-        """Handle the generate-comprehensive command."""
-        print(f"Generating comprehensive curriculum for: {args.objective}")
-        print(f"Learner level: {args.level}")
-        print(f"Duration: {args.days} days")
-        
-        # Read transcript if provided
-        transcript = ""
-        if args.transcript:
-            try:
-                with open(args.transcript, 'r') as f:
-                    transcript = f.read()
-                print(f"Using transcript from: {args.transcript}")
-            except OSError as e:
-                print(f"Error reading transcript file: {e}", file=sys.stderr)
-                return 1
-        
-        try:
-            generator = CurriculumGenerator()
-            curriculum = generator.generate_comprehensive_curriculum(
-                learning_objective=args.objective,
-                presentation_transcript=transcript,
-                learner_level=args.level,
-                presentation_length=args.days
-            )
-            
-            if curriculum:
-                print("\nComprehensive curriculum generated successfully!")
-                print("\nCurriculum Overview:")
-                print(f"- Learning Objective: {curriculum.get('learning_objective', 'N/A')}")
-                print(f"- Target Language: {curriculum.get('target_language', 'English')}")
-                print(f"- CEFR Level: {curriculum.get('cefr_level', args.level)}")
-                print(f"- Number of Days: {len(curriculum.get('days', []))}")
-                
-                # Save curriculum to file
-                output_file = Path(f'comprehensive_curriculum_{args.level.lower()}.json')
-                with open(output_file, 'w') as f:
-                    json.dump(curriculum, f, indent=2)
-                print(f"\nCurriculum saved to: {output_file}")
-                
-                return 0
-            return 1
-            
-        except Exception as e:
-            print(f"Error generating comprehensive curriculum: {e}", file=sys.stderr)
-            if 'pytest' not in sys.modules:  # Don't print traceback during tests
-                import traceback
-                traceback.print_exc()
-            return 1
 
     def _handle_story(self, args: argparse.Namespace) -> int:
         """Handle the story command."""
@@ -726,7 +530,6 @@ class CLI:
         """Continue to the next day, generating content and updating SRS."""
         from story_generator import ContentGenerator
         from curriculum_models import Curriculum
-        import os
         
         print("Continuing to the next day...")
         
@@ -744,8 +547,8 @@ class CLI:
             # Find the last generated day
             generated_days = []
             
-            if GENERATED_CONTENT_DIR.exists():
-                for f in GENERATED_CONTENT_DIR.glob("story_day*.txt"):
+            if STORIES_DIR.exists():
+                for f in STORIES_DIR.glob("story_day*.txt"):
                     try:
                         day_num = int(f.stem.split('_')[1][3:])  # Extract day number from filename
                         generated_days.append(day_num)
@@ -863,30 +666,28 @@ class CLI:
         try:
             start_time = time.time()
             
-            # Handle day number if specified
-            if hasattr(args, 'day') and args.day is not None:
-                day_num = args.day
-                if day_num < 1:
-                    print(f"Error: Day number must be positive, got {day_num}", file=sys.stderr)
-                    return 1
-                    
-                # Look for matching day file
-                day_str = f"day{day_num:02d}"  # Format as day01, day02, etc.
-                matches = list(STORIES_DIR.glob(f"*{day_str}*.txt"))
+            # Check if day-based analysis is requested
+            if hasattr(args, 'day') and args.day:
+                # Day-based analysis - find story file for the specified day
+                day_pattern = f"*day{args.day:02d}*.txt"
+                story_files = list(Path("instance/data/stories").glob(day_pattern))
                 
-                if not matches:
-                    print(f"Error: No file found for day {day_num}", file=sys.stderr)
+                if not story_files:
+                    # Also try the current directory pattern
+                    story_files = list(Path(".").glob(day_pattern))
+                
+                if not story_files:
+                    print(f"Error: No file found for day {args.day}", file=sys.stderr)
                     return 1
                     
-                if len(matches) > 1:
-                    print(f"Warning: Multiple files found for day {day_num}, using {matches[0].name}", 
-                          file=sys.stderr)
-                    
-                file_path = matches[0]
-                with open(file_path, 'r', encoding='utf-8') as f:
+                story_file = story_files[0]  # Use the first match
+                with open(story_file, 'r', encoding='utf-8') as f:
                     text = f.read()
-            # Handle file path or direct text
+                    
+                print(f"Day {args.day} story analysis from: {story_file}")
+                
             else:
+                # Handle file path or direct text
                 file_path = Path(args.file_or_text) if args.file_or_text else None
                 if file_path and file_path.exists():
                     with open(file_path, 'r', encoding='utf-8') as f:
@@ -898,19 +699,13 @@ class CLI:
                     # Treat as direct text input
                     text = args.file_or_text or ""
                     if not text.strip():
-                        # Read from stdin if no input provided
-                        text = sys.stdin.read()
-                    if not text.strip():
                         print("Error: No text to analyze", file=sys.stderr)
                         return 1
             
             print(f"\n{'='*60}")
             print(f"VOCABULARY ANALYSIS".center(60))
             print(f"{'='*60}")
-            if hasattr(args, 'day') and args.day is not None:
-                file_info = f"Day {args.day} story"
-            else:
-                file_info = f"{min(50, len(text))} chars of provided text"
+            file_info = f"{min(50, len(text))} chars of provided text"
             print(f"File/Text: {file_info}")
             print(f"Minimum word length: {args.min_word_len}")
             print(f"Top words to show: {args.top_words}")
@@ -1007,41 +802,6 @@ class CLI:
                 traceback.print_exc()
             return 1
 
-    def _handle_progress(self, args: argparse.Namespace) -> int:
-        """Handle the progress command."""
-        from srs_tracker import SRSTracker
-        
-        try:
-            srs = SRSTracker()
-            
-            if args.day is not None:
-                if not 1 <= args.day <= 7:
-                    print(f"Error: Day must be between 1 and 7, got {args.day}", file=sys.stderr)
-                    return 1
-                
-                due = srs.get_due_collocations(args.day)
-                if not due:
-                    print(f"No collocations due for review on day {args.day}")
-                else:
-                    print(f"Collocations due for day {args.day}:")
-                    for i, colloc in enumerate(due, 1):
-                        print(f"{i}. {colloc.text} (next review: day {colloc.next_review_day})")
-            else:
-                # Show overall progress
-                total = len(srs.collocations)
-                due_today = len(srs.get_due_collocations(srs.current_day))
-                print(f"SRS Progress (Day {srs.current_day}):")
-                print(f"- Total collocations: {total}")
-                print(f"- Due for review today: {due_today}")
-                
-            return 0
-            
-        except Exception as e:
-            print(f"Error checking progress: {e}", file=sys.stderr)
-            if 'pytest' not in sys.modules:  # Don't print traceback during tests
-                import traceback
-                traceback.print_exc()
-            return 1
     
     def _handle_view(self, args: argparse.Namespace) -> int:
         """Handle the view command."""
@@ -1136,15 +896,10 @@ class CLI:
             # Handle help flag
             if hasattr(args, 'help') and args.help:
                 self.parser.print_help()
-                print('\nFor help on a specific command, use: <command> -h')
                 return 0
-                
-            # Handle help command
-            if hasattr(args, 'func') and args.func:
-                return args.func(args)
-                
+            
             # Handle regular commands
-            if hasattr(args, 'command') and args.command in self.commands:
+            if args.command in self.commands:
                 return self.commands[args.command].handler(args)
                 
             # No command provided

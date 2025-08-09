@@ -7,30 +7,14 @@ from typing import List, Dict, Optional, Union, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
-# Try to import config values, with fallbacks for testing
-# This makes the module more resilient to missing config during testing
-try:
-    from config import (
-        DATA_DIR, 
-        PROMPTS_DIR, 
-        DEFAULT_STORY_LENGTH, 
-        MOCK_RESPONSES_DIR, 
-        CURRICULUM_PATH,
-        STORIES_DIR
-    )
-except ImportError:
-    # Fallback values for testing
-    TEST_DIR = Path(__file__).parent.parent / 'tests'
-    DATA_DIR = TEST_DIR / 'test_data'
-    PROMPTS_DIR = TEST_DIR / 'prompts'
-    MOCK_RESPONSES_DIR = DATA_DIR / 'mock_responses'
-    CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
-    DEFAULT_STORY_LENGTH = 500
-
-    # Ensure test directories exist
-    DATA_DIR.mkdir(exist_ok=True, parents=True)
-    PROMPTS_DIR.mkdir(exist_ok=True, parents=True)
-    MOCK_RESPONSES_DIR.mkdir(exist_ok=True, parents=True)
+from config import (
+    DATA_DIR, 
+    PROMPTS_DIR, 
+    DEFAULT_STORY_LENGTH, 
+    MOCK_RESPONSES_DIR, 
+    CURRICULUM_PATH,
+    STORIES_DIR
+)
 
 from llm_mock import MockLLM
 from srs_tracker import SRSTracker

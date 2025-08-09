@@ -6,18 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import List, Dict, Tuple, Set, Any
 
-# Try to import config values, with fallbacks for testing
-try:
-    from config import CURRICULUM_PATH, COLLOCATIONS_PATH, DATA_DIR
-except ImportError:
-    # Fallback values for testing
-    TEST_DIR = Path(__file__).parent.parent / 'tests'
-    DATA_DIR = TEST_DIR / 'test_data'
-    CURRICULUM_PATH = DATA_DIR / 'curriculum_processed.json'
-    COLLOCATIONS_PATH = DATA_DIR / 'collocations.json'
-    
-    # Ensure test directories exist
-    DATA_DIR.mkdir(exist_ok=True, parents=True)
+from config import CURRICULUM_PATH, COLLOCATIONS_PATH, DATA_DIR
 
 class CollocationExtractor:
     def __init__(self):
