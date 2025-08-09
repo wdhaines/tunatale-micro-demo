@@ -29,13 +29,5 @@ import config
 # Verify the patch worked
 assert config.DATA_DIR == mock_config.DATA_DIR, "Config patching failed!"
 
-# Now import the rest of the test modules
-from . import test_curriculum_models
-from . import test_curriculum_service
-from . import test_main
-from . import test_mock_llm
-from . import test_srs_integration
-from . import test_story_generator
-from . import test_story_generator_vocab
-from . import test_story_prompt_template
-from . import test_text_utils
+# Note: Individual test modules are discovered and imported by pytest automatically
+# Do not import them here as it creates dependency issues

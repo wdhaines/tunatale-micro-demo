@@ -207,39 +207,19 @@ def verify_no_files_in_data_dir(request, tmp_path):
     test_output_dir = tmp_path / "test_output"
     test_output_dir.mkdir()
     
-    # Patch DATA_DIR to use our test directory
+    # Patch DATA_DIR in the existing config (preserve all other attributes)
     import sys
-    import importlib
+    from unittest.mock import patch
     
-    # Save original modules
-    original_story_generator = sys.modules.get('story_generator')
-    original_collocation_extractor = sys.modules.get('collocation_extractor')
+    # Save the original DATA_DIR before patching
+    original_data_dir = DATA_DIR
     
-    # Create a new module with patched DATA_DIR
-    class PatchedConfig:
-        DATA_DIR = test_output_dir
-        
-    # Patch the modules
-    m = type(sys)('config')
-    m.DATA_DIR = test_output_dir
-    sys.modules['config'] = m
+    # Patch DATA_DIR in the config module to use our test directory
+    with patch.object(sys.modules['config'], 'DATA_DIR', test_output_dir):
+        yield
     
-    # Reload modules to use the patched config
-    if original_story_generator:
-        importlib.reload(sys.modules['story_generator'])
-    if original_collocation_extractor:
-        importlib.reload(sys.modules['collocation_extractor'])
-    
-    yield
-    
-    # Restore original modules
-    if original_story_generator:
-        sys.modules['story_generator'] = original_story_generator
-    if original_collocation_extractor:
-        sys.modules['collocation_extractor'] = original_collocation_extractor
-    
-    # Verify no new files were created in the main DATA_DIR
-    final_files = set(f for f in DATA_DIR.glob('*') if f.is_file())
+    # Verify no new files were created in the main DATA_DIR  
+    final_files = set(f for f in original_data_dir.glob('*') if f.is_file())
     new_files = final_files - initial_files
     
     # Clean up any new files that were created
