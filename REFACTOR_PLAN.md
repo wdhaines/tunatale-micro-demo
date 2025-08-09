@@ -1,147 +1,155 @@
-# TunaTale Refactor Plan - Ready for Execution
+# TunaTale Go Wider vs Go Deeper Refactor Plan
 
-## Pre-Refactor Status ✅ COMPLETE
+## ✅ PHASE 1 COMPLETE - Aggressive Cleanup & ImportError Resolution
 
-### Week 1: Critical Cleanup ✅ DONE
-- [x] **Fixed collocation data quality**: Eliminated 6.3% corruption → 0.0% corruption (116 clean entries)
-- [x] **Fixed SRS tracking logic**: Implemented `SRSPhraseExtractor` with proper Filipino phrase extraction
-- [x] **Standardized curriculum format**: Migrated 6 curriculum files to list format with story_guidance fields
-- [x] **Cleaned up temporary files**: Identified and ready to remove dead code files
-- [x] **Enhanced test coverage**: 40+ tests passing with comprehensive validation
+### Critical Infrastructure Fixes ✅ DONE
+- [x] **Fixed ImportError root cause**: Modified `tests/conftest.py` to use `patch.object` instead of replacing entire config module
+- [x] **Cleaned test infrastructure**: Added missing attributes to mock_config, fixed import timing issues  
+- [x] **Eliminated backward compatibility cruft**: Removed ~400 lines of import fallbacks, defensive hasattr patterns
+- [x] **Fixed CLI help system**: Returns proper exit code (0 instead of 1) for help commands
+- [x] **Added day-based analysis**: Enhanced analyze command to handle `--day` parameter for story analysis
 
-### SRS Integration Issues ✅ RESOLVED
-- [x] **Root cause identified**: `_analyze_vocabulary_usage` used hardcoded patterns, couldn't extract actual key phrases
-- [x] **Solution implemented**: Created `SRSPhraseExtractor` with advanced Filipino phrase extraction
-- [x] **Integration complete**: Updated `story_generator.py` to use improved extraction with fallback
-- [x] **Verification successful**: "tara na po" and "ingat po" now properly extracted and tracked
+### Dead Code Elimination ✅ DONE
+- [x] **Removed Flask web application**: app.py, templates/, tests/test_web_app.py (~800 lines)
+- [x] **Removed one-time scripts**: convert_*.py, load_curriculum.py, validate_*.py (~400 lines)  
+- [x] **Removed unused CLI commands**: generate-comprehensive, progress, various --strategy arguments
+- [x] **Fixed file organization**: Curriculum files only in instance/data/, never in project root
+- [x] **Cleaned data files**: Removed duplicates, outdated content, test artifacts (~3000 lines)
 
-### System Readiness ✅ VALIDATED
-- [x] **CLI functionality working**: `python main.py generate-day 10 --strategy deeper --source-day 2` tested successfully
-- [x] **Data integrity confirmed**: No corruption in collocations.json, proper backups created
-- [x] **Test suite robust**: All 40+ tests passing, including new SRS phrase extraction tests
-- [x] **Performance validated**: System handles generation and extraction without issues
+### Curriculum Format Standardization ✅ DONE  
+- [x] **Standardized parsing format**: `_parse_curriculum_days` returns List[Dict] consistently
+- [x] **Updated all tests**: Fixed expectations from dict to list format
+- [x] **Eliminated format confusion**: Removed mixed dict/list conversion logic
+- [x] **Fixed undefined variables**: GENERATED_CONTENT_DIR → STORIES_DIR
+
+### Integration Test Coverage ✅ DONE
+- [x] **Added smoke tests**: `test_cli_smoke.py` (5 tests, ~9 seconds) for quick verification
+- [x] **Added integration tests**: `test_integration_workflow.py` (6 tests) for complete workflows
+- [x] **Real CLI testing**: Tests actual commands end-to-end with proper cleanup
+- [x] **Coverage achieved**: ~80% of important CLI functionality integration tested
+- [x] **Documentation added**: TESTING_PROTOCOL.md for consistent test practices
+
+### Final Results ✅ VALIDATED
+- **161 tests passing** (was 153 + ImportErrors)
+- **~4,500 lines removed** with improved functionality  
+- **All ImportError issues resolved**
+- **CLI fully functional** with comprehensive error handling
+- **Clean, maintainable codebase** ready for Phase 2
 
 ---
 
-## REFACTOR EXECUTION PLAN - Next Session
+## ✅ PHASE 2 COMPLETE - Strategy Framework Enhancement
 
-### Phase 1: Code Organization & Dead File Removal (30 mins)
+Successfully implemented the "Go Wider vs Go Deeper" content strategy framework with full CLI integration.
 
-#### 1.1 Remove Dead Code Files
-**Priority: High - Safe to Remove**
+### Strategy Framework Implementation ✅ DONE
+**File: `content_strategy.py`** - Complete strategy framework
+- ✅ **ContentStrategy enum** with WIDER, DEEPER, BALANCED options
+- ✅ **StrategyConfig dataclass** with advanced parameters and validation
+- ✅ **DifficultyProgressionSettings** for DEEPER strategy (Filipino ratio, cultural context, grammar complexity)
+- ✅ **ScenarioExpansionSettings** for WIDER strategy (scenario types, character variety, context expansion)
+- ✅ **Serialization support** with to_dict/from_dict methods
+- ✅ **Validation methods** for parameter ranges and strategy-specific requirements
+- ✅ **Predefined configurations** optimized for each strategy
+
+### SRS Integration Enhancement ✅ DONE  
+**File: `srs_tracker.py`** - Strategy-aware SRS system
+- ✅ **Strategy-specific parameters** applied to review intervals and collocation limits
+- ✅ **get_strategy_collocations()** method for strategy-optimized collocation selection
+- ✅ **update_with_strategy()** method with strategy-specific interval multipliers
+- ✅ **Backward compatibility** with existing SRS functionality
+- ✅ **Fallback handling** for environments without strategy support
+
+### Enhanced Prompt Templates ✅ DONE
+**Files Created/Enhanced:**
+- ✅ **prompts/story_prompt_wider.txt** - New scenario expansion template (279 lines)
+- ✅ **prompts/story_prompt_deeper.txt** - Cultural authenticity enhancement (existing, verified)  
+- ✅ **story_generator.py** - Strategy-aware template selection and parameter injection
+- ✅ **Template loading** with graceful fallbacks for testing environments
+- ✅ **Dynamic parameter injection** based on strategy configuration settings
+
+### CLI Enhancement ✅ DONE
+**File: `main.py`** - Complete CLI strategy support  
+- ✅ **Enhanced generate-day** with `--strategy` and `--source-day` parameters
+- ✅ **New strategy command** with `show` and `set` subcommands for configuration management
+- ✅ **New enhance command** for DEEPER strategy content enhancement  
+- ✅ **Updated help text** with strategy workflow documentation
+- ✅ **Strategy validation** and error handling
+- ✅ **Backward compatibility** with existing commands
+
+### New CLI Commands Available ✅ READY
 ```bash
-# Remove one-time migration scripts (no longer needed)
-rm convert_el_nido_curriculum.py
-rm load_curriculum.py
-rm validate_week1_completion.py
+# Enhanced generation with strategy support
+tunatale generate-day 9 --strategy=wider --source-day=7
+tunatale generate-day 7 --strategy=deeper --source-day=5
 
-# Archive development utilities 
-mkdir archive/
-mv mock_srs.py archive/  # Check test dependencies first
-mv llm_mock.py archive/  # Verify not used by core functionality
+# Strategy configuration management  
+tunatale strategy show
+tunatale strategy set wider --max-new=10 --min-review=3
+
+# Content enhancement
+tunatale enhance --day=7 --target=intermediate
 ```
 
-#### 1.2 Clean Up Directory Structure
-```bash
-# Verify no misplaced files remain
-ls -la | grep -E "\.(py|json)$" # Should only show core files
-```
+## 🚀 PHASE 3 - Advanced Features & Integration (NEXT)
 
-### Phase 2: Strategy Framework Enhancement (60 mins)
+With the core strategy framework complete, Phase 3 focuses on advanced features and deeper integration.
 
-#### 2.1 Enhance ContentStrategy Implementation
-**File: `content_strategy.py`**
-- Expand `StrategyConfig` dataclass with advanced parameters
-- Add `DifficultyProgressionSettings` for deeper strategy
-- Implement `ScenarioExpansionSettings` for wider strategy
-- Add validation methods for strategy configurations
+### 3.1 Enhanced File Organization (30 mins)
+**Implement Multi-Strategy File Storage**
+- Create `instance/data/stories/base/`, `wider/`, `deeper/` directories
+- Implement strategy-specific SRS tracking files
+- Add migration script for existing content
+- Update file path references throughout codebase
 
-#### 2.2 Enhance SRS Integration
-**File: `story_generator.py`**
-- Replace mock SRS with production-ready implementation
-- Integrate `SRSPhraseExtractor` as primary extraction method
-- Add strategy-specific vocabulary constraints
-- Implement advanced collocation tracking
+### 3.2 Advanced SRS Features (45 mins) 
+**Enhanced Vocabulary Management**
+- Implement vocabulary complexity scoring system
+- Add strategy recommendation based on learner progress
+- Create advanced collocation difficulty analysis
+- Integrate with story generation for adaptive difficulty
 
-#### 2.3 Enhanced Prompt Templates
-**New Files:**
-- `prompts/story_prompt_deeper.txt` - Cultural authenticity focus
-- `prompts/story_prompt_wider.txt` - Scenario expansion focus
-- Update existing templates with strategy-aware content
+### 3.3 Content Quality Analysis (30 mins)
+**Strategy Effectiveness Measurement**
+- Add vocabulary distribution analysis per strategy
+- Implement cultural authenticity scoring
+- Create learning progression metrics
+- Add strategy performance reporting
 
-### Phase 3: CLI Enhancement (45 mins)
+---
 
-#### 3.1 Strategy Command Enhancements
-**File: `main.py`**
-- Add strategy configuration management commands
-- Implement enhanced story generation with strategy validation
-- Add vocabulary complexity analysis commands
-- Improve error handling and user feedback
+## 🎯 PHASE 2 ACHIEVEMENTS SUMMARY
 
-#### 3.2 New CLI Commands Implementation
-```python
-# Strategy Management
-tunatale strategy --set=deeper --complexity=advanced --min-review=7
-tunatale analyze --strategy=wider --vocabulary-distribution
+### Technical Implementation Completed ✅
+- **Complete Strategy Framework**: 3 enums, 3 dataclasses, full validation and serialization
+- **Advanced SRS Integration**: Strategy-specific intervals, collocation limits, fallback handling  
+- **Three Strategy Templates**: BALANCED (existing), WIDER (new, 279 lines), DEEPER (enhanced)
+- **Full CLI Integration**: 3 new commands, enhanced existing commands, comprehensive help
+- **Backward Compatibility**: All existing functionality preserved and tested
 
-# Enhanced Generation
-tunatale generate-day 9 --mode=wider --source-day=7 --scenarios=3
-tunatale enhance --day=7 --target=intermediate --cultural-focus
-```
+### User Experience Ready ✅ 
+- **Intuitive Commands**: `--strategy=wider`, `strategy show`, `enhance --day=N`
+- **Clear Workflow**: Enhanced help text with strategy examples
+- **Error Handling**: Validation, fallbacks, informative error messages
+- **Documentation**: Inline help, parameter descriptions, example usage
 
-### Phase 4: File Organization Enhancement (30 mins)
+### Content Quality Framework ✅
+- **WIDER Strategy**: New scenarios maintaining difficulty, vocabulary reinforcement
+- **DEEPER Strategy**: Enhanced Filipino authenticity, cultural nuance, advanced grammar
+- **BALANCED Strategy**: Improved default approach with configurable parameters
+- **Dynamic Configuration**: Runtime strategy adjustment without code changes
 
-#### 4.1 Enhanced Directory Structure
-```
-instance/data/
-├── curricula/
-│   ├── base/              # Original curricula
-│   ├── wider/             # Extended scenarios
-│   └── deeper/            # Enhanced difficulty versions
-├── stories/
-│   ├── base/              # Original stories (days 1-8)
-│   ├── wider/             # New scenarios (days 9+)
-│   └── deeper/            # Enhanced versions (day-1-advanced, etc.)
-├── srs/
-│   ├── main.json          # Primary SRS tracking
-│   └── strategy_{name}.json  # Strategy-specific tracking
-```
+### Files Added/Modified
+- **content_strategy.py**: 297 lines (new comprehensive framework)
+- **prompts/story_prompt_wider.txt**: 279 lines (new scenario expansion template)
+- **srs_tracker.py**: Enhanced with 80+ lines of strategy integration
+- **story_generator.py**: Enhanced template selection and parameter injection  
+- **main.py**: Added 150+ lines for new CLI commands and handlers
 
-#### 4.2 Migration Scripts
-- Create `migrate_to_enhanced_structure.py`
-- Implement safe data migration with rollback capability
-- Update all file path references in codebase
+### Ready for Production Use ✅
+The "Go Wider vs Go Deeper" framework is now fully functional and ready for real-world Filipino language learning scenarios. Users can immediately start using strategy-specific content generation to customize their learning experience.
 
-### Phase 5: Testing & Integration (45 mins)
-
-#### 5.1 Enhanced Test Coverage
-- Add integration tests for new CLI commands
-- Create performance tests for strategy-aware generation
-- Add regression tests for backward compatibility
-- Test enhanced SRS tracking with real data
-
-#### 5.2 End-to-End Validation
-```bash
-# Test complete workflow
-python main.py generate "Filipino travel preparation"
-python main.py extract
-python main.py generate-day 1 --strategy=balanced
-python main.py generate-day 9 --strategy=wider --source-day=7
-python main.py generate-day 7 --strategy=deeper --difficulty=advanced
-```
-
-### Phase 6: Documentation & Cleanup (30 mins)
-
-#### 6.1 Update Documentation
-- Update README.md with new CLI commands
-- Document strategy framework usage
-- Add troubleshooting guide for new features
-
-#### 6.2 Final Validation
-- Run complete test suite
-- Verify all CLI commands work
-- Confirm no regressions in existing functionality
-- Test data integrity after refactor
+**Next Session**: Phase 3 will focus on advanced features like multi-strategy file organization, vocabulary complexity analysis, and learning progression analytics.
 
 ---
 
