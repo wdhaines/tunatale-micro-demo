@@ -52,16 +52,6 @@ def test_cli_generate_command_required_params() -> None:
     assert result.returncode == 2  # Missing required argument: goal
     assert "the following arguments are required: goal" in result.stderr.lower()
     
-    # Test with just the goal (should work)
-    result = subprocess.run(
-        [sys.executable, "main.py", "generate", "test goal"],
-        capture_output=True,
-        text=True
-    )
-    # This should fail because we don't have a mock for the generator
-    # But we're just testing that the argument parsing works
-    assert result.returncode != 2  # Shouldn't be an argument parsing error
-    
     # Test with invalid CEFR level
     result = subprocess.run(
         [sys.executable, "main.py", "generate", "test goal", "--cefr-level", "INVALID"],

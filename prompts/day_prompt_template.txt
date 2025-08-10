@@ -1,0 +1,16 @@
+**Generate Day {day_number} Story:**
+
+**Learning Objective:** {learning_objective}
+**Focus/Theme:** {focus}
+**Target CEFR Level:** {learner_level}
+
+**New Collocations to Teach:**
+{new_collocations}
+
+**Review Collocations to Include:**
+{review_collocations}
+
+**Story Guidance:**
+{story_guidance}
+
+**Generate the structured lesson following the system template format.**

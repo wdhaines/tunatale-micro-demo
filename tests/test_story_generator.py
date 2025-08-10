@@ -124,7 +124,7 @@ def test_generate_story_creates_output_dir(content_generator: ContentGenerator, 
     mock_save_story = MagicMock(wraps=save_story_impl)
     
     # Patch the DATA_DIR and _save_story method
-    with patch('story_generator.DATA_DIR', test_output_dir), \
+    with patch('story_generator.config.DATA_DIR', test_output_dir), \
          patch.object(generator, '_save_story', mock_save_story):
         
         # Call the method
@@ -406,7 +406,7 @@ def test_generate_story_uses_prompt_template(content_generator: ContentGenerator
     mock_save_story = MagicMock(wraps=save_story_impl)
 
     # Patch DATA_DIR and _save_story
-    with patch('story_generator.DATA_DIR', tmp_path / 'test_data'), \
+    with patch('story_generator.config.DATA_DIR', tmp_path / 'test_data'), \
          patch.object(content_generator, '_save_story', mock_save_story):
 
         # Set up test data for vocabulary and collocations
@@ -491,7 +491,7 @@ def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp
     mock_save_story = MagicMock(wraps=save_story_impl)
     
     # Patch necessary components
-    with patch('story_generator.DATA_DIR', tmp_path / 'test_data'), \
+    with patch('story_generator.config.DATA_DIR', tmp_path / 'test_data'), \
          patch.object(content_generator, '_save_story', mock_save_story):
         
         # Call the method

@@ -196,7 +196,7 @@ class TestCurriculumGenerator:
             ]
         }
         
-        with patch('curriculum_service.CURRICULUM_PATH', test_file):
+        with patch('curriculum_service.config.CURRICULUM_PATH', test_file):
             curriculum_generator._save_curriculum(curriculum_data, "Test learning objective")
         
         # Verify file was created with correct content
@@ -240,7 +240,7 @@ class TestCurriculumGenerator:
     def test_save_curriculum_ioerror(self, mock_file, curriculum_generator, tmp_path):
         """Test error handling when saving curriculum fails."""
         test_file = tmp_path / 'test_curriculum.json'
-        with patch('curriculum_service.CURRICULUM_PATH', test_file):
+        with patch('curriculum_service.config.CURRICULUM_PATH', test_file):
             with pytest.raises(IOError):
                 curriculum_generator._save_curriculum(SAMPLE_CURRICULUM, "Test Goal")
     
@@ -358,7 +358,7 @@ class TestCurriculumGenerator:
     def test_missing_prompt_template(self, curriculum_generator, tmp_path):
         """Test behavior when prompt template is missing."""
         # The implementation now returns default content without writing to disk
-        with patch('curriculum_service.PROMPTS_DIR', tmp_path / "nonexistent"):
+        with patch('curriculum_service.config.PROMPTS_DIR', tmp_path / "nonexistent"):
             # Should return default content without raising an error
             result = curriculum_generator._load_prompt('missing_template.txt')
             assert result is not None
@@ -368,7 +368,7 @@ class TestCurriculumGenerator:
             assert not (tmp_path / "nonexistent" / "missing_template.txt").exists()
             
         # Test with allow_default=False
-        with patch('curriculum_service.PROMPTS_DIR', tmp_path / "nonexistent"):
+        with patch('curriculum_service.config.PROMPTS_DIR', tmp_path / "nonexistent"):
             with pytest.raises(FileNotFoundError):
                 curriculum_generator._load_prompt('missing_template.txt', allow_default=False)
     
@@ -381,13 +381,13 @@ class TestCurriculumGenerator:
         test_file.write_text('{invalid json}')
         
         # The implementation should catch JSONDecodeError and raise a ParserError
-        with patch('curriculum_service.CURRICULUM_PATH', test_file):
+        with patch('curriculum_service.config.CURRICULUM_PATH', test_file):
             with pytest.raises(ParserError, match="Invalid JSON in curriculum file"):
                 curriculum_generator._load_curriculum()
                 
         # Test with a valid JSON but missing required fields
         test_file.write_text('{"some_key": "some_value"}')
-        with patch('curriculum_service.CURRICULUM_PATH', test_file):
+        with patch('curriculum_service.config.CURRICULUM_PATH', test_file):
             with pytest.raises(ParserError, match="Invalid curriculum format: missing required fields"):
                 curriculum_generator._load_curriculum()
     

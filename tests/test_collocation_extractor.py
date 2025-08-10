@@ -96,12 +96,12 @@ class TestCollocationExtractor:
         os.environ["VOCABULARY_PATH"] = str(self.vocab_file)
         
         # Patch the config and spacy.load
-        with patch('collocation_extractor.COLLOCATIONS_PATH', self.collocations_file), \
+        with patch('collocation_extractor.config.COLLOCATIONS_PATH', self.collocations_file), \
              patch('spacy.load', return_value=self.mock_nlp):
             self.extractor = CollocationExtractor()
         
         # Create a real extractor for tests that need it
-        with patch('collocation_extractor.COLLOCATIONS_PATH', self.collocations_file):
+        with patch('collocation_extractor.config.COLLOCATIONS_PATH', self.collocations_file):
             self.real_extractor = CollocationExtractor()
             self.real_extractor.nlp = self.real_nlp
         
@@ -343,7 +343,7 @@ class TestCollocationExtractor:
         collocations_file = tmp_path / "test_collocations.json"
         
         # Mock the extract_collocations method and patch COLLOCATIONS_PATH
-        with patch('collocation_extractor.COLLOCATIONS_PATH', collocations_file), \
+        with patch('collocation_extractor.config.COLLOCATIONS_PATH', collocations_file), \
              patch.object(self.real_extractor, 'extract_collocations', 
                          return_value=expected_collocations) as mock_extract:
             

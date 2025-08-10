@@ -118,9 +118,30 @@ class Curriculum:
         """
         if path.suffix.lower() != '.json':
             raise ValueError("Curriculum must be saved as a .json file")
+        
+        # LOG CORRUPTION DETECTION ON SAVE
+        import logging
+        import traceback
+        import json
+        data_dict = self.to_dict()
+        data_str = json.dumps(data_dict)
+        
+        logging.error(f"CURRICULUM SAVE: Saving to {path}")
+        
+        if 'space exploration' in data_str:
+            logging.error("🚨 SAVE CORRUPTION: space exploration found in curriculum being saved!")
+            logging.error(f"SAVE CORRUPTION STACK TRACE:")
+            for line in traceback.format_stack():
+                logging.error(f"  {line.strip()}")
+        
+        if '"content":' in data_str:
+            logging.error("🚨 SAVE CORRUPTION: 'content' field found in curriculum being saved!")
+            logging.error(f"SAVE CORRUPTION STACK TRACE:")
+            for line in traceback.format_stack():
+                logging.error(f"  {line.strip()}")
             
         with open(path, 'w', encoding='utf-8') as f:
-            json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
+            json.dump(data_dict, f, indent=2, ensure_ascii=False)
     
     @classmethod
     def load(cls: Type[T], path: Path) -> T:
@@ -141,5 +162,25 @@ class Curriculum:
             
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            
+        
+        # LOG CORRUPTION DETECTION
+        import logging
+        import traceback
+        logging.error(f"CURRICULUM LOAD: Loading from {path}")
+        logging.error(f"CURRICULUM LOAD: File size: {path.stat().st_size} bytes")
+        
+        # Check for corruption indicators
+        data_str = json.dumps(data)
+        if 'space exploration' in data_str:
+            logging.error("🚨 CORRUPTION DETECTED: space exploration found in curriculum!")
+            logging.error(f"CORRUPTION STACK TRACE:")
+            for line in traceback.format_stack():
+                logging.error(f"  {line.strip()}")
+        
+        if '"content":' in data_str:
+            logging.error("🚨 CORRUPTION DETECTED: 'content' field found in curriculum!")
+            logging.error(f"CORRUPTION STACK TRACE:")
+            for line in traceback.format_stack():
+                logging.error(f"  {line.strip()}")
+                
         return cls.from_dict(data)

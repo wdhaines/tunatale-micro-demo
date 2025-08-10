@@ -283,9 +283,9 @@ def content_generator(mocker, tmp_path):
     """)
     
     # Mock the DATA_DIR and PROMPTS_DIR to use our test directories
-    mocker.patch('story_generator.DATA_DIR', test_output_dir)
-    mocker.patch('story_generator.PROMPTS_DIR', test_prompts_dir)
-    mocker.patch('collocation_extractor.DATA_DIR', test_output_dir)
+    mocker.patch('story_generator.config.DATA_DIR', test_output_dir)
+    mocker.patch('story_generator.config.PROMPTS_DIR', test_prompts_dir)
+    mocker.patch('collocation_extractor.config.DATA_DIR', test_output_dir)
     
     # Create a temporary directory for SRSTracker data if it doesn't exist
     srs_data_dir = tmp_path / 'srs_data'

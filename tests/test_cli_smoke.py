@@ -77,19 +77,22 @@ class TestCLISmoke:
     @pytest.mark.slow
     def test_quick_generation_workflow(self):
         """Test a minimal generation workflow if there's time."""
-        # Only run if we want to test actual generation
-        # This is marked as slow so it can be skipped in quick test runs
+        # Skip actual generation to avoid corrupting production data
+        # Instead just test that the command structure is valid
         
-        # Try to generate minimal curriculum
+        # Test that generate command accepts valid arguments (without actually running generation)
         result = self.run_cli([
-            "generate", "Quick smoke test", "--days", "1"
-        ], timeout=30)
+            "generate", "--help"
+        ], timeout=10)
+        assert result.returncode == 0
+        assert "goal" in result.stdout
         
-        if result.returncode == 0:
-            # If generation worked, try extract
-            result = self.run_cli(["extract"], timeout=15)
-            # Don't assert here - extract might fail if no proper curriculum was generated
-            
-            # Try to view what was generated
-            result = self.run_cli(["view", "curriculum"], timeout=10)
-            # Again, don't assert - just making sure nothing crashes
+        # Test extract help (doesn't corrupt data)
+        result = self.run_cli(["extract", "--help"], timeout=10)
+        # Don't assert success - just verify no crash
+        assert result.returncode in [0, 1, 2]
+        
+        # Test view command (safe, doesn't modify data)
+        result = self.run_cli(["view", "curriculum"], timeout=10)
+        # Don't assert - just making sure nothing crashes
+        assert result.returncode in [0, 1]

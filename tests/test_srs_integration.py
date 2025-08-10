@@ -107,7 +107,7 @@ def setup_test_environment(tmp_path, mocker):
     mocker.patch.dict('sys.modules', {'config': mock_config_module})
     
     # Also patch the specific paths used in story_generator
-    mocker.patch('story_generator.CURRICULUM_PATH', str(mock_config.CURRICULUM_PATH))
+    mocker.patch('story_generator.config.CURRICULUM_PATH', str(mock_config.CURRICULUM_PATH))
     
     # Create a temporary directory for this test
     test_data_dir = tmp_path / "test_data"

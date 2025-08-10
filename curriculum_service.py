@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Type
 
-from config import PROMPTS_DIR, CURRICULUM_PATH, DATA_DIR
+import config
 
 from llm_mock import MockLLM
 
@@ -91,7 +91,7 @@ class CurriculumGenerator:
             FileNotFoundError: If the prompt file doesn't exist and allow_default is False
             IOError: If there's an error reading the prompt file
         """
-        prompt_path = PROMPTS_DIR / filename
+        prompt_path = config.PROMPTS_DIR / filename
         
         try:
             # Try to read the existing file
@@ -477,7 +477,7 @@ class CurriculumGenerator:
                     raise LLMError(f"Failed to generate curriculum: {e}")
                 
                 # Save the curriculum
-                save_path = Path(output_path) if output_path else CURRICULUM_PATH
+                save_path = Path(output_path) if output_path else config.CURRICULUM_PATH
                 self._save_curriculum(curriculum, learning_goal, save_path)
                 
                 logger.info("Successfully generated and saved curriculum")
@@ -549,12 +549,12 @@ class CurriculumGenerator:
         """
         # Ensure we're using the data directory
         if output_path is None:
-            output_path = CURRICULUM_PATH
+            output_path = config.CURRICULUM_PATH
         else:
             output_path = Path(output_path)
             # If it's not an absolute path, make it relative to the data directory
             if not output_path.is_absolute():
-                output_path = DATA_DIR / output_path
+                output_path = config.DATA_DIR / output_path
         
         output_path = output_path.absolute()
         
@@ -649,7 +649,7 @@ class CurriculumGenerator:
             ParserError: If the curriculum data is invalid
         """
         logger = logging.getLogger(__name__)
-        file_path = Path(file_path) if file_path else CURRICULUM_PATH
+        file_path = Path(file_path) if file_path else config.CURRICULUM_PATH
         logger.debug(f"Loading curriculum from: {file_path}")
         
         if not file_path.exists():

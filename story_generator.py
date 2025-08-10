@@ -7,14 +7,7 @@ from typing import List, Dict, Optional, Union, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
-from config import (
-    DATA_DIR, 
-    PROMPTS_DIR, 
-    DEFAULT_STORY_LENGTH, 
-    MOCK_RESPONSES_DIR, 
-    CURRICULUM_PATH,
-    STORIES_DIR
-)
+import config
 
 from llm_mock import MockLLM
 from srs_tracker import SRSTracker
@@ -55,7 +48,7 @@ class StoryParams:
     language: str
     cefr_level: Union[CEFRLevel, str]
     phase: int
-    length: int = field(default_factory=lambda: DEFAULT_STORY_LENGTH)
+    length: int = field(default_factory=lambda: config.DEFAULT_STORY_LENGTH)
     new_vocabulary: List[str] = field(default_factory=list)
     recycled_vocabulary: List[str] = field(default_factory=list)
     recycled_collocations: List[str] = field(default_factory=list)
@@ -94,6 +87,15 @@ class StoryParams:
 class ContentGenerator:
     def __init__(self):
         self.llm = MockLLM()
+        # Load prompts for chat-based approach (graceful for testing)
+        try:
+            self.system_prompt = self._load_prompt('system_prompt.txt')
+            self.day_prompt_template = self._load_prompt('day_prompt_template.txt')
+        except FileNotFoundError:
+            # For testing environments without chat prompts
+            self.system_prompt = "Test system prompt"
+            self.day_prompt_template = "Test day prompt template"
+        
         # Legacy prompts (for backward compatibility)
         self.story_prompt = self._load_prompt('story_prompt_template.txt')  # Default/BALANCED
         
@@ -130,7 +132,7 @@ class ContentGenerator:
     
     def _load_prompt(self, filename: str) -> str:
         """Load prompt from file or use default if not found."""
-        prompt_path = PROMPTS_DIR / filename
+        prompt_path = config.PROMPTS_DIR / filename
         if not prompt_path.exists():
             raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
         with open(prompt_path, 'r') as f:
@@ -200,6 +202,57 @@ class ContentGenerator:
             traceback.print_exc()
             return None
 
+    def generate_chat_story(self, params: StoryParams, day_number: int) -> Optional[str]:
+        """
+        Generate a story using the new chat-based approach with separate system and day prompts.
+        
+        Args:
+            params: Story parameters 
+            day_number: The day number for the story
+            
+        Returns:
+            Generated story content or None if generation failed
+        """
+        try:
+            # Format the day-specific prompt
+            new_collocations_text = "\n".join(f"- {collocation}" for collocation in params.new_vocabulary)
+            review_collocations_text = "\n".join(f"- {collocation}" for collocation in params.recycled_collocations)
+            
+            day_prompt = self.day_prompt_template.format(
+                day_number=day_number,
+                learning_objective=params.learning_objective,
+                focus=params.focus or f"Language learning - Phase {params.phase}",
+                learner_level=params.cefr_level,
+                new_collocations=new_collocations_text,
+                review_collocations=review_collocations_text,
+                story_guidance=params.story_guidance or f"Generate engaging content for day {day_number}"
+            )
+            
+            # Use the chat-based LLM method
+            response = self.llm.chat_response(
+                system_prompt=self.system_prompt,
+                user_prompt=day_prompt,
+                response_type="story"
+            )
+            
+            # Handle both direct response format and nested response format
+            if response:
+                if 'choices' in response and len(response['choices']) > 0:
+                    # Direct format
+                    story = response['choices'][0]['message']['content']
+                    return story.strip() if story else None
+                elif 'response' in response and 'choices' in response['response'] and len(response['response']['choices']) > 0:
+                    # Nested format from chat_response
+                    story = response['response']['choices'][0]['message']['content']
+                    return story.strip() if story else None
+            
+            return None
+            
+        except Exception as e:
+            import traceback
+            print(f"Error generating chat story: {e}")
+            traceback.print_exc()
+            return None
 
     def generate_enhanced_story(self, params: EnhancedStoryParams) -> Optional[str]:
         """
@@ -513,7 +566,7 @@ class ContentGenerator:
             raise ValueError("learning_objective cannot be empty")
             
         # Ensure STORIES_DIR exists
-        output_dir = Path(STORIES_DIR) if isinstance(STORIES_DIR, str) else STORIES_DIR
+        output_dir = Path(config.STORIES_DIR) if isinstance(config.STORIES_DIR, str) else config.STORIES_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Try to extract title from story content
@@ -556,7 +609,7 @@ class ContentGenerator:
             FileNotFoundError: If the curriculum file doesn't exist
             ValueError: If the file is not a valid curriculum
         """
-        return Curriculum.load(CURRICULUM_PATH)
+        return Curriculum.load(config.CURRICULUM_PATH)
             
     def generate_day_story(self, day: int) -> Optional[Tuple[str, List[Dict[str, List[str]]]]]:
         """Generate a story for a specific day using curriculum and SRS data.
@@ -738,8 +791,8 @@ class ContentGenerator:
             story_guidance=deeper_guidance
         )
         
-        # Generate the story
-        story = self.generate_story(params)
+        # Generate the story using chat-based approach
+        story = self.generate_chat_story(params, target_day)
         if not story:
             return None
         
@@ -788,8 +841,8 @@ class ContentGenerator:
             story_guidance=wider_guidance
         )
         
-        # Generate the story
-        story = self.generate_story(params)
+        # Generate the story using chat-based approach
+        story = self.generate_chat_story(params, target_day)
         if not story:
             return None
         
@@ -940,7 +993,7 @@ class ContentGenerator:
             return ""
             
         prev_day = day_number - 1
-        story_path = Path(STORIES_DIR) / f'day{prev_day}_story.txt'
+        story_path = Path(config.STORIES_DIR) / f'day{prev_day}_story.txt'
         
         if story_path.exists():
             with open(story_path, 'r') as f:

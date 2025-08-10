@@ -6,14 +6,7 @@ from pathlib import Path
 from typing import Dict, Callable, Any, Optional
 from dataclasses import dataclass
 
-from config import (
-    CURRICULUM_PATH, 
-    COLLOCATIONS_PATH, 
-    DATA_DIR, 
-    DEFAULT_STORY_LENGTH,
-    STORIES_DIR,
-    DEBUG_LOG_PATH
-)
+import config
 
 from curriculum_service import CurriculumGenerator
 from collocation_extractor import CollocationExtractor
@@ -45,13 +38,13 @@ def setup_logging():
     
     # File handler (DEBUG and above)
     try:
-        file_handler = logging.FileHandler(DEBUG_LOG_PATH, mode='w')  # Overwrite each run
+        file_handler = logging.FileHandler(config.DEBUG_LOG_PATH, mode='w')  # Overwrite each run
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
         
         # Log the startup
-        logger.info(f"Logging initialized. Debug log: {DEBUG_LOG_PATH}")
+        logger.info(f"Logging initialized. Debug log: {config.DEBUG_LOG_PATH}")
         logger.debug("Debug logging enabled")
         
     except Exception as e:
@@ -371,8 +364,8 @@ class CLI:
         parser.add_argument(
             '--length',
             type=self._positive_int,
-            default=DEFAULT_STORY_LENGTH,
-            help=f'Target word count (default: {DEFAULT_STORY_LENGTH})'
+            default=config.DEFAULT_STORY_LENGTH,
+            help=f'Target word count (default: {config.DEFAULT_STORY_LENGTH})'
         )
         parser.add_argument(
             '--previous',
@@ -682,7 +675,7 @@ class CLI:
         print("Continuing to the next day...")
         
         # Check if curriculum exists
-        if not CURRICULUM_PATH.exists():
+        if not config.CURRICULUM_PATH.exists():
             print("Error: No curriculum found. Please generate a curriculum first using 'generate' command.", 
                   file=sys.stderr)
             print("\nWorkflow: generate -> extract -> generate-day -> continue...")
@@ -690,13 +683,13 @@ class CLI:
             
         try:
             # Load the curriculum
-            curriculum = Curriculum.load(CURRICULUM_PATH)
+            curriculum = Curriculum.load(config.CURRICULUM_PATH)
             
             # Find the last generated day
             generated_days = []
             
-            if STORIES_DIR.exists():
-                for f in STORIES_DIR.glob("story_day*.txt"):
+            if config.STORIES_DIR.exists():
+                for f in config.STORIES_DIR.glob("story_day*.txt"):
                     try:
                         day_num = int(f.stem.split('_')[1][3:])  # Extract day number from filename
                         generated_days.append(day_num)
@@ -773,7 +766,7 @@ class CLI:
         extractor = CollocationExtractor()
         
         # Check if we have a curriculum file
-        if not CURRICULUM_PATH.exists():
+        if not config.CURRICULUM_PATH.exists():
             print("No curriculum found. Please generate one with 'python main.py generate <goal>'")
             return 1
             
@@ -1015,23 +1008,35 @@ class CLI:
     
     def _view_curriculum(self) -> int:
         """Display the generated curriculum."""
-        if not CURRICULUM_PATH.exists():
+        if not config.CURRICULUM_PATH.exists():
             print("No curriculum found. Generate one with 'python main.py generate <goal>'")
             return 1
             
-        with open(CURRICULUM_PATH, 'r') as f:
+        with open(config.CURRICULUM_PATH, 'r') as f:
             curriculum = json.load(f)
-            print(f"\nLearning Goal: {curriculum['learning_goal']}\n")
-            print(curriculum['content'])
+            learning_objective = curriculum.get('learning_objective', curriculum.get('learning_goal', 'Not specified'))
+            print(f"\nLearning Objective: {learning_objective}\n")
+            
+            # Handle both old and new curriculum formats
+            if 'content' in curriculum:
+                print(curriculum['content'])
+            elif 'days' in curriculum:
+                print(f"Target Language: {curriculum.get('target_language', 'Not specified')}")
+                print(f"Learner Level: {curriculum.get('learner_level', 'Not specified')}")
+                print(f"\nCurriculum contains {len(curriculum['days'])} days")
+                for day in curriculum['days']:
+                    print(f"Day {day['day']}: {day['title']}")
+            else:
+                print("Curriculum format not recognized")
         return 0
     
     def _view_collocations(self) -> int:
         """Display the extracted collocations."""
-        if not COLLOCATIONS_PATH.exists():
+        if not config.COLLOCATIONS_PATH.exists():
             print("No collocations found. Extract them with 'python main.py extract'")
             return 1
             
-        with open(COLLOCATIONS_PATH, 'r') as f:
+        with open(config.COLLOCATIONS_PATH, 'r') as f:
             collocations = json.load(f)
             print("\nTop Collocations:")
             for i, (colloc, count) in enumerate(list(collocations.items())[:20], 1):
@@ -1044,7 +1049,7 @@ class CLI:
             print("Please specify a day with --day")
             return 1
             
-        story_path = Path(STORIES_DIR) / f'day{day}_story.txt'
+        story_path = Path(config.STORIES_DIR) / f'day{day}_story.txt'
         if not story_path.exists():
             print(f"No story found for Day {day}")
             return 1
@@ -1159,12 +1164,12 @@ class CLI:
             print(f"Enhancing day {day} content to {target_difficulty.value} level using DEEPER strategy...")
             
             # Load existing curriculum to get context
-            if not CURRICULUM_PATH.exists():
+            if not config.CURRICULUM_PATH.exists():
                 print("Error: No curriculum found. Generate curriculum first.", file=sys.stderr)
                 return 1
             
             from curriculum_models import Curriculum
-            curriculum = Curriculum.load(CURRICULUM_PATH)
+            curriculum = Curriculum.load(config.CURRICULUM_PATH)
             
             if day > len(curriculum.days):
                 print(f"Error: Day {day} not found in curriculum (only {len(curriculum.days)} days available)", file=sys.stderr)
@@ -1192,8 +1197,8 @@ class CLI:
                 return 1
             
             # Save enhanced content with special naming
-            output_path = STORIES_DIR / f"story_day{day:02d}_enhanced_{target_difficulty.value}.txt"
-            STORIES_DIR.mkdir(parents=True, exist_ok=True)
+            output_path = config.STORIES_DIR / f"story_day{day:02d}_enhanced_{target_difficulty.value}.txt"
+            config.STORIES_DIR.mkdir(parents=True, exist_ok=True)
             
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(enhanced_story)

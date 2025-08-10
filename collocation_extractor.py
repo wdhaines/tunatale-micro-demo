@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import List, Dict, Tuple, Set, Any
 
-from config import CURRICULUM_PATH, COLLOCATIONS_PATH, DATA_DIR
+import config
 
 class CollocationExtractor:
     def __init__(self):
@@ -35,7 +35,7 @@ class CollocationExtractor:
                 
             # Load background vocabulary
             import os
-            vocab_path = os.environ.get('VOCABULARY_PATH', str(DATA_DIR / 'a2_flat_vocabulary.json'))
+            vocab_path = os.environ.get('VOCABULARY_PATH', str(config.DATA_DIR / 'a2_flat_vocabulary.json'))
             try:
                 with open(vocab_path, 'r') as f:
                     self.background_vocabulary = set(json.load(f))
@@ -53,10 +53,10 @@ class CollocationExtractor:
     
     def extract_from_curriculum(self) -> Dict[str, int]:
         """Extract collocations from the generated curriculum."""
-        if not CURRICULUM_PATH.exists():
+        if not config.CURRICULUM_PATH.exists():
             raise FileNotFoundError("Curriculum file not found. Generate a curriculum first.")
         
-        with open(CURRICULUM_PATH, 'r', encoding='utf-8') as f:
+        with open(config.CURRICULUM_PATH, 'r', encoding='utf-8') as f:
             curriculum = json.load(f)
         
         # Extract text from all phases in the curriculum
@@ -352,7 +352,7 @@ class CollocationExtractor:
     
     def _save_collocations(self, collocations: Dict[str, int]):
         """Save collocations to a JSON file."""
-        with open(COLLOCATIONS_PATH, 'w') as f:
+        with open(config.COLLOCATIONS_PATH, 'w') as f:
             json.dump(collocations, f, indent=2)
     
     def get_filtered_background_words(self, text: str) -> List[str]:
@@ -495,9 +495,9 @@ class CollocationExtractor:
     
     def get_top_collocations(self, n: int = 10) -> List[Tuple[str, int]]:
         """Get the top N most frequent collocations."""
-        if not COLLOCATIONS_PATH.exists():
+        if not config.COLLOCATIONS_PATH.exists():
             raise FileNotFoundError("Collocations file not found. Extract collocations first.")
         
-        with open(COLLOCATIONS_PATH, 'r') as f:
+        with open(config.COLLOCATIONS_PATH, 'r') as f:
             collocations = json.load(f)
         return list(collocations.items())[:n]
