@@ -5,13 +5,31 @@ TunaTale is an audio-first Filipino language learning system focused on El Nido 
 
 ## Current System Analysis
 
-### Current CLI Commands
-- `generate <goal>` - Create initial curriculum
-- `extract` - Extract collocations from curriculum  
-- `extend <days>` - Extend curriculum to N total days
-- `generate-day <day>` - Generate story for specific day
+### Current Working CLI Commands
+
+**Core Generation Commands:**
+- `generate <goal>` - Create initial curriculum from scratch
+- `generate-day <day>` - Generate TTS story for specific existing day
 - `continue` - Generate next day automatically
-- `view`, `analyze`, `progress` - Utility commands
+- `extend <days>` - Extend curriculum to N total days
+
+**Analysis Commands:**
+- `analyze` - Basic vocabulary and content analysis
+- `analyze --quality` - Filipino authenticity and learning effectiveness analysis
+- `analyze --trip-readiness` - El Nido trip preparation readiness assessment
+
+**Phase 3 Enhancement Commands:**
+- `enhance --day <day> --target <level>` - Deepen existing day content (intermediate/advanced)
+- `recommend` - Get personalized learning strategy recommendations
+- `validate` - Validate curriculum structure and content quality
+
+**Utility Commands:**
+- `view` - Display curriculum overview
+- `progress` - Show learning progress and SRS status
+
+**Strategy Commands (In Development):**
+- `generate-day <day> --strategy=deeper --source-day=<day>` - Create enhanced version as new day
+- `generate-day <day> --strategy=wider --source-day=<day>` - Create scenario expansion as new day
 
 ### Current Architecture
 - **Curriculum**: JSON-based daily lesson plans with collocations

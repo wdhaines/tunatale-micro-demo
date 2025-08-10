@@ -41,10 +41,8 @@ data/generated_content/*
 !data/generated_content/*.txt
 !data/generated_content/.gitkeep
 
-# Mock responses and test data
-instance/data/mock_responses/*.json
-instance/data/curriculum.json
-instance/data/logs/*.log
+# Instance directory (runtime/user data)
+instance/
 
 # Test coverage and cache
 .coverage
