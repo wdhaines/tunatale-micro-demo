@@ -671,6 +671,203 @@ class ContentGenerator:
             logging.error(f"Error generating story for day {day}: {e}", exc_info=True)
             return None
     
+    def generate_strategy_based_story(self, target_day: int, strategy: 'ContentStrategy', source_day: int = None) -> Optional[Tuple[str, List[Dict[str, List[str]]]]]:
+        """Generate a story using strategy-based content generation.
+        
+        Args:
+            target_day: The day number for the new story
+            strategy: ContentStrategy (DEEPER, WIDER, BALANCED)
+            source_day: Source day to base content on (required for DEEPER/WIDER)
+            
+        Returns:
+            A tuple of (generated_story, collocation_report) if successful, None otherwise
+        """
+        try:
+            from content_strategy import ContentStrategy, DifficultyLevel
+            
+            curriculum = self._load_curriculum()
+            
+            # For DEEPER/WIDER strategies, we need a source day
+            if strategy in [ContentStrategy.DEEPER, ContentStrategy.WIDER] and not source_day:
+                logging.error(f"Strategy {strategy.value} requires a source_day parameter")
+                return None
+            
+            if strategy == ContentStrategy.DEEPER:
+                return self._generate_deeper_content(target_day, source_day, curriculum)
+            elif strategy == ContentStrategy.WIDER:
+                return self._generate_wider_content(target_day, source_day, curriculum)
+            else:  # BALANCED - use regular generation
+                return self.generate_day_story(target_day)
+                
+        except Exception as e:
+            logging.error(f"Error generating strategy-based story for day {target_day}: {e}", exc_info=True)
+            return None
+    
+    def _generate_deeper_content(self, target_day: int, source_day: int, curriculum) -> Optional[Tuple[str, List[Dict[str, List[str]]]]]:
+        """Generate DEEPER strategy content - enhanced Filipino authenticity."""
+        # Get source day data
+        source_data = curriculum.get_day(source_day)
+        if not source_data:
+            logging.error(f"No curriculum found for source day {source_day}")
+            return None
+        
+        logging.info(f"\n--- DEEPER Strategy Generation ---")
+        logging.info(f"Target day {target_day} based on source day {source_day}: {source_data.title}")
+        
+        # Create enhanced curriculum data for deeper content
+        enhanced_collocations = self._enhance_collocations_for_deeper(source_data.collocations)
+        enhanced_phrases = self._enhance_phrases_for_deeper(source_data.presentation_phrases)
+        
+        # Get review collocations from SRS
+        review_collocations = self.srs.get_due_collocations(target_day, min_items=2, max_items=4)
+        
+        # Create enhanced story guidance for deeper Filipino
+        deeper_guidance = f"{source_data.story_guidance}. DEEPER STRATEGY: Use more authentic Filipino expressions, reduce English, include cultural context and native speech patterns."
+        
+        # Create story parameters
+        params = StoryParams(
+            learning_objective=f"DEEPER VERSION: {source_data.learning_objective} with enhanced Filipino authenticity",
+            language=curriculum.target_language,
+            cefr_level="B1",  # Slightly elevated for deeper content
+            phase=target_day,
+            length=curriculum.presentation_length * 12,  # Slightly longer for complexity
+            new_vocabulary=enhanced_phrases,
+            recycled_collocations=enhanced_collocations + review_collocations,
+            recycled_vocabulary=[],
+            focus=f"Enhanced Filipino authenticity: {source_data.focus}",
+            story_guidance=deeper_guidance
+        )
+        
+        # Generate the story
+        story = self.generate_story(params)
+        if not story:
+            return None
+        
+        # Analyze collocations (simplified for strategy content)
+        collocation_report = {
+            'new': enhanced_collocations[:3],  # Show first 3 enhanced collocations
+            'reviewed': review_collocations,
+            'bonus': []  # Will be populated by analysis if available
+        }
+        
+        logging.info(f"✅ DEEPER strategy story generated for day {target_day}")
+        return story, collocation_report
+    
+    def _generate_wider_content(self, target_day: int, source_day: int, curriculum) -> Optional[Tuple[str, List[Dict[str, List[str]]]]]:
+        """Generate WIDER strategy content - expanded scenarios, same difficulty."""
+        # Get source day data  
+        source_data = curriculum.get_day(source_day)
+        if not source_data:
+            logging.error(f"No curriculum found for source day {source_day}")
+            return None
+            
+        logging.info(f"\n--- WIDER Strategy Generation ---")
+        logging.info(f"Target day {target_day} based on source day {source_day}: {source_data.title}")
+        
+        # Expand scenarios while keeping same difficulty
+        expanded_focus = self._expand_scenario_for_wider(source_data.focus)
+        wider_collocations = source_data.collocations + self._add_scenario_collocations(source_data.focus)
+        
+        # Get review collocations from SRS
+        review_collocations = self.srs.get_due_collocations(target_day, min_items=4, max_items=6)  # More review for wider
+        
+        # Create wider story guidance
+        wider_guidance = f"{source_data.story_guidance}. WIDER STRATEGY: Expand to new scenarios and contexts while maintaining the same language difficulty level."
+        
+        # Create story parameters
+        params = StoryParams(
+            learning_objective=f"WIDER VERSION: {source_data.learning_objective} with expanded scenarios",
+            language=curriculum.target_language,
+            cefr_level=curriculum.learner_level,  # Same level as original
+            phase=target_day,
+            length=curriculum.presentation_length * 15,  # Longer for more scenarios
+            new_vocabulary=source_data.presentation_phrases + [f"expanded context: {expanded_focus}"],
+            recycled_collocations=wider_collocations + review_collocations,
+            recycled_vocabulary=[],
+            focus=expanded_focus,
+            story_guidance=wider_guidance
+        )
+        
+        # Generate the story
+        story = self.generate_story(params)
+        if not story:
+            return None
+        
+        # Analyze collocations
+        collocation_report = {
+            'new': wider_collocations[:4],  # Show first 4 wider collocations  
+            'reviewed': review_collocations,
+            'bonus': []
+        }
+        
+        logging.info(f"✅ WIDER strategy story generated for day {target_day}")
+        return story, collocation_report
+    
+    def _enhance_collocations_for_deeper(self, base_collocations: List[str]) -> List[str]:
+        """Enhance collocations for DEEPER strategy - more authentic Filipino."""
+        enhanced = []
+        for collocation in base_collocations:
+            # Add cultural authenticity markers
+            if "po" not in collocation and any(word in collocation for word in ["salamat", "excuse", "magkano"]):
+                enhanced.append(f"{collocation} po")
+            else:
+                enhanced.append(collocation)
+            
+            # Add more complex Filipino variants
+            if collocation == "salamat po":
+                enhanced.append("maraming salamat po")
+            elif collocation == "magkano po":
+                enhanced.append("magkano po ang presyo nito")
+                
+        return enhanced[:6]  # Limit to prevent overwhelming
+    
+    def _enhance_phrases_for_deeper(self, base_phrases: List[str]) -> List[str]:
+        """Enhance phrases for DEEPER strategy with more Filipino context."""
+        enhanced = []
+        for phrase in base_phrases:
+            enhanced.append(phrase)
+            # Add cultural context variations
+            if "thank you" in phrase.lower():
+                enhanced.append("thank you very much (with cultural respect)")
+            elif "how much" in phrase.lower():
+                enhanced.append("what is the exact price")
+                
+        return enhanced
+    
+    def _expand_scenario_for_wider(self, base_focus: str) -> str:
+        """Expand scenario focus for WIDER strategy."""
+        # Add more contexts and situations
+        scenario_expansions = {
+            "airport": "airport, bus terminal, and taxi interactions",
+            "hotel": "hotel, resort, and accommodation interactions", 
+            "restaurant": "restaurant, café, and street food interactions",
+            "shopping": "shopping, market, and souvenir interactions",
+            "beach": "beach, island, and water activity interactions",
+            "transportation": "transportation, directions, and local travel",
+            "dining": "dining, local specialties, and food exploration"
+        }
+        
+        for key, expansion in scenario_expansions.items():
+            if key in base_focus.lower():
+                return expansion
+                
+        return f"{base_focus} and expanded related scenarios"
+    
+    def _add_scenario_collocations(self, base_focus: str) -> List[str]:
+        """Add scenario-specific collocations for WIDER strategy."""
+        additional = []
+        
+        if "hotel" in base_focus.lower():
+            additional.extend(["puwede po ba", "may available po ba", "anong floor po"])
+        elif "restaurant" in base_focus.lower():
+            additional.extend(["masarap po ba", "fresh po ba", "specialty ninyong"])
+        elif "shopping" in base_focus.lower():
+            additional.extend(["meron pa po ba", "discount po", "cash or card"])
+        elif "beach" in base_focus.lower():
+            additional.extend(["safe po ba", "life jacket po", "boat ride po"])
+            
+        return additional[:3]  # Limit additional collocations
+    
     def generate_story_for_day(self, day: int) -> Optional[str]:
         """Generate and save a story for a specific day.
         

@@ -603,7 +603,12 @@ class CLI:
                 print(f"Based on content from day {source_day}")
                 
             generator = ContentGenerator()
-            result = generator.generate_day_story(args.day)
+            
+            # Use strategy-based generation instead of regular generation
+            if strategy in [ContentStrategy.DEEPER, ContentStrategy.WIDER]:
+                result = generator.generate_strategy_based_story(args.day, strategy, source_day)
+            else:
+                result = generator.generate_day_story(args.day)
             
             if not result:
                 print(f"Failed to generate content for day {args.day}", file=sys.stderr)
