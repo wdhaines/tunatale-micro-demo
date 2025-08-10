@@ -36,8 +36,8 @@ jobs:
         
     - name: Run fast Phase 3 tests only
       run: |
-        # Only run unit tests to avoid timeouts
-        python -m pytest -c pytest-ci.ini -m "unit and phase3" --timeout=10 -v --tb=short
+        # Run Phase 3 related tests (focus on faster ones)
+        python -m pytest -c pytest-ci.ini tests/test_phase3_cli.py tests/test_phase3_integration.py --timeout=10 -v --tb=short
         
   integration-tests:
     runs-on: ubuntu-latest
@@ -61,5 +61,5 @@ jobs:
         
     - name: Run integration tests
       run: |
-        # Run integration tests with longer timeout
-        python -m pytest -c pytest-ci.ini -m "integration and phase3" --timeout=30 -v --tb=short --maxfail=3
+        # Run Phase 3 related integration tests with longer timeout
+        python -m pytest -c pytest-ci.ini tests/test_strategy_workflow.py tests/test_recommendation_validation.py tests/test_el_nido_user_journey.py --timeout=30 -v --tb=short --maxfail=3
