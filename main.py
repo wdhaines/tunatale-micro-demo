@@ -146,6 +146,11 @@ class CLI:
             type=str,
             help='Output file path for the generated curriculum (default: instance/data/curricula/curriculum.json)'
         )
+        gen_parser.add_argument(
+            '--clear-cache',
+            action='store_true',
+            help='Clear MockLLM cache before generating (forces manual input)'
+        )
         
         # Extract collocations command
         subparsers.add_parser(
@@ -201,6 +206,11 @@ class CLI:
             '--source-day',
             type=int,
             help='Source day for WIDER/DEEPER strategies (defaults to previous day)'
+        )
+        story_day_parser.add_argument(
+            '--clear-cache',
+            action='store_true',
+            help='Clear MockLLM cache before generating (forces manual input)'
         )
         
         # Strategy management command
@@ -470,6 +480,10 @@ class CLI:
 
     def _handle_generate(self, args: argparse.Namespace) -> int:
         """Handle the generate command."""
+        # Clear cache if requested
+        if hasattr(args, 'clear_cache') and args.clear_cache:
+            self._clear_mock_llm_cache(goal=args.goal)
+        
         print(f"Generating curriculum for: {args.goal}")
         print(f"Target language: {args.target_language}")
         print(f"CEFR Level: {args.cefr_level}")
@@ -486,8 +500,15 @@ class CLI:
                 print(f"Warning: Could not read transcript file: {e}", file=sys.stderr)
                 # Continue without transcript
         
-        # Set default output path to proper data directory
-        output_path = Path(args.output) if args.output else Path('instance/data/curricula/curriculum.json')
+        # Set default output path with unique filename based on learning goal
+        if args.output:
+            output_path = Path(args.output)
+        else:
+            # Create a safe filename from the learning goal
+            safe_goal = "".join(c if c.isalnum() or c in '-_' else '_' for c in args.goal.lower())
+            safe_goal = safe_goal.strip('_').replace('__', '_')[:50]  # Limit length
+            filename = f"curriculum_{safe_goal}.json"
+            output_path = Path('instance/data/curricula') / filename
         
         # Generate the curriculum
         generator = CurriculumGenerator()
@@ -573,6 +594,10 @@ class CLI:
         if args.day < 1:
             print(f"Error: Day must be >= 1, got {args.day}", file=sys.stderr)
             return 1
+        
+        # Clear cache if requested
+        if hasattr(args, 'clear_cache') and args.clear_cache:
+            self._clear_mock_llm_cache(day=args.day)
         
         from story_generator import ContentGenerator
         from content_strategy import ContentStrategy, DifficultyLevel
@@ -766,13 +791,14 @@ class CLI:
         extractor = CollocationExtractor()
         
         # Check if we have a curriculum file
-        if not config.CURRICULUM_PATH.exists():
+        curriculum_path = self._find_curriculum_file()
+        if not curriculum_path:
             print("No curriculum found. Please generate one with 'python main.py generate <goal>'")
             return 1
             
         try:
             # Extract collocations from the curriculum
-            collocations = extractor.extract_from_curriculum()
+            collocations = extractor.extract_from_curriculum(curriculum_path)
             
             # Print some statistics
             print(f"\nExtracted {len(collocations)} collocations.")
@@ -1006,13 +1032,28 @@ class CLI:
             return 1
         return 0
     
+    def _find_curriculum_file(self) -> Optional[Path]:
+        """Find the most recent curriculum file."""
+        curricula_dir = config.CURRICULA_DIR
+        if not curricula_dir.exists():
+            return None
+            
+        # Look for curriculum files
+        curriculum_files = list(curricula_dir.glob('curriculum*.json'))
+        if not curriculum_files:
+            return None
+            
+        # Return the most recent one (by modification time)
+        return max(curriculum_files, key=lambda p: p.stat().st_mtime)
+    
     def _view_curriculum(self) -> int:
         """Display the generated curriculum."""
-        if not config.CURRICULUM_PATH.exists():
+        curriculum_path = self._find_curriculum_file()
+        if not curriculum_path:
             print("No curriculum found. Generate one with 'python main.py generate <goal>'")
             return 1
             
-        with open(config.CURRICULUM_PATH, 'r') as f:
+        with open(curriculum_path, 'r') as f:
             curriculum = json.load(f)
             learning_objective = curriculum.get('learning_objective', curriculum.get('learning_goal', 'Not specified'))
             print(f"\nLearning Objective: {learning_objective}\n")
@@ -1441,6 +1482,115 @@ class CLI:
                 import traceback
                 traceback.print_exc()
             return 1
+
+    def _clear_mock_llm_cache(self, day: int = None, goal: str = None) -> None:
+        """Clear specific MockLLM cache entries or entire cache.
+        
+        Args:
+            day: If provided, clear cache for this specific day's story generation
+            goal: If provided, clear cache for this specific curriculum generation goal
+        """
+        try:
+            import shutil
+            from pathlib import Path
+            import config
+            import hashlib
+            
+            cache_dir = Path(config.MOCK_RESPONSES_DIR)
+            if not cache_dir.exists() or not cache_dir.is_dir():
+                print("ℹ️ MockLLM cache directory does not exist")
+                return
+                
+            cache_files = list(cache_dir.glob('*.json'))
+            if not cache_files:
+                print("ℹ️ MockLLM cache is already empty")
+                return
+            
+            # If specific day or goal provided, clear only those entries
+            if day is not None or goal is not None:
+                cleared_count = 0
+                
+                if day is not None:
+                    # Generate the prompt pattern that would be used for this day
+                    # and find matching cache entries
+                    cleared_count += self._clear_day_specific_cache(cache_dir, day)
+                
+                if goal is not None:
+                    # Clear curriculum generation cache for this specific goal
+                    cleared_count += self._clear_goal_specific_cache(cache_dir, goal)
+                
+                if cleared_count > 0:
+                    print(f"✅ Cleared {cleared_count} cache file(s) for {'day ' + str(day) if day else 'goal: ' + goal}")
+                else:
+                    print(f"ℹ️ No cache entries found for {'day ' + str(day) if day else 'goal: ' + goal}")
+            else:
+                # Clear all cache files (original behavior)
+                for cache_file in cache_files:
+                    cache_file.unlink()
+                print(f"✅ Cleared {len(cache_files)} cache file(s) from MockLLM")
+                
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to clear cache: {e}", file=sys.stderr)
+            
+    def _clear_day_specific_cache(self, cache_dir: Path, day: int) -> int:
+        """Clear cache entries for a specific day's story generation."""
+        cleared_count = 0
+        
+        # Read each cache file to see if it's for the target day
+        for cache_file in cache_dir.glob('*.json'):
+            try:
+                with open(cache_file, 'r') as f:
+                    import json
+                    cache_data = json.load(f)
+                    
+                # Check if this cache entry is for the target day
+                if 'user_prompt' in cache_data:
+                    user_prompt = cache_data['user_prompt']
+                    # Look for day-specific patterns in the prompt
+                    if f"Day {day} Story" in user_prompt or f"Generate Day {day}" in user_prompt:
+                        cache_file.unlink()
+                        cleared_count += 1
+                        
+            except Exception:
+                # Skip files that can't be read/parsed
+                continue
+                
+        return cleared_count
+        
+    def _clear_goal_specific_cache(self, cache_dir: Path, goal: str) -> int:
+        """Clear cache entries for a specific curriculum generation goal."""
+        import hashlib
+        cleared_count = 0
+        
+        # For curriculum generation, we can calculate the expected hash
+        # based on the prompt that would be generated
+        try:
+            # Simulate the prompt that would be generated for this goal
+            from curriculum_service import CurriculumGenerator
+            generator = CurriculumGenerator()
+            
+            # This is approximate - the exact prompt format may vary
+            # We'll search cache files for the goal text instead
+            for cache_file in cache_dir.glob('*.json'):
+                try:
+                    with open(cache_file, 'r') as f:
+                        import json
+                        cache_data = json.load(f)
+                        
+                    # Check if this cache entry contains the goal
+                    cache_str = json.dumps(cache_data).lower()
+                    if goal.lower() in cache_str:
+                        cache_file.unlink()
+                        cleared_count += 1
+                        
+                except Exception:
+                    continue
+                    
+        except Exception:
+            # If we can't do smart matching, fall back to text search
+            pass
+            
+        return cleared_count
 
 
 def main() -> int:

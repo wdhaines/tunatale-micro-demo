@@ -1,0 +1,100 @@
+**WIDER Strategy Content Generation Request**
+
+**Learning Objective:** {learning_objective}
+**Theme/Focus:** {focus}
+**Target CEFR Level:** {learner_level}
+**Strategy:** WIDER (Expanded Scenario Coverage)
+**Source Material:** Based on Day {source_day} content
+
+**New Collocations to Teach:**
+{new_collocations}
+
+**Review Collocations to Include:**
+{review_collocations}
+
+**Story Guidance:**
+{story_guidance}
+
+**WIDER STRATEGY-SPECIFIC RULES:**
+
+**Collocation Count Constraints:**
+- Target: 8-12 collocations (more variety, same difficulty level)
+- Focus on breadth of practical vocabulary
+- Each collocation should be immediately usable in travel contexts
+- Prioritize high-frequency phrases across multiple scenarios
+
+**English Usage Rules:**
+- Balanced Filipino/English mix for scenario expansion
+- English acceptable for introducing new contexts and situations
+- Code-switching should feel natural and practical for travelers
+- Use English strategically to bridge familiar and new scenarios
+
+**Scenario Expansion Logic:**
+- Expand to new contexts while maintaining same language difficulty
+- Take source day themes and apply them to different situations
+- Create variety in practical travel scenarios
+- Maintain vocabulary level while increasing situational coverage
+
+**Source Content Integration Requirements:**
+- Use Day {source_day} vocabulary as foundation for new scenarios
+- Apply familiar phrases to different contexts
+- Maintain same grammatical complexity while expanding usage
+- Create new situations that reinforce existing vocabulary
+
+**Context Expansion Guidelines:**
+- Extend beyond source day location to related scenarios
+- Introduce new practical situations using familiar language patterns
+- Provide multiple contexts for practicing the same vocabulary
+- Build confidence through varied application of known phrases
+
+**SRS Vocabulary Reinforcement:**
+- Incorporate ALL provided review collocations across different scenarios
+- Show how existing vocabulary applies to new situations
+- Reinforce learning through varied contextual usage
+- Build practical fluency through scenario diversity
+
+**WIDER Expansion Examples:**
+
+**Source Day (Hotel Check-in):**
+"Magandang umaga po. May reservation po ako."
+"Saan po ang elevator?"
+
+**WIDER Applications (Multiple Related Contexts):**
+- Airport: "Magandang umaga po. Saan po ang immigration?"
+- Restaurant: "Magandang umaga po. May available table po ba?"
+- Tour office: "Magandang umaga po. May island hopping tours po ba?"
+- Transport: "Magandang umaga po. Saan po ang bus terminal?"
+
+**Source Day (Basic Pricing):**
+"Magkano po ito?"
+
+**WIDER Applications:**
+- Market: "Magkano po ang mga mangga?"
+- Transport: "Magkano po ang pamasahe?"
+- Tours: "Magkano po ang island hopping?"
+- Shopping: "Magkano po ang souvenirs?"
+
+**Content Generation Instructions:**
+
+1. **Identify Core Vocabulary:** Extract key phrases and patterns from Day {source_day}
+2. **Map New Scenarios:** Identify 3-4 related but different contexts where the same language applies
+3. **Maintain Difficulty Level:** Keep grammatical complexity consistent with source day
+4. **Expand Practical Usage:** Show how the same phrases work across multiple travel situations
+5. **Build Confidence:** Create familiarity through varied but manageable applications
+
+**Scenario Expansion Categories:**
+- **Transportation:** Buses, tricycles, boats, airport
+- **Accommodation:** Hotels, guesthouses, check-in/out processes
+- **Dining:** Restaurants, cafes, street food, markets
+- **Activities:** Tours, beaches, shopping, cultural sites
+- **Services:** Banks, clinics, tourist information, emergencies
+
+**Quality Validation Checklist:**
+- ✓ Uses Day {source_day} vocabulary in new contexts
+- ✓ Includes 8-12 practical collocations
+- ✓ Maintains same grammatical difficulty level
+- ✓ Provides diverse scenario applications
+- ✓ Incorporates all review vocabulary naturally
+- ✓ Builds practical travel confidence
+
+Generate content following the universal lesson format with these WIDER strategy expansions applied.

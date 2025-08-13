@@ -54,6 +54,8 @@ class StoryParams:
     recycled_collocations: List[str] = field(default_factory=list)
     focus: str = ""
     story_guidance: str = ""
+    source_day: Optional[int] = None
+    source_day_transcript: Optional[str] = None
     
     def __post_init__(self):
         """Validate the CEFR level after initialization."""
@@ -295,6 +297,7 @@ class ContentGenerator:
             # Add strategy-specific parameters
             if params.content_strategy == ContentStrategy.DEEPER and params.source_day:
                 prompt_params['source_day'] = params.source_day
+                prompt_params['source_day_transcript'] = params.source_day_transcript or "No source transcript available"
             elif params.content_strategy == ContentStrategy.WIDER:
                 # Add WIDER-specific parameters from strategy configuration
                 if hasattr(strategy_config, 'expansion_settings') and strategy_config.expansion_settings:
@@ -325,7 +328,7 @@ class ContentGenerator:
             # Format the prompt
             prompt = prompt_template.format(**prompt_params)
             
-            # Get the story from the LLM
+            # Get the story from the LLM using chat-based approach
             logging.info(f"\n--- Enhanced Story Generation ({params.content_strategy.value.upper()}) ---")
             logging.info(f"Day {params.phase}: {params.learning_objective}")
             logging.info(f"Focus: {params.focus}")
@@ -335,7 +338,12 @@ class ContentGenerator:
             logging.info(f"New collocations: {new_vocab}")
             logging.info(f"Review collocations: {recycled_collocs}")
             
-            response = self.llm.get_response(prompt)
+            # Use chat response to combine system prompt + strategy prompt
+            response = self.llm.chat_response(
+                system_prompt=self.system_prompt,
+                user_prompt=prompt,
+                response_type="story"
+            )
             
             if not response or 'choices' not in response:
                 logging.error("Invalid LLM response format")
@@ -589,6 +597,39 @@ class ContentGenerator:
         
         return self._write_story_file(story_path, story)
         
+    def _load_source_day_transcript(self, source_day: int) -> Optional[str]:
+        """Load the source day story transcript for enhancement."""
+        try:
+            # Try to find story file for the source day
+            stories_dir = Path(config.STORIES_DIR)
+            
+            # Look for story files matching the day in multiple formats
+            story_files = []
+            
+            # Try multiple naming patterns
+            patterns = [
+                f"story_day{source_day}_*.txt",  # Original format
+                f"*day-{source_day}.txt",        # demo-0.0.3-day-4.txt format
+                f"*day{source_day}_*.txt"        # story_day4_*.txt format
+            ]
+            
+            for pattern in patterns:
+                found_files = list(stories_dir.glob(pattern))
+                if found_files:
+                    story_files.extend(found_files)
+            
+            if story_files:
+                # Use the first matching file
+                with open(story_files[0], 'r', encoding='utf-8') as f:
+                    return f.read()
+            else:
+                logging.warning(f"No story file found for source day {source_day}")
+                return None
+                
+        except Exception as e:
+            logging.error(f"Error loading source day transcript: {e}")
+            return None
+        
     def _write_story_file(self, path: Path, content: str) -> str:
         """Helper method to write story content to a file."""
         try:
@@ -764,6 +805,12 @@ class ContentGenerator:
             logging.error(f"No curriculum found for source day {source_day}")
             return None
         
+        # Load source day transcript for enhancement
+        source_transcript = self._load_source_day_transcript(source_day)
+        if not source_transcript:
+            logging.warning(f"No source day transcript found for day {source_day}, using curriculum data only")
+            source_transcript = f"Source day curriculum data:\nTitle: {source_data.title}\nFocus: {source_data.focus}\nCollocations: {', '.join(source_data.collocations)}"
+        
         logging.info(f"\n--- DEEPER Strategy Generation ---")
         logging.info(f"Target day {target_day} based on source day {source_day}: {source_data.title}")
         
@@ -788,13 +835,24 @@ class ContentGenerator:
             recycled_collocations=enhanced_collocations + review_collocations,
             recycled_vocabulary=[],
             focus=f"Enhanced Filipino authenticity: {source_data.focus}",
-            story_guidance=deeper_guidance
+            story_guidance=deeper_guidance,
+            source_day=source_day,
+            source_day_transcript=source_transcript
         )
         
-        # Generate the story using chat-based approach
-        story = self.generate_chat_story(params, target_day)
+        # Generate the story using strategy-specific approach
+        from content_strategy import ContentStrategy
+        params.content_strategy = ContentStrategy.DEEPER
+        story = self.generate_story(params)
         if not story:
             return None
+        
+        # Save the story to file
+        try:
+            story_path = self._save_story(story, target_day, params.learning_objective)
+            logging.info(f"Story saved to: {story_path}")
+        except Exception as e:
+            logging.warning(f"Failed to save story file: {e}")
         
         # Analyze collocations (simplified for strategy content)
         collocation_report = {
@@ -845,6 +903,13 @@ class ContentGenerator:
         story = self.generate_chat_story(params, target_day)
         if not story:
             return None
+        
+        # Save the story to file
+        try:
+            story_path = self._save_story(story, target_day, params.learning_objective)
+            logging.info(f"Story saved to: {story_path}")
+        except Exception as e:
+            logging.warning(f"Failed to save story file: {e}")
         
         # Analyze collocations
         collocation_report = {

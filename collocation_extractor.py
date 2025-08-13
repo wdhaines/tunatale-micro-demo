@@ -4,7 +4,7 @@ import os
 import spacy
 from collections import defaultdict
 from pathlib import Path
-from typing import List, Dict, Tuple, Set, Any
+from typing import List, Dict, Tuple, Set, Any, Optional
 
 import config
 
@@ -51,12 +51,15 @@ class CollocationExtractor:
                 "Please run: python -m spacy download en_core_web_sm"
             )
     
-    def extract_from_curriculum(self) -> Dict[str, int]:
+    def extract_from_curriculum(self, curriculum_path: Optional[Path] = None) -> Dict[str, int]:
         """Extract collocations from the generated curriculum."""
-        if not config.CURRICULUM_PATH.exists():
+        if curriculum_path is None:
+            curriculum_path = config.CURRICULUM_PATH
+            
+        if not curriculum_path.exists():
             raise FileNotFoundError("Curriculum file not found. Generate a curriculum first.")
         
-        with open(config.CURRICULUM_PATH, 'r', encoding='utf-8') as f:
+        with open(curriculum_path, 'r', encoding='utf-8') as f:
             curriculum = json.load(f)
         
         # Extract text from all phases in the curriculum

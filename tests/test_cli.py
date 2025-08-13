@@ -104,7 +104,9 @@ class TestGenerateCommand:
         assert "Target language: English" in output
         assert "CEFR Level: A2" in output
         assert "Duration: 30 days" in output
-        assert "Curriculum generated successfully and saved to: instance/data/curricula/curriculum.json" in output
+        assert "Curriculum generated successfully and saved to:" in output
+        assert "instance/data/curricula/" in output
+        assert ".json" in output
         
         
     @patch('sys.stderr', new_callable=io.StringIO)

@@ -6,11 +6,6 @@
 **Strategy:** DEEPER (Enhanced Language Complexity)
 **Source Material:** Based on Day {source_day} content
 
-**SOURCE DAY TRANSCRIPT TO ENHANCE:**
-```
-{source_day_transcript}
-```
-
 **New Collocations to Teach:**
 {new_collocations}
 
@@ -41,12 +36,10 @@
 - Incorporate respectful language patterns and indirect communication
 
 **Source Day Transcript Integration:**
-- MUST use the provided source day transcript above as your foundation
-- Enhance the EXACT scenarios from the transcript - do not create new ones
-- Maintain the SAME character names, settings, and story flow
-- Keep the SAME scene headers and dialogue sequence
-- Replace English phrases from source with sophisticated Filipino equivalents
-- Preserve the story structure while elevating the language complexity
+- MUST use provided Day {source_day} transcript as foundation
+- Enhance EXISTING scenarios, do not create completely new ones
+- Maintain character names and situation continuity from source day
+- Replace English phrases from source with Filipino equivalents
 
 **Source Content Integration Requirements:**
 - Build upon themes from Day {source_day} with enhanced sophistication
@@ -102,27 +95,20 @@
 
 **Content Generation Instructions:**
 
-1. **Use Source Transcript as Template:** Take the provided source day transcript and use it as your exact foundation
-2. **Preserve Structure:** Keep the same scene headers, character names, and dialogue flow
-3. **Enhance Language:** Replace basic phrases with sophisticated Filipino equivalents
-4. **Maintain Comprehensibility:** Ensure enhancements feel natural and achievable for learners
+1. **Analyze Source Day Content:** Review the themes, vocabulary, and scenarios from Day {source_day}
+2. **Identify Enhancement Opportunities:** Find places where basic phrases can be replaced with more sophisticated alternatives
+3. **Maintain Scenario Familiarity:** Keep the same general situations but elevate the language used
+4. **Progressive Difficulty:** Ensure enhancements feel natural and achievable for learners
 5. **Cultural Authenticity:** Incorporate Filipino social patterns and communication styles
 
-**Enhancement Approach:**
-- **Same scenario:** Hotel check-in → Enhanced hotel check-in (not new restaurant scene)
-- **Same characters:** If source uses "Maria" and "Carlos", keep "Maria" and "Carlos"  
-- **Same flow:** If source has 3 scenes, enhanced version has 3 scenes in same order
-- **Enhanced language:** "Good morning" → "Magandang umaga po" → "Magandang umaga po sa inyo"
-
 **Quality Validation Checklist:**
-- ✓ Uses source day transcript as exact structural foundation
-- ✓ Maintains same characters, scenes, and dialogue flow from source
+- ✓ Builds logically on Day {source_day} content
 - ✓ Uses 8-12 sophisticated collocations
 - ✓ Demonstrates enhanced Filipino authenticity
 - ✓ Maintains comprehensibility despite complexity increase
 - ✓ Incorporates all review vocabulary naturally
 - ✓ Shows cultural awareness in language choices
+- ✓ Uses source day transcript as foundation
 - ✓ Blocks English when Filipino equivalent exists in SRS
-- ✓ Enhanced content is recognizably the same story as source day
 
 Generate content following the universal lesson format with these DEEPER strategy enhancements applied.

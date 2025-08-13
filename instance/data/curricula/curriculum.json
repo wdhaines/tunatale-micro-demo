@@ -1,57 +1,133 @@
 {
-  "learning_objective": "Prepare for an El Nido, Palawan trip with practical Filipino language skills",
-  "target_language": "Filipino",
+  "learning_objective": "Master basic Filipino for El Nido travel",
+  "target_language": "Filipino", 
   "learner_level": "A2",
-  "presentation_length": 7,
+  "presentation_length": 5,
   "days": [
     {
       "day": 1,
       "title": "Welcome to El Nido!",
-      "focus": "Airport arrival, first greetings, and basic transactions",
+      "focus": "basic greetings and polite interactions",
       "collocations": [
-        "magandang hapon po",
+        "magandang umaga po",
         "salamat po"
       ],
       "presentation_phrases": [
-        "good afternoon (polite)",
-        "thank you"
+        "magandang umaga po",
+        "salamat po"
       ],
-      "learning_objective": "Master polite greetings and basic transactions in Filipino",
-      "story_guidance": "Focus on airport shop and van terminal interactions"
+      "learning_objective": "Master polite greetings and basic thank you",
+      "story_guidance": "Focus on hotel arrival and first interactions"
     },
     {
       "day": 2,
       "title": "At the Hotel",
-      "focus": "Hotel check-in, room needs, and basic requests",
+      "focus": "hotel check-in and room requests", 
       "collocations": [
-        "good morning po",
+        "magandang umaga po",
         "saan po ang"
       ],
       "presentation_phrases": [
-        "good morning (polite)",
-        "where is the"
+        "magandang umaga po",
+        "saan po ang"
       ],
-      "learning_objective": "Navigate hotel interactions and make basic location inquiries",
-      "story_guidance": "Cover check-in process, finding facilities"
+      "learning_objective": "Navigate hotel interactions and ask for locations",
+      "story_guidance": "Cover check-in process and finding facilities"
     },
     {
       "day": 3,
-      "title": "Breakfast and Basic Needs",
-      "focus": "Restaurant interactions, food ordering, and meal preferences",
+      "title": "Getting Around Town",
+      "focus": "transportation and basic directions",
       "collocations": [
-        "breakfast po",
-        "meron po ba kayong"
+        "magkano po",
+        "saan po"
       ],
       "presentation_phrases": [
-        "breakfast please",
-        "do you have"
+        "magkano po", 
+        "saan po"
       ],
-      "learning_objective": "Order food confidently and navigate restaurant dining",
-      "story_guidance": "Include buffet interactions, coffee ordering"
+      "learning_objective": "Ask about prices and directions",
+      "story_guidance": "Focus on tricycle rides and local transportation"
+    },
+    {
+      "day": 4,
+      "title": "At the Restaurant",
+      "focus": "ordering food and drinks",
+      "collocations": [
+        "gusto ko po",
+        "ano po ang"
+      ],
+      "presentation_phrases": [
+        "gusto ko po",
+        "ano po ang"
+      ],
+      "learning_objective": "Order food and ask about menu items",
+      "story_guidance": "Restaurant dining experience with local dishes"
+    },
+    {
+      "day": 5,
+      "title": "Island Hopping",
+      "focus": "beach activities and water sports",
+      "collocations": [
+        "pwede po ba",
+        "magkano po ito"
+      ],
+      "presentation_phrases": [
+        "pwede po ba",
+        "magkano po ito"
+      ],
+      "learning_objective": "Book tours and ask about activities and pricing",
+      "story_guidance": "Beach tour booking and water activity arrangements"
+    },
+    {
+      "day": 6,
+      "title": "Shopping and Souvenirs",
+      "focus": "buying gifts and local products",
+      "collocations": [
+        "meron po ba kayo",
+        "tawad po"
+      ],
+      "presentation_phrases": [
+        "meron po ba kayo", 
+        "tawad po"
+      ],
+      "learning_objective": "Shop for souvenirs and bargain prices",
+      "story_guidance": "Local market shopping with price negotiation"
+    },
+    {
+      "day": 7,
+      "title": "Local Culture",
+      "focus": "understanding Filipino customs",
+      "collocations": [
+        "paano po",
+        "bakit po"
+      ],
+      "presentation_phrases": [
+        "paano po",
+        "bakit po" 
+      ],
+      "learning_objective": "Ask cultural questions politely",
+      "story_guidance": "Learning about local traditions and customs"
+    },
+    {
+      "day": 8,
+      "title": "Saying Goodbye",
+      "focus": "departure and farewell expressions",
+      "collocations": [
+        "salamat sa lahat",
+        "paalam po"
+      ],
+      "presentation_phrases": [
+        "salamat sa lahat",
+        "paalam po"
+      ],
+      "learning_objective": "Express gratitude and say farewell appropriately",
+      "story_guidance": "Hotel checkout and departure farewells"
     }
   ],
   "metadata": {
-    "generated_at": "2025-08-09T19:30:00.000000+00:00",
+    "generated_at": "2023-06-15T10:00:00Z",
+    "transcript_used": false,
     "format": "structured",
     "version": "2.0"
   }
