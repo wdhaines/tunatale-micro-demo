@@ -176,7 +176,63 @@ class StoryCollocationExtractor:
             if phrase and phrase not in phrases:
                 phrases.append(phrase)
                 
+                # Also extract sub-phrases for better SRS matching
+                sub_phrases = self._extract_sub_phrases(phrase)
+                for sub_phrase in sub_phrases:
+                    if sub_phrase not in phrases:
+                        phrases.append(sub_phrase)
+                
         return phrases
+    
+    def _extract_sub_phrases(self, full_phrase: str) -> List[str]:
+        """Extract meaningful sub-phrases from a full sentence for SRS matching."""
+        sub_phrases = []
+        
+        # Clean up the phrase (remove ellipsis formatting)
+        cleaned = re.sub(r'\.{3,}', ' ', full_phrase)  # Replace ... with spaces
+        cleaned = ' '.join(cleaned.split())  # Normalize whitespace
+        
+        # Extract common Filipino collocation patterns
+        patterns = [
+            # Polite phrases
+            r'\bpo\s+ba\b[^.]*',
+            r'\bpo\s+[^.]*',
+            r'\bpaumanhin\s+po\b',
+            r'\bsalamat\s+po\b[^.]*',
+            r'\bpwede\s+po\s+ba\b[^.]*',
+            r'\bmeron\s+po\b[^.]*',
+            r'\bkailangan\s+po\b[^.]*',
+            r'\bano\s+pong?\b[^.]*',
+            r'\bmagkano\s+po\b[^.]*',
+            
+            # Common question patterns  
+            r'\bano\s+[^.]*',
+            r'\bsaan\s+[^.]*',
+            r'\bpaano\s+[^.]*',
+            r'\bkailan\s+[^.]*',
+            
+            # Common response patterns
+            r'\bopo[,\s][^.]*',
+            r'\bhindi\s+po\b[^.]*',
+            r'\btama\s+po\b[^.]*',
+            r'\bwalang\s+anuman\b',
+            
+            # Time and quantity phrases
+            r'\banim\s+na\s+[^.]*',
+            r'\btatlong\s+[^.]*',
+            r'\bisang\s+[^.]*',
+            r'\balas-[^.]*',
+        ]
+        
+        for pattern in patterns:
+            matches = re.findall(pattern, cleaned, re.IGNORECASE)
+            for match in matches:
+                match = match.strip()
+                # Filter out very long phrases (likely full sentences)
+                if 3 <= len(match.split()) <= 6 and match not in sub_phrases:
+                    sub_phrases.append(match)
+        
+        return sub_phrases
     
     def _extract_phrase_from_line(self, line: str) -> Optional[str]:
         """Extract the actual phrase from a [TAGALOG-*]: line."""
