@@ -338,18 +338,29 @@ class ContentGenerator:
             logging.info(f"New collocations: {new_vocab}")
             logging.info(f"Review collocations: {recycled_collocs}")
             
-            # Use chat response to combine system prompt + strategy prompt
-            response = self.llm.chat_response(
-                system_prompt=self.system_prompt,
-                user_prompt=prompt,
+            # Use get_response to generate content with strategy prompt
+            response = self.llm.get_response(
+                prompt=prompt,
                 response_type="story"
             )
             
-            if not response or 'choices' not in response:
-                logging.error("Invalid LLM response format")
+            logging.debug(f"LLM response type: {type(response)}")
+            logging.debug(f"LLM response keys: {response.keys() if isinstance(response, dict) else 'Not a dict'}")
+            
+            # Handle both direct and nested response formats from MockLLM
+            if not response:
+                logging.error("No response from LLM")
                 return None
-                
-            story = response['choices'][0]['message']['content'].strip()
+            
+            # Check for nested response format (MockLLM cache format)
+            if 'response' in response and 'choices' in response['response']:
+                story = response['response']['choices'][0]['message']['content'].strip()
+            # Check for direct response format
+            elif 'choices' in response:
+                story = response['choices'][0]['message']['content'].strip()
+            else:
+                logging.error(f"Invalid LLM response format. Response keys: {response.keys() if isinstance(response, dict) else 'Not a dict'}")
+                return None
             
             if not story:
                 logging.error("Empty story generated")
@@ -824,26 +835,25 @@ class ContentGenerator:
         # Create enhanced story guidance for deeper Filipino
         deeper_guidance = f"{source_data.story_guidance}. DEEPER STRATEGY: Use more authentic Filipino expressions, reduce English, include cultural context and native speech patterns."
         
-        # Create story parameters
-        params = StoryParams(
+        # Create enhanced story parameters for strategy-based generation
+        from content_strategy import EnhancedStoryParams, DifficultyLevel
+        params = EnhancedStoryParams(
             learning_objective=f"DEEPER VERSION: {source_data.learning_objective} with enhanced Filipino authenticity",
             language=curriculum.target_language,
             cefr_level="B1",  # Slightly elevated for deeper content
             phase=target_day,
-            length=curriculum.presentation_length * 12,  # Slightly longer for complexity
-            new_vocabulary=enhanced_phrases,
-            recycled_collocations=enhanced_collocations + review_collocations,
-            recycled_vocabulary=[],
-            focus=f"Enhanced Filipino authenticity: {source_data.focus}",
-            story_guidance=deeper_guidance,
+            content_strategy=ContentStrategy.DEEPER,
+            difficulty_level=DifficultyLevel.INTERMEDIATE,
             source_day=source_day,
-            source_day_transcript=source_transcript
+            source_day_transcript=source_transcript,
+            new_vocabulary=enhanced_phrases,
+            review_collocations=enhanced_collocations + review_collocations,
+            story_guidance=deeper_guidance,
+            focus=f"Enhanced Filipino authenticity: {source_data.focus}"
         )
         
         # Generate the story using strategy-specific approach
-        from content_strategy import ContentStrategy
-        params.content_strategy = ContentStrategy.DEEPER
-        story = self.generate_story(params)
+        story = self.generate_enhanced_story(params)
         if not story:
             return None
         

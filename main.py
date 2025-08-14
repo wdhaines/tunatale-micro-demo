@@ -343,6 +343,65 @@ class CLI:
             help="File path to compare content against for strategy effectiveness"
         )
         
+        # Show day collocations command  
+        show_collocations_parser = subparsers.add_parser(
+            'show-day-collocations',
+            help='Extract and display collocations from a specific day'
+        )
+        show_collocations_parser.add_argument(
+            'day',
+            type=int,
+            help='Day number to analyze (e.g., 12)'
+        )
+        show_collocations_parser.add_argument(
+            '--save',
+            action='store_true',
+            help='Save extraction results to analysis/ directory'
+        )
+        show_collocations_parser.add_argument(
+            '--format',
+            choices=['detailed', 'simple', 'json'],
+            default='detailed',
+            help='Output format (default: detailed)'
+        )
+        
+        # Show SRS status command
+        show_srs_parser = subparsers.add_parser(
+            'show-srs-status', 
+            help='Show SRS status for a specific day'
+        )
+        show_srs_parser.add_argument(
+            '--day',
+            type=int,
+            help='Day number to show SRS status for'
+        )
+        show_srs_parser.add_argument(
+            '--all',
+            action='store_true',
+            help='Show all SRS collocations'
+        )
+        show_srs_parser.add_argument(
+            '--due-only',
+            action='store_true', 
+            help='Show only collocations due for review'
+        )
+        
+        # Debug generation command
+        debug_generation_parser = subparsers.add_parser(
+            'debug-generation',
+            help='Debug what SRS provided vs what appeared in generated content'
+        )
+        debug_generation_parser.add_argument(
+            'day',
+            type=int,
+            help='Day number to debug (e.g., 12)'
+        )
+        debug_generation_parser.add_argument(
+            '--save',
+            action='store_true',
+            help='Save debug report to srs/debug/ directory'
+        )
+        
         return parser
     
     def _setup_story_parser(self, parser: argparse.ArgumentParser) -> None:
@@ -475,6 +534,18 @@ class CLI:
             'validate': Command(
                 handler=self._handle_validate,
                 help='Validate content for trip scenarios and vocabulary gaps'
+            ),
+            'show-day-collocations': Command(
+                handler=self._handle_show_day_collocations,
+                help='Extract and display collocations from a specific day'
+            ),
+            'show-srs-status': Command(
+                handler=self._handle_show_srs_status,
+                help='Show SRS status for a specific day'
+            ),
+            'debug-generation': Command(
+                handler=self._handle_debug_generation,
+                help='Debug what SRS provided vs what appeared in generated content'
             )
         }
 
@@ -1455,6 +1526,266 @@ class CLI:
             traceback.print_exc()
             return 1
     
+    def _handle_show_day_collocations(self, args: argparse.Namespace) -> int:
+        """Handle the show-day-collocations command."""
+        try:
+            from story_collocation_extractor import StoryCollocationExtractor
+            from pathlib import Path
+            
+            day = args.day
+            print(f"Extracting collocations from day {day} story...")
+            
+            extractor = StoryCollocationExtractor()
+            extraction = extractor.extract_from_day_number(day)
+            
+            if not extraction:
+                print(f"No story found for day {day}", file=sys.stderr)
+                return 1
+            
+            # Display results based on format
+            if args.format == 'json':
+                import json
+                print(json.dumps(extraction.to_dict(), indent=2, ensure_ascii=False))
+            elif args.format == 'simple':
+                print(f"Day {extraction.day}: {extraction.total_unique_phrases} unique phrases")
+                for phrase in extraction.key_phrases:
+                    print(f"  • {phrase}")
+            else:  # detailed format
+                print(f"\n=== Day {extraction.day} Collocation Analysis ===")
+                print(f"Story: {extraction.story_file}")
+                print(f"Extraction date: {extraction.extraction_date}")
+                print(f"Total unique phrases: {extraction.total_unique_phrases}")
+                
+                print(f"\nKey Phrases ({len(extraction.key_phrases)}):")
+                for phrase in extraction.key_phrases:
+                    print(f"  • {phrase}")
+                    
+                print(f"\nDialogue Phrases ({len(extraction.dialogue_phrases)}):")
+                for phrase in extraction.dialogue_phrases[:10]:  # Show first 10
+                    print(f"  • {phrase}")
+                if len(extraction.dialogue_phrases) > 10:
+                    print(f"  ... and {len(extraction.dialogue_phrases) - 10} more")
+                    
+                if extraction.english_phrases:
+                    print(f"\nEnglish phrases found ({len(extraction.english_phrases)}):")
+                    for phrase in extraction.english_phrases:
+                        print(f"  • {phrase}")
+            
+            # Save if requested
+            if args.save:
+                output_file = extractor.save_extraction(extraction)
+                print(f"\nResults saved to: {output_file}")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"Error extracting collocations: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:
+                import traceback
+                traceback.print_exc()
+            return 1
+    
+    def _handle_show_srs_status(self, args: argparse.Namespace) -> int:
+        """Handle the show-srs-status command."""
+        try:
+            from srs_tracker import SRSTracker
+            from pathlib import Path
+            
+            # Load SRS tracker
+            srs = SRSTracker()
+            
+            srs_paths = [
+                Path("instance/data/srs_status.json"),
+                Path("data/srs_status.json")
+            ]
+            
+            srs_file_found = False
+            for srs_path in srs_paths:
+                if srs_path.exists():
+                    srs_file_found = True
+                    break
+            
+            if not srs_file_found:
+                print("No SRS data found. Generate some content first.", file=sys.stderr)
+                print("Checked paths:", [str(p) for p in srs_paths])
+                return 1
+            
+            if args.all:
+                # Show all collocations
+                print(f"\n=== All SRS Collocations ({len(srs.collocations)}) ===")
+                for text, status in srs.collocations.items():
+                    next_review = "Never" if status.next_review_day is None else f"Day {status.next_review_day}"
+                    print(f"  • {text}")
+                    print(f"    Stability: {status.stability:.2f}, Next review: {next_review}")
+                    
+            elif args.day:
+                # Show collocations for specific day
+                day = args.day
+                due_collocations = srs.get_due_collocations(day)
+                
+                print(f"\n=== SRS Status for Day {day} ===")
+                print(f"Due for review: {len(due_collocations)} collocations")
+                
+                if due_collocations:
+                    for colloc in due_collocations:
+                        status = srs.collocations.get(colloc)
+                        if status:
+                            print(f"  • {colloc}")
+                            print(f"    Stability: {status.stability:.2f}")
+                        else:
+                            print(f"  • {colloc} (no status data)")
+                else:
+                    print("  No collocations due for review")
+                    
+            elif args.due_only:
+                # Show only collocations due for review
+                current_day = 1  # Default to day 1, could be made configurable
+                due_collocations = srs.get_due_collocations(current_day)
+                
+                print(f"\n=== Collocations Due for Review ===")
+                if due_collocations:
+                    for colloc in due_collocations:
+                        status = srs.collocations.get(colloc)
+                        if status:
+                            print(f"  • {colloc}")
+                            print(f"    Due since day: {status.next_review_day}")
+                        else:
+                            print(f"  • {colloc} (no status data)")
+                else:
+                    print("  No collocations currently due for review")
+            else:
+                # Show summary
+                total_collocations = len(srs.collocations)
+                current_day = 1  # Default, could be made configurable
+                due_count = len([c for c in srs.collocations.values() 
+                               if c.next_review_day is not None and c.next_review_day <= current_day])
+                
+                print(f"\n=== SRS Summary ===")
+                print(f"Total collocations tracked: {total_collocations}")
+                print(f"Due for review: {due_count}")
+                print(f"Average stability: {sum(c.stability for c in srs.collocations.values()) / total_collocations:.2f}" if total_collocations > 0 else "Average stability: N/A")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"Error showing SRS status: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:
+                import traceback
+                traceback.print_exc()
+            return 1
+    
+    def _handle_debug_generation(self, args: argparse.Namespace) -> int:
+        """Handle the debug-generation command."""
+        try:
+            from story_collocation_extractor import StoryCollocationExtractor
+            from srs_tracker import SRSTracker
+            from pathlib import Path
+            import json
+            
+            day = args.day
+            print(f"Debugging content generation for day {day}...")
+            
+            # Extract actual collocations from generated story
+            extractor = StoryCollocationExtractor()
+            extraction = extractor.extract_from_day_number(day)
+            
+            if not extraction:
+                print(f"No story found for day {day}", file=sys.stderr)
+                return 1
+            
+            # Load SRS status to see what was supposedly provided
+            srs = SRSTracker()
+            due_collocations = srs.get_due_collocations(day)
+            
+            # Create debug report
+            debug_report = {
+                "day": day,
+                "story_file": extraction.story_file,
+                "debug_date": extraction.extraction_date,
+                "srs_provided": {
+                    "due_collocations": due_collocations,
+                    "count": len(due_collocations)
+                },
+                "story_contained": {
+                    "key_phrases": extraction.key_phrases,
+                    "dialogue_phrases": extraction.dialogue_phrases,
+                    "total_unique": extraction.total_unique_phrases
+                },
+                "analysis": {
+                    "srs_matches": [],
+                    "srs_missing": [],
+                    "story_only": extraction.all_tagalog_phrases.copy()
+                }
+            }
+            
+            # Analyze what SRS provided vs what appeared in story
+            for srs_colloc in due_collocations:
+                found_in_story = False
+                for story_phrase in extraction.all_tagalog_phrases:
+                    if srs_colloc.lower() in story_phrase.lower() or story_phrase.lower() in srs_colloc.lower():
+                        debug_report["analysis"]["srs_matches"].append({
+                            "srs_provided": srs_colloc,
+                            "story_phrase": story_phrase
+                        })
+                        found_in_story = True
+                        # Remove from story_only list
+                        if story_phrase in debug_report["analysis"]["story_only"]:
+                            debug_report["analysis"]["story_only"].remove(story_phrase)
+                        break
+                
+                if not found_in_story:
+                    debug_report["analysis"]["srs_missing"].append(srs_colloc)
+            
+            # Display debug report
+            print(f"\n=== Debug Report for Day {day} ===")
+            print(f"Story: {Path(extraction.story_file).name}")
+            print(f"\nSRS provided {len(due_collocations)} collocations for review:")
+            for colloc in due_collocations:
+                print(f"  • {colloc}")
+            
+            print(f"\nStory contained {extraction.total_unique_phrases} unique phrases")
+            
+            print(f"\nMatches (SRS → Story):")
+            if debug_report["analysis"]["srs_matches"]:
+                for match in debug_report["analysis"]["srs_matches"]:
+                    print(f"  ✓ {match['srs_provided']} → {match['story_phrase']}")
+            else:
+                print("  No matches found")
+            
+            print(f"\nSRS collocations missing from story:")
+            if debug_report["analysis"]["srs_missing"]:
+                for missing in debug_report["analysis"]["srs_missing"]:
+                    print(f"  ✗ {missing}")
+            else:
+                print("  All SRS collocations appeared in story")
+            
+            print(f"\nStory-only phrases (not from SRS):")
+            story_only_sample = debug_report["analysis"]["story_only"][:10]
+            for phrase in story_only_sample:
+                print(f"  + {phrase}")
+            if len(debug_report["analysis"]["story_only"]) > 10:
+                print(f"  ... and {len(debug_report['analysis']['story_only']) - 10} more")
+            
+            # Save debug report if requested
+            if args.save:
+                debug_dir = Path("instance/data/srs/debug")
+                debug_dir.mkdir(parents=True, exist_ok=True)
+                
+                debug_file = debug_dir / f"day_{day}_debug_report.json"
+                with open(debug_file, 'w', encoding='utf-8') as f:
+                    json.dump(debug_report, f, indent=2, ensure_ascii=False)
+                
+                print(f"\nDebug report saved to: {debug_file}")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"Error debugging generation: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:
+                import traceback
+                traceback.print_exc()
+            return 1
+    
     def run(self) -> int:
         """Run the CLI application."""
         try:
@@ -1536,6 +1867,54 @@ class CLI:
         """Clear cache entries for a specific day's story generation."""
         cleared_count = 0
         
+        # For day-specific clearing, we need to generate the expected prompt hash
+        # and remove any cache files that would be used for this day's generation
+        from story_generator import ContentGenerator
+        from content_strategy import ContentStrategy
+        
+        try:
+            # Create the same prompt that would be generated for this day
+            # This ensures we clear the right cache regardless of content
+            generator = ContentGenerator()
+            
+            # Get current args to understand the strategy being used
+            import sys
+            args = sys.argv
+            strategy = ContentStrategy.BALANCED  # Default
+            source_day = None
+            
+            # Parse strategy from command line args
+            if '--strategy=deeper' in ' '.join(args):
+                strategy = ContentStrategy.DEEPER
+            elif '--strategy=wider' in ' '.join(args):
+                strategy = ContentStrategy.WIDER
+                
+            # Parse source day from command line args
+            for i, arg in enumerate(args):
+                if arg.startswith('--source-day='):
+                    source_day = int(arg.split('=')[1])
+                elif arg == '--source-day' and i + 1 < len(args):
+                    source_day = int(args[i + 1])
+            
+            # Generate the expected prompt hash for this day/strategy combination
+            if strategy in [ContentStrategy.DEEPER, ContentStrategy.WIDER]:
+                # For strategy-based generation, create the enhanced prompt
+                if source_day:
+                    try:
+                        # This will generate the same prompt that will be used
+                        result = generator.generate_strategy_based_story(
+                            target_day=day, 
+                            strategy=strategy, 
+                            source_day=source_day,
+                            _dry_run=True  # Don't actually generate, just get the prompt
+                        )
+                    except:
+                        # If dry run fails, fall back to pattern matching
+                        pass
+        except:
+            # If smart clearing fails, fall back to pattern matching
+            pass
+        
         # Read each cache file to see if it's for the target day
         for cache_file in cache_dir.glob('*.json'):
             try:
@@ -1543,13 +1922,73 @@ class CLI:
                     import json
                     cache_data = json.load(f)
                     
-                # Check if this cache entry is for the target day
+                # Handle both old and new cache formats
+                user_prompt = None
+                content = None
+                
+                # New format: has 'user_prompt' field
                 if 'user_prompt' in cache_data:
                     user_prompt = cache_data['user_prompt']
-                    # Look for day-specific patterns in the prompt
-                    if f"Day {day} Story" in user_prompt or f"Generate Day {day}" in user_prompt:
-                        cache_file.unlink()
-                        cleared_count += 1
+                
+                # Old format: direct content in 'choices' 
+                elif 'choices' in cache_data and cache_data['choices']:
+                    content = cache_data['choices'][0]['message']['content']
+                
+                # Skip if we can't extract searchable text
+                if not user_prompt and not content:
+                    continue
+                    
+                # Search text is either the user prompt or the content itself
+                search_text = user_prompt if user_prompt else content
+                
+                # Look for day-specific patterns in the text
+                day_patterns = [
+                    f"Day {day} Story",           # Basic story generation
+                    f"Generate Day {day}",        # Alternative basic pattern
+                    f"Day {day}:",               # Strategy-specific prompts (DEEPER/WIDER)
+                    f"Target day {day}",         # Strategy prompts with "target day"
+                    f"day {day}",                # Lowercase variants
+                    f"Day{day}",                 # No space variants
+                ]
+                
+                # Also check for strategy-specific patterns that reference the day
+                strategy_patterns = [
+                    "DEEPER Strategy Content Generation Request",
+                    "WIDER Strategy Content Generation Request", 
+                    "Enhanced Language Complexity",
+                    "Scenario Expansion"
+                ]
+                
+                # Check if any day pattern matches
+                day_match = any(pattern in search_text for pattern in day_patterns)
+                
+                # For strategy prompts, also check if they reference the target day anywhere
+                strategy_match = False
+                if any(pattern in search_text for pattern in strategy_patterns):
+                    # If it's a strategy prompt, check if it mentions our target day anywhere
+                    strategy_match = str(day) in search_text
+                
+                # AGGRESSIVE CLEARING: For day-specific requests, be more liberal
+                # Clear any cache that might be related to this day's generation
+                aggressive_match = False
+                
+                # Check if this could be a response for the target day
+                # Look for the day number anywhere in the content or prompt
+                if str(day) in search_text:
+                    aggressive_match = True
+                
+                # For old format caches, if we can't clearly identify the day,
+                # clear it if it looks like story content for safety
+                elif content and not user_prompt:
+                    # Old format story cache - if it contains story markers, clear it
+                    story_markers = ['[NARRATOR]:', 'Key Phrases:', 'Natural Speed', 'Slow Speed']
+                    if any(marker in content for marker in story_markers):
+                        # This looks like a story cache, clear it to be safe
+                        aggressive_match = True
+                
+                if day_match or strategy_match or aggressive_match:
+                    cache_file.unlink()
+                    cleared_count += 1
                         
             except Exception:
                 # Skip files that can't be read/parsed

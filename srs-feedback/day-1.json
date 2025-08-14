@@ -1,0 +1,39 @@
+{
+    "date": "2025-01-15",
+    "sessions": [
+      {"day": 12, "completion": 1.0, "retention_test": true}
+    ],
+    "recognized": [
+      "most_key_phrases", 
+      "are_you_open_slow_speed", 
+      "masarap_root_word",
+      "many_complete_sentences",
+      "pinaka_prefix_pattern_after_explanation"
+    ],
+    "partial": [
+      {"item": "menu", "issue": "connected_speech_parsing"},
+      {"item": "have_a_seat", "issue": "component_word_clarity"},
+      {"item": "pinaka_masarap", "issue": "prefix_initially_unknown"}
+    ],
+    "missed": [
+      "excuse_me_tagalog",
+      "come_sit_here_construction", 
+      "dishes_tableware",
+      "taste_verb_noun",
+      "fresh_just_made",
+      "calling_going_to_market",
+      "it_tasted_good_construction"
+    ],
+    "regression": ["one_english_collocation_tbd"],
+    "technical_issues": [
+      "incomplete_breakdown_patterns",
+      "over_syllabification",
+      "srs_debug_visibility_missing"
+    ],
+    "learning_insights": [
+      "multi_section_format_effective",
+      "retention_vs_component_clarity_distinction",
+      "morphological_pattern_acceleration",
+      "functional_vs_specialized_vocabulary_targeting"
+    ]
+  }

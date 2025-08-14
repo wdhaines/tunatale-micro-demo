@@ -294,6 +294,7 @@ class EnhancedStoryParams:
     content_strategy: ContentStrategy = ContentStrategy.BALANCED
     difficulty_level: DifficultyLevel = DifficultyLevel.BASIC
     source_day: Optional[int] = None  # For DEEPER mode - which day to enhance
+    source_day_transcript: Optional[str] = None  # For DEEPER mode - source day content
     
     # SRS integration
     new_vocabulary: list = None
