@@ -112,7 +112,7 @@ class TestSRSCollocationTracking:
         
         # Mock the LLM to return our sample story
         mock_llm = MagicMock()
-        mock_llm.get_response.return_value = {
+        mock_llm.chat_response.return_value = {
             "choices": [{"message": {"content": SAMPLE_STORY, "role": "assistant"}}]
         }
         
@@ -245,6 +245,7 @@ class TestSRSCollocationTracking:
                 # Don't call original_init to avoid file operations
                 # Set up required attributes directly
                 self.story_prompt = "Test story prompt"
+                self.system_prompt = "Test system prompt"  # Add missing system_prompt
                 self.srs = srs_tracker
                 # Add any other required attributes that would normally be set in __init__
                 self.llm = None  # Will be set later in the test
@@ -295,7 +296,7 @@ class TestSRSCollocationTracking:
     
         # Mock the LLM
         mock_llm = MagicMock()
-        mock_llm.get_response.return_value = {
+        mock_llm.chat_response.return_value = {
             "choices": [{"message": {"content": SAMPLE_STORY, "role": "assistant"}}]
         }
     

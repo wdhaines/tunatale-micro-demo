@@ -1,0 +1,77 @@
+{
+  "current_day": 1,
+  "collocations": {
+    "pwede po ba": {
+      "text": "pwede po ba",
+      "first_seen_day": 1,
+      "last_seen_day": 1,
+      "appearances": [
+        1,
+        1
+      ],
+      "review_count": 1,
+      "next_review_day": 2,
+      "stability": 1.2
+    },
+    "magkano po ito": {
+      "text": "magkano po ito",
+      "first_seen_day": 1,
+      "last_seen_day": 1,
+      "appearances": [
+        1,
+        1
+      ],
+      "review_count": 1,
+      "next_review_day": 2,
+      "stability": 1.2
+    },
+    "salamat po sa inyo": {
+      "text": "salamat po sa inyo",
+      "first_seen_day": 1,
+      "last_seen_day": 1,
+      "appearances": [
+        1,
+        1
+      ],
+      "review_count": 1,
+      "next_review_day": 2,
+      "stability": 1.2
+    },
+    "ano pong oras": {
+      "text": "ano pong oras",
+      "first_seen_day": 1,
+      "last_seen_day": 1,
+      "appearances": [
+        1,
+        1
+      ],
+      "review_count": 1,
+      "next_review_day": 2,
+      "stability": 1.2
+    },
+    "kailangan po namin": {
+      "text": "kailangan po namin",
+      "first_seen_day": 1,
+      "last_seen_day": 1,
+      "appearances": [
+        1,
+        1
+      ],
+      "review_count": 1,
+      "next_review_day": 2,
+      "stability": 1.2
+    },
+    "paumanhin po": {
+      "text": "paumanhin po",
+      "first_seen_day": 1,
+      "last_seen_day": 1,
+      "appearances": [
+        1,
+        1
+      ],
+      "review_count": 1,
+      "next_review_day": 2,
+      "stability": 1.2
+    }
+  }
+}

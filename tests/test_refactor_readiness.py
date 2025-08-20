@@ -477,13 +477,13 @@ class TestRefactorSafetyChecks:
         
         cli = CLI()
         
-        # Test that parser still has all original commands (excluding removed commands)
-        original_commands = [
-            'generate', 'extract', 'extend', 'generate-day', 
-            'continue', 'view', 'analyze'
+        # Test that parser still has remaining commands after CLI cleanup
+        # Removed: extract, extend, enhance, recommend, validate, strategy, story
+        remaining_commands = [
+            'generate', 'generate-day', 'view', 'analyze'
         ]
         
-        for command in original_commands:
+        for command in remaining_commands:
             assert command in cli.commands, f"Missing CLI command: {command}"
         
         # Test that help still works

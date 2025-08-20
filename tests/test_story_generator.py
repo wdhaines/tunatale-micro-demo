@@ -108,10 +108,10 @@ def test_generate_story_creates_output_dir(content_generator: ContentGenerator, 
     
     # Use the content_generator from the fixture
     generator = content_generator
-    generator.llm.get_response.return_value = mock_response
+    generator.llm.chat_response.return_value = mock_response
     
     # Create a mock for the _save_story method that matches the actual method signature
-    def save_story_impl(story: str, phase: int, learning_objective: str) -> str:
+    def save_story_impl(story: str, phase: int, learning_objective: str, strategy=None, source_day=None) -> str:
         # Create the output directory if it doesn't exist
         output_dir = test_output_dir / f'day_{phase}'
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -135,7 +135,7 @@ def test_generate_story_creates_output_dir(content_generator: ContentGenerator, 
         assert result.strip() == "This is a test story about carnivorous plants.", "Should return the generated story"
         
         # Verify the LLM was called with the correct prompt
-        generator.llm.get_response.assert_called_once()
+        generator.llm.chat_response.assert_called_once()
         
         # Verify save_story was called with the correct parameters
         mock_save_story.assert_called_once()
@@ -174,7 +174,7 @@ def test_generate_story_handles_ioerror(content_generator: ContentGenerator) -> 
     
     # Mock the LLM to return our test story
     content_generator.llm = MagicMock()
-    content_generator.llm.get_response.return_value = mock_response
+    content_generator.llm.chat_response.return_value = mock_response
     
     # Patch the prompt to avoid file operations
     content_generator.story_prompt = "Test prompt with {new_collocations} and {review_collocations} for {learning_objective} at {learner_level} level focusing on {focus} with {story_guidance}"
@@ -395,10 +395,10 @@ def test_generate_story_uses_prompt_template(content_generator: ContentGenerator
     # Configure mocks
     content_generator.story_prompt = test_prompt
     mock_response = {"choices": [{"message": {"content": test_story, "role": "assistant"}}]}
-    content_generator.llm.get_response.return_value = mock_response
+    content_generator.llm.chat_response.return_value = mock_response
 
     # Create a mock for the _save_story method that matches the actual method signature
-    def save_story_impl(story: str, phase: int, learning_objective: str) -> str:
+    def save_story_impl(story: str, phase: int, learning_objective: str, strategy=None, source_day=None) -> str:
         # Just return a test path, don't actually write to disk
         return str(tmp_path / 'test_data' / 'stories' / f'story_day{phase}_test.txt')
     
@@ -475,7 +475,7 @@ def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp
     
     # Configure mocks
     mock_response = {"choices": [{"message": {"content": test_story, "role": "assistant"}}]}
-    content_generator.llm.get_response.return_value = mock_response
+    content_generator.llm.chat_response.return_value = mock_response
     
     # Mock the _load_curriculum method
     content_generator._load_curriculum = MagicMock(return_value=test_curriculum)
@@ -485,7 +485,7 @@ def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp
     content_generator.srs.add_collocations = MagicMock()
     
     # Create a mock for the _save_story method
-    def save_story_impl(story: str, phase: int, learning_objective: str) -> str:
+    def save_story_impl(story: str, phase: int, learning_objective: str, strategy=None, source_day=None) -> str:
         return str(tmp_path / 'test_data' / 'stories' / f'story_day{phase}_test.txt')
     
     mock_save_story = MagicMock(wraps=save_story_impl)
@@ -501,7 +501,7 @@ def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp
         assert result is not None
         
         # Verify the LLM was called with the correct prompt
-        content_generator.llm.get_response.assert_called_once()
+        content_generator.llm.chat_response.assert_called_once()
         
         # Verify curriculum was loaded (called twice: once in generate_story_for_day and once in generate_day_story)
         assert content_generator._load_curriculum.call_count == 2

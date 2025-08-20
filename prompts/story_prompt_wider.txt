@@ -17,6 +17,8 @@
 
 **WIDER STRATEGY RULES:**
 
+**Scene Header Reminder:** All scene descriptions must use "[NARRATOR]: [English Description]" format. Never use standalone Tagalog headers like "Umaga sa Hotel".
+
 **Scenario Expansion Philosophy:**
 - Create NEW contexts using familiar vocabulary from Day {source_day}
 - Maintain the SAME difficulty level as source material

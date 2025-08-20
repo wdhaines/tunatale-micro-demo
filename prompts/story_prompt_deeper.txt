@@ -22,6 +22,8 @@
 
 **DEEPER STRATEGY-SPECIFIC RULES:**
 
+**Scene Header Reminder:** All scene descriptions must use "[NARRATOR]: [English Description]" format. Never use standalone Tagalog headers like "Umaga sa Hotel".
+
 **Collocation Count Constraints:**
 - Target: 8-12 collocations (quality with sufficient coverage)
 - Focus on sophisticated, enhanced language patterns

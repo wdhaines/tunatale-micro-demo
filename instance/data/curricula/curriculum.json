@@ -1,6 +1,6 @@
 {
   "learning_objective": "Master basic Filipino for El Nido travel",
-  "target_language": "Filipino", 
+  "target_language": "Filipino",
   "learner_level": "A2",
   "presentation_length": 5,
   "days": [
@@ -22,7 +22,7 @@
     {
       "day": 2,
       "title": "At the Hotel",
-      "focus": "hotel check-in and room requests", 
+      "focus": "hotel check-in and room requests",
       "collocations": [
         "magandang umaga po",
         "saan po ang"
@@ -43,7 +43,7 @@
         "saan po"
       ],
       "presentation_phrases": [
-        "magkano po", 
+        "magkano po",
         "saan po"
       ],
       "learning_objective": "Ask about prices and directions",
@@ -88,7 +88,7 @@
         "tawad po"
       ],
       "presentation_phrases": [
-        "meron po ba kayo", 
+        "meron po ba kayo",
         "tawad po"
       ],
       "learning_objective": "Shop for souvenirs and bargain prices",
@@ -104,7 +104,7 @@
       ],
       "presentation_phrases": [
         "paano po",
-        "bakit po" 
+        "bakit po"
       ],
       "learning_objective": "Ask cultural questions politely",
       "story_guidance": "Learning about local traditions and customs"
@@ -123,6 +123,42 @@
       ],
       "learning_objective": "Express gratitude and say farewell appropriately",
       "story_guidance": "Hotel checkout and departure farewells"
+    },
+    {
+      "day": 9,
+      "title": "Day 9: buying gifts and local products",
+      "focus": "buying gifts and local products",
+      "collocations": [
+        "meron po ba kayo",
+        "tawad po"
+      ],
+      "presentation_phrases": [
+        "meron po ba kayo",
+        "tawad po"
+      ],
+      "learning_objective": "Enhanced Shop for souvenirs and bargain prices with sophisticated Filipino",
+      "story_guidance": "Generated using DEEPER strategy"
+    },
+    {
+      "day": 10,
+      "title": "Day 10: Local island hopping and snorkeling adventures",
+      "focus": "Local island hopping and snorkeling adventures",
+      "collocations": [
+        "salamat po",
+        "kumusta po",
+        "magkano po",
+        "puwede po ba",
+        "sarap naman",
+        "ganda talaga"
+      ],
+      "presentation_phrases": [
+        "salamat po",
+        "kumusta po",
+        "magkano po",
+        "puwede po ba"
+      ],
+      "learning_objective": "Day 10: Local island hopping and snorkeling adventures - Building on curriculum foundation",
+      "story_guidance": "Generated using WIDER strategy"
     }
   ],
   "metadata": {

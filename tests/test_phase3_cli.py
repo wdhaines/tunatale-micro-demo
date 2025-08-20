@@ -257,60 +257,13 @@ class TestPhase3CLICommands:
             # assert "Trip Readiness Score:" in output
             # assert "Scenario coverage:" in output
 
-    def test_recommend_command_subprocess(self):
-        """Test recommend command via subprocess."""
-        result = subprocess.run(
-            [sys.executable, "main.py", "recommend", "--help"],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
-        
-        # Should show help for recommend command
-        assert result.returncode == 0, f"Recommend help failed: {result.stderr}"
-        assert "recommend" in result.stdout.lower()
-
-    def test_validate_command_subprocess(self):
-        """Test validate command via subprocess.""" 
-        result = subprocess.run(
-            [sys.executable, "main.py", "validate", "--help"],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
-        
-        # Should show help for validate command  
-        assert result.returncode == 0, f"Validate help failed: {result.stderr}"
-        assert "validate" in result.stdout.lower()
-
-    def test_recommend_command_unit(self):
-        """Test that recommend command exists and basic functionality."""
-        # Simplified test - just ensure the command is available and doesn't crash on invalid input
-        cli = CLI()
-        args = MagicMock()
-        args.days = "1-2"
-        args.target = "el-nido-trip"
-        
-        # This will fail due to missing files, but we just want to test the code path exists
-        result = cli._handle_recommend(args)
-        
-        # Should return error code due to missing files, but not crash
-        assert result == 1  # Expected failure due to missing files
-
-    def test_validate_command_unit(self):
-        """Test that validate command exists and basic functionality."""
-        # Simplified test - just ensure the command is available and doesn't crash on invalid input
-        cli = CLI()
-        args = MagicMock()
-        args.original_file = "nonexistent1.txt"
-        args.enhanced_file = "nonexistent2.txt"
-        args.strategy = "deeper"
-        
-        # This will fail due to missing files, but we just want to test the code path exists
-        result = cli._handle_validate(args)
-        
-        # Should return error code due to missing files, but not crash
-        assert result == 1  # Expected failure due to missing files
+    # These test methods were removed because recommend and validate commands 
+    # were deprecated in the CLI cleanup refactor
+    
+    # def test_recommend_command_subprocess(self): # REMOVED
+    # def test_validate_command_subprocess(self): # REMOVED  
+    # def test_recommend_command_unit(self): # REMOVED
+    # def test_validate_command_unit(self): # REMOVED
 
     def test_combined_quality_and_trip_flags(self, sample_content):
         """Test using both --quality and --trip-readiness flags together."""
@@ -338,13 +291,12 @@ class TestPhase3CLICommands:
 
     def test_cli_error_handling_for_new_commands(self):
         """Test error handling for new Phase 3 commands."""
+        # Error cases for removed commands were commented out
         error_cases = [
-            # Missing required arguments
-            (["recommend"], "Missing content files for recommendation"),
-            (["validate"], "Missing files for validation"),
-            
-            # Invalid strategy names
-            (["validate", "file1.txt", "file2.txt", "--strategy", "invalid"], "Invalid strategy")
+            # recommend and validate commands were removed in CLI cleanup
+            # (["recommend"], "Missing content files for recommendation"),
+            # (["validate"], "Missing files for validation"),
+            # (["validate", "file1.txt", "file2.txt", "--strategy", "invalid"], "Invalid strategy")
         ]
         
         for args, description in error_cases:
@@ -360,7 +312,8 @@ class TestPhase3CLICommands:
             assert result.returncode < 128, f"{description} should not crash"
 
     def test_help_text_includes_phase3_commands(self):
-        """Test that help text includes Phase 3 commands."""
+        """Test that Phase 3 commands are available."""
+        # Test main help includes analyze command
         result = subprocess.run(
             [sys.executable, "main.py", "--help"],
             capture_output=True,
@@ -370,12 +323,24 @@ class TestPhase3CLICommands:
         
         assert result.returncode == 0
         help_text = result.stdout.lower()
+        assert "analyze" in help_text, "Main help should include analyze command"
         
-        # Should mention new commands or flags
-        phase3_indicators = ["quality", "recommend", "validate", "trip"]
+        # Test that analyze command supports Phase 3 features
+        result = subprocess.run(
+            [sys.executable, "main.py", "analyze", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
         
-        assert any(indicator in help_text for indicator in phase3_indicators), \
-            f"Help text should mention Phase 3 features: {result.stdout}"
+        assert result.returncode == 0
+        analyze_help = result.stdout.lower()
+        
+        # Should mention Phase 3 features in analyze help
+        phase3_indicators = ["quality", "trip"]
+        
+        assert any(indicator in analyze_help for indicator in phase3_indicators), \
+            f"Analyze help should mention Phase 3 features: {result.stdout}"
 
     def test_file_based_analysis_with_quality_flag(self, tmp_path):
         """Test quality analysis with file input."""
@@ -418,11 +383,9 @@ class TestPhase3CLIWorkflow:
             # Step 2: Analyze trip readiness
             (["analyze", str(original_file), "--trip-readiness"], "Analyze trip readiness"),
             
-            # Step 3: Get strategy recommendation (may fail in test env)
-            (["recommend", str(original_file), "--strategies", "balanced"], "Get recommendation"),
-            
-            # Step 4: Validate improvement (may fail in test env)
-            (["validate", str(original_file), str(enhanced_file), "--strategy", "deeper"], "Validate improvement")
+            # Steps 3-4: recommend and validate commands were removed in CLI cleanup
+            # (["recommend", str(original_file), "--strategies", "balanced"], "Get recommendation"),
+            # (["validate", str(original_file), str(enhanced_file), "--strategy", "deeper"], "Validate improvement")
         ]
         
         for args, description in workflow_steps:
@@ -465,8 +428,8 @@ class TestPhase3CLIWorkflow:
             # Check trip readiness
             (["analyze", str(day2_file), "--trip-readiness"], "Check trip readiness"),
             
-            # Validate improvement
-            (["validate", str(day1_file), str(day2_file), "--strategy", "deeper"], "Validate improvement")
+            # Validate improvement - removed in CLI cleanup
+            # (["validate", str(day1_file), str(day2_file), "--strategy", "deeper"], "Validate improvement")
         ]
         
         successful_steps = 0
