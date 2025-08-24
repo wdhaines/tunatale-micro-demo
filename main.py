@@ -163,13 +163,13 @@ class CLI:
             'generate-day',
             help='Generate story for specific curriculum day with SRS and strategy support'
         )
-        story_day_parser.add_argument('day', type=int, help='Day number (1-5)')
+        story_day_parser.add_argument('day', type=int, help='Day number (1-20)')
         story_day_parser.add_argument(
             '--strategy', 
             type=str, 
-            choices=['balanced', 'wider', 'deeper'],
-            default='balanced',
-            help='Content generation strategy (default: balanced)'
+            choices=['wider', 'deeper'],
+            default='wider',
+            help='Content generation strategy (default: wider)'
         )
         story_day_parser.add_argument(
             '--source-day',
@@ -319,8 +319,8 @@ class CLI:
         parser.add_argument(
             '--day',
             type=self._positive_int,
-            choices=range(1, 6),
-            help='Day number (1-5) to view'
+            choices=range(1, 21),
+            help='Day number (1-20) to view'
         )
     
     @staticmethod
@@ -461,7 +461,6 @@ class CLI:
         try:
             # Convert string strategy to ContentStrategy enum
             strategy_map = {
-                'balanced': ContentStrategy.BALANCED,
                 'wider': ContentStrategy.WIDER,
                 'deeper': ContentStrategy.DEEPER
             }
