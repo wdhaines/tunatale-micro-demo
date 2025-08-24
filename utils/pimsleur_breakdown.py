@@ -54,65 +54,58 @@ TAGALOG_SYLLABLES = {
 
 def syllabify_tagalog_word(word: str) -> List[str]:
     """
-    Break Tagalog word into syllables using heuristic Filipino syllabification rules.
+    Break Tagalog word into syllables using official KWF syllabification rules.
     
-    Based on official Filipino syllabification rules:
-    - Four patterns: V, CV, VC, CVC
-    - No 4-letter syllables 
-    - Avoid consonant/vowel clusters (CCV, VCC, CVV, VVC)
-    - Prefer 2-letter CV/VC patterns
-    - "ng" treated as single consonant
-    - Double vowels are separated
+    Based on Ortograpiyang Pambansa (2013) by Komisyon ng Wikang Filipino:
+    - Rule 1: Each syllable must have exactly one vowel sound
+    - Rule 2: Consecutive vowels are always separated into different syllables  
+    - Rule 3: Single consonant between vowels goes with the following vowel
+    - Rule 4: Multiple consonants are split (first with preceding, rest with following)
+    - Rule 5: Consonant clusters that can start syllables stay together
+    - Rule 6: "ng" is treated as a single consonant unit
     
     Args:
         word: Tagalog word to syllabify
         
     Returns:
-        List of syllables following Filipino phonotactic rules
+        List of syllables following official KWF rules
     """
     word_lower = word.lower().strip()
     
-    # For backwards compatibility, check dictionary first for common words
-    if word_lower in TAGALOG_SYLLABLES:
-        return TAGALOG_SYLLABLES[word_lower]
+    # Handle empty or very short words
+    if not word_lower or len(word_lower) == 1:
+        return [word_lower] if word_lower else []
     
-    # Apply heuristic Filipino syllabification rules
-    return _syllabify_tagalog_heuristic(word_lower)
+    # Apply official KWF syllabification rules
+    return _syllabify_kwf_rules(word_lower)
 
 
-def _syllabify_tagalog_heuristic(word: str) -> List[str]:
+def _syllabify_kwf_rules(word: str) -> List[str]:
     """
-    Apply heuristic Filipino syllabification rules based on official patterns.
+    Apply official KWF syllabification rules from Ortograpiyang Pambansa (2013).
     
-    Implements the 4 Filipino syllable patterns: V, CV, VC, CVC
-    Following rules from tagalog.com syllabification guide:
-    - No 4+ letter syllables
-    - Avoid consonant/vowel clusters when possible
-    - "ng" treated as single consonant 
-    - Double vowels separated
-    - Prefer CV/VC patterns
+    Implements the 6 core KWF rules:
+    1. Each syllable must have exactly one vowel sound
+    2. Consecutive vowels are always separated  
+    3. Single consonant between vowels goes with following vowel (V-CV)
+    4. Multiple consonants split (VC-CV)
+    5. True consonant clusters stay together with following vowel
+    6. "ng" treated as single consonant
     """
     if not word:
         return []
     
-    # Handle very short words
-    if len(word) <= 2:
-        return [word]
+    # Step 1: Normalize "ng" sequences
+    normalized = _normalize_ng_sequences(word)
     
-    # Normalize "ng" as single unit first
-    normalized_word = _normalize_ng_sequences(word)
+    # Step 2: Apply KWF consecutive vowel separation (Rule 2)
+    vowel_separated = _separate_consecutive_vowels(normalized)
     
-    # Identify vowel positions and handle double vowels
-    vowel_info = _analyze_vowel_positions(normalized_word)
+    # Step 3: Apply core KWF syllable splitting rules
+    syllables = _apply_kwf_splitting_rules(vowel_separated)
     
-    # Apply Filipino syllabification rules
-    syllables = _split_by_filipino_rules(normalized_word, vowel_info)
-    
-    # Denormalize "ng" back to original form
+    # Step 4: Denormalize "ng" back
     syllables = _denormalize_ng_sequences(syllables)
-    
-    # Validate and fix any invalid patterns
-    syllables = _validate_and_fix_syllables(syllables)
     
     return syllables if syllables else [word]
 
@@ -127,141 +120,197 @@ def _denormalize_ng_sequences(syllables: List[str]) -> List[str]:
     return [syl.replace('§', 'ng') for syl in syllables]
 
 
-def _analyze_vowel_positions(word: str) -> List[Dict[str, Any]]:
-    """Analyze vowel positions and handle double vowels according to Filipino rules."""
-    vowels = set('aeiou')
-    vowel_info = []
+def _separate_consecutive_vowels(word: str) -> str:
+    """Apply KWF Rule 2: Consecutive vowels are always separated."""
+    vowels = set('aeiou§')  # Include § as vowel-like for ng handling
+    result = []
     
     i = 0
     while i < len(word):
-        if word[i] in vowels:
-            # Check for double vowels (each pronounced separately in Filipino)
-            if i + 1 < len(word) and word[i + 1] in vowels:
-                # Double vowel - separate them
-                vowel_info.append({'pos': i, 'type': 'single', 'char': word[i]})
-                vowel_info.append({'pos': i + 1, 'type': 'single', 'char': word[i + 1]})
-                i += 2
-            else:
-                # Single vowel
-                vowel_info.append({'pos': i, 'type': 'single', 'char': word[i]})
-                i += 1
-        else:
-            i += 1
-    
-    return vowel_info
-
-
-def _split_by_filipino_rules(word: str, vowel_info: List[Dict]) -> List[str]:
-    """Split word using Filipino syllabification rules."""
-    if not vowel_info:
-        return [word]
-    
-    vowels = set('aeiou§')  # Include § as special marker
-    syllables = []
-    start_pos = 0
-    
-    for i, vowel_data in enumerate(vowel_info):
-        vowel_pos = vowel_data['pos']
+        char = word[i]
+        result.append(char)
         
-        # Determine where this syllable should end
-        if i == len(vowel_info) - 1:
-            # Last vowel - take everything to end of word
-            syllable = word[start_pos:]
-            syllables.append(syllable)
-        else:
-            # Look ahead to next vowel to determine split point
-            next_vowel_pos = vowel_info[i + 1]['pos']
-            consonants_between = word[vowel_pos + 1:next_vowel_pos]
-            
-            if not consonants_between:
-                # Adjacent vowels (already handled by double vowel logic)
-                syllable = word[start_pos:vowel_pos + 1]
-                syllables.append(syllable)
-                start_pos = vowel_pos + 1
-            elif len(consonants_between) == 1:
-                # Single consonant (including § which represents ng)
-                # Goes with following vowel (V-CV rule)
-                syllable = word[start_pos:vowel_pos + 1] 
-                syllables.append(syllable)
-                start_pos = vowel_pos + 1
+        # Check for consecutive vowels
+        if (char in vowels and 
+            i + 1 < len(word) and 
+            word[i + 1] in vowels and 
+            char != '§' and word[i + 1] != '§'):  # Don't split on § (ng marker)
+            # Insert syllable boundary marker between consecutive vowels
+            result.append('|')
+        
+        i += 1
+    
+    return ''.join(result)
+
+
+def _apply_kwf_splitting_rules(word: str) -> List[str]:
+    """Apply core KWF syllable splitting rules to word with vowel boundaries marked."""
+    # First split on vowel boundary markers
+    parts = word.split('|')
+    if len(parts) == 1:
+        # No consecutive vowel boundaries - apply general syllabification
+        return _split_by_kwf_consonant_rules(word)
+    
+    syllables = []
+    
+    for i, part in enumerate(parts):
+        if i == 0:
+            # First part - handle normally
+            if _has_vowel(part):
+                syllables.append(part)
             else:
-                # Multiple consonants - but check for § (ng) first
-                if '§' in consonants_between:
-                    # Contains ng - treat it carefully
-                    # Find position of §
-                    ng_pos = consonants_between.find('§')
-                    if ng_pos == 0:
-                        # ng at start - take it with current syllable (like VC-V rule)
-                        syllable = word[start_pos:vowel_pos + 2]  # Include § (ng)
-                        syllables.append(syllable)
-                        start_pos = vowel_pos + 2
-                    else:
-                        # ng not at start - take first consonant with current syllable
-                        syllable = word[start_pos:vowel_pos + 2]  # Include first consonant
-                        syllables.append(syllable)
-                        start_pos = vowel_pos + 2
+                # No vowel in first part - shouldn't happen but handle gracefully
+                if len(parts) > 1:
+                    parts[1] = part + parts[1]
                 else:
-                    # Normal multiple consonants - split them
-                    # Take first consonant with current syllable (VC-CV rule)
-                    syllable = word[start_pos:vowel_pos + 2]  # Include first consonant
-                    syllables.append(syllable)
-                    start_pos = vowel_pos + 2
+                    syllables.append(part)
+        elif i == len(parts) - 1:
+            # Last part - handle consonant distribution from previous syllable
+            syllables = _distribute_consonants_kwf(syllables, part)
+        else:
+            # Middle parts - distribute consonants with previous and following
+            syllables = _distribute_consonants_kwf(syllables, part)
     
     return syllables
 
 
-def _validate_and_fix_syllables(syllables: List[str]) -> List[str]:
-    """Validate syllables follow Filipino patterns and fix if needed."""
-    vowels = set('aeiou')
-    valid_syllables = []
+def _split_by_kwf_consonant_rules(word: str) -> List[str]:
+    """Split word by general KWF consonant distribution rules."""
+    vowels = set('aeiou')  # § is a consonant placeholder, not a vowel
     
-    for syl in syllables:
-        # Check if syllable has a vowel (required)
-        if not any(c in vowels for c in syl):
-            # Invalid syllable - merge with previous or next
-            if valid_syllables:
-                valid_syllables[-1] += syl
+    # Find all vowel positions
+    vowel_positions = []
+    for i, char in enumerate(word):
+        if char in vowels:
+            vowel_positions.append(i)
+    
+    if len(vowel_positions) <= 1:
+        return [word]  # Single or no vowel - can't split
+    
+    # Split between vowels according to KWF rules
+    syllables = []
+    start = 0
+    
+    for i in range(len(vowel_positions) - 1):
+        current_vowel = vowel_positions[i]
+        next_vowel = vowel_positions[i + 1]
+        
+        # Find consonants between vowels
+        consonants_between = word[current_vowel + 1:next_vowel]
+        
+        if not consonants_between:
+            # Adjacent vowels - already handled by consecutive vowel separation
+            # This shouldn't happen in this context
+            syllable = word[start:current_vowel + 1]
+            syllables.append(syllable)
+            start = current_vowel + 1
+        elif len(consonants_between) == 1:
+            # Single consonant - goes with following vowel (KWF Rule 3: V-CV)
+            syllable = word[start:current_vowel + 1]
+            syllables.append(syllable)
+            start = current_vowel + 1
+        else:
+            # Multiple consonants - split them (KWF Rule 4: VC-CV)
+            # Check for consonant clusters first
+            if len(consonants_between) == 2 and _is_true_consonant_cluster(consonants_between):
+                # True cluster - keep together with following vowel
+                syllable = word[start:current_vowel + 1]
+                syllables.append(syllable)
+                start = current_vowel + 1
+            elif '§' in consonants_between:
+                # Special handling for ng (§) - treat as single consonant
+                ng_pos = consonants_between.find('§')
+                if ng_pos == 0:
+                    # ng at start - take with current vowel (like V§ pattern)
+                    split_point = current_vowel + 2  # vowel + § (ng)
+                    syllable = word[start:split_point]
+                    syllables.append(syllable)
+                    start = split_point
+                else:
+                    # ng not at start - split after first consonant
+                    split_point = current_vowel + 2  # vowel + 1 consonant
+                    syllable = word[start:split_point]
+                    syllables.append(syllable)
+                    start = split_point
             else:
-                # First syllable - will be handled by next iteration
-                valid_syllables.append(syl)
-            continue
-            
-        # Check for oversized syllables (following Filipino rules)
-        # Allow up to 4 characters if it contains 'ng' (treated as single consonant)
-        max_length = 4 if 'ng' in syl else 3
-        
-        if len(syl) > max_length:
-            # Try to split oversized syllable
-            split_result = _split_oversized_syllable(syl)
-            valid_syllables.extend(split_result)
+                # Split after first consonant
+                split_point = current_vowel + 2  # vowel + 1 consonant
+                syllable = word[start:split_point]
+                syllables.append(syllable)
+                start = split_point
+    
+    # Add the final syllable
+    syllables.append(word[start:])
+    
+    return syllables
+
+
+def _distribute_consonants_kwf(existing_syllables: List[str], new_part: str) -> List[str]:
+    """Distribute consonants between syllables according to KWF rules."""
+    if not existing_syllables:
+        return [new_part] if new_part else []
+    
+    # Find consonants at the beginning of new_part and vowel content
+    vowels = set('aeiou§')
+    consonant_start = ''
+    vowel_content = new_part
+    
+    # Extract leading consonants
+    for i, char in enumerate(new_part):
+        if char in vowels:
+            consonant_start = new_part[:i]
+            vowel_content = new_part[i:]
+            break
+    
+    if not consonant_start:
+        # No leading consonants - just add the part
+        existing_syllables.append(new_part)
+        return existing_syllables
+    
+    # Apply KWF consonant distribution rules
+    if len(consonant_start) == 1:
+        # Single consonant - goes with following vowel (KWF Rule 3)
+        existing_syllables.append(new_part)
+    elif len(consonant_start) == 2:
+        # Two consonants - check if it's a true consonant cluster
+        if _is_true_consonant_cluster(consonant_start):
+            # True cluster - keep together with following vowel
+            existing_syllables.append(new_part)
         else:
-            valid_syllables.append(syl)
-    
-    return valid_syllables
-
-
-def _split_oversized_syllable(syllable: str) -> List[str]:
-    """Split syllables that are too long (4+ characters)."""
-    vowels = set('aeiou')
-    
-    # Find vowel positions in the syllable
-    vowel_positions = [i for i, c in enumerate(syllable) if c in vowels]
-    
-    if len(vowel_positions) >= 2:
-        # Multiple vowels - split between them
-        split_point = vowel_positions[1]
-        return [syllable[:split_point], syllable[split_point:]]
+            # Split consonants (KWF Rule 4)
+            existing_syllables[-1] += consonant_start[0]
+            existing_syllables.append(consonant_start[1:] + vowel_content)
     else:
-        # Single vowel - split consonant cluster
-        vowel_pos = vowel_positions[0] if vowel_positions else len(syllable) // 2
+        # Multiple consonants (3+) - split after first consonant
+        existing_syllables[-1] += consonant_start[0]
+        existing_syllables.append(consonant_start[1:] + vowel_content)
+    
+    return existing_syllables
+
+
+def _has_vowel(text: str) -> bool:
+    """Check if text contains a vowel."""
+    vowels = set('aeiou')
+    return any(c in vowels for c in text.lower())
+
+
+def _is_true_consonant_cluster(cluster: str) -> bool:
+    """Check if consonant cluster can legitimately start a syllable in Filipino.
+    
+    Based on KWF Rule 5 and Filipino phonotactics.
+    True clusters can start syllables and should not be split.
+    """
+    # Common Filipino consonant clusters that can start syllables
+    # Based on actual Filipino phonotactics, not all English clusters are valid in Filipino
+    true_clusters = {
+        'pr', 'pl', 'br', 'bl', 'tr', 'dr', 'kr', 'kl', 'gr', 'gl', 'fl', 'fr'
+    }
+    
+    # ng is always treated as single unit (KWF Rule 6)
+    if cluster == '§':  # Our marker for ng
+        return True
         
-        # Find a reasonable split point
-        if vowel_pos < len(syllable) - 2:
-            # Split after vowel + 1 consonant
-            return [syllable[:vowel_pos + 2], syllable[vowel_pos + 2:]]
-        else:
-            # Can't split reasonably - return as is
-            return [syllable]
+    return cluster.lower() in true_clusters
 
 
 def is_english_loanword(word: str) -> bool:
@@ -406,6 +455,10 @@ def _breakdown_two_words(phrase: str, words: List[str], breakdown: List[str]) ->
             # Add complete second word
             breakdown.append(second_word)
     
+    # Add full phrase after processing second word completely
+    if not is_english_loanword(second_word) and len(syllabify_tagalog_word(second_word)) > 1:
+        breakdown.append(phrase)
+    
     # Process first word (if multi-syllable and not English)
     if not is_english_loanword(first_word):
         first_syllables = syllabify_tagalog_word(first_word)
@@ -428,7 +481,7 @@ def _breakdown_two_words(phrase: str, words: List[str], breakdown: List[str]) ->
             # Add complete first word
             breakdown.append(first_word)
     
-    # Final phrases
+    # Final phrases (with double repetition as originally intended)
     breakdown.append(phrase)
     breakdown.append(phrase)
     return breakdown

@@ -53,8 +53,8 @@ class TestSyllabifyTagalogWord:
         """Test unknown words are syllabified using Filipino heuristic rules."""
         test_cases = [
             ('xyz', ['xyz']),  # No clear vowel pattern -> single syllable
-            ('unknown', ['un', 'know', 'n']),  # Clear vowel pattern -> syllabified
-            ('newword', ['new', 'wor', 'd'])   # Clear vowel pattern -> syllabified
+            ('unknown', ['un', 'known']),  # Clear vowel pattern -> syllabified with KWF rules
+            ('newword', ['new', 'word'])   # Clear vowel pattern -> syllabified with KWF rules
         ]
         for word, expected in test_cases:
             result = syllabify_tagalog_word(word)
