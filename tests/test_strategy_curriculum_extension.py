@@ -263,13 +263,13 @@ class TestStrategyChaining:
                         strategy=ContentStrategy.WIDER,
                         source_day=None
                     )
-                        
-                        assert result is not None
-                        assert len(mock_curriculum.days) == day  # Should progressively extend
-                        
-                        # Each day should have different scenario focus
-                        new_day = mock_curriculum.days[-1]
-                        assert new_day.day == day
+                    
+                    assert result is not None
+                    assert len(mock_curriculum.days) == day  # Should progressively extend
+                    
+                    # Each day should have different scenario focus
+                    new_day = mock_curriculum.days[-1]
+                    assert new_day.day == day
 
 
 class TestStrategyIntegration:

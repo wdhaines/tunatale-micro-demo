@@ -24,7 +24,7 @@ Example pattern for "meron po ba kayo":
 - meron po ba kayo (repeat)
 """
 
-from typing import List
+from typing import List, Dict, Any
 import logging
 
 # Core Tagalog syllable patterns for essential words
@@ -54,68 +54,214 @@ TAGALOG_SYLLABLES = {
 
 def syllabify_tagalog_word(word: str) -> List[str]:
     """
-    Break Tagalog word into syllables using dictionary and basic Tagalog phonetic rules.
+    Break Tagalog word into syllables using heuristic Filipino syllabification rules.
+    
+    Based on official Filipino syllabification rules:
+    - Four patterns: V, CV, VC, CVC
+    - No 4-letter syllables 
+    - Avoid consonant/vowel clusters (CCV, VCC, CVV, VVC)
+    - Prefer 2-letter CV/VC patterns
+    - "ng" treated as single consonant
+    - Double vowels are separated
     
     Args:
         word: Tagalog word to syllabify
         
     Returns:
-        List of syllables
+        List of syllables following Filipino phonotactic rules
     """
     word_lower = word.lower().strip()
     
+    # For backwards compatibility, check dictionary first for common words
     if word_lower in TAGALOG_SYLLABLES:
         return TAGALOG_SYLLABLES[word_lower]
     
-    # Apply basic Tagalog syllabification rules for unknown words
-    return _apply_basic_tagalog_syllabification(word)
+    # Apply heuristic Filipino syllabification rules
+    return _syllabify_tagalog_heuristic(word_lower)
 
 
-def _apply_basic_tagalog_syllabification(word: str) -> List[str]:
+def _syllabify_tagalog_heuristic(word: str) -> List[str]:
     """
-    Apply basic Tagalog syllabification rules for unknown words.
+    Apply heuristic Filipino syllabification rules based on official patterns.
     
-    Tagalog syllable structure: (C)V(C) where C=consonant, V=vowel
-    Basic rule: Split after vowels unless creating invalid consonant clusters
+    Implements the 4 Filipino syllable patterns: V, CV, VC, CVC
+    Following rules from tagalog.com syllabification guide:
+    - No 4+ letter syllables
+    - Avoid consonant/vowel clusters when possible
+    - "ng" treated as single consonant 
+    - Double vowels separated
+    - Prefer CV/VC patterns
     """
-    word = word.lower()
-    vowels = set('aeiou')
+    if not word:
+        return []
     
-    # Single vowel or very short words
+    # Handle very short words
     if len(word) <= 2:
         return [word]
     
-    syllables = []
-    current_syllable = ""
+    # Normalize "ng" as single unit first
+    normalized_word = _normalize_ng_sequences(word)
     
-    for i, char in enumerate(word):
-        current_syllable += char
-        
-        # If current char is vowel and we have more chars ahead
-        if char in vowels and i < len(word) - 1:
-            next_char = word[i + 1]
-            
-            # Look ahead to decide where to split
-            if i < len(word) - 2:
-                char_after_next = word[i + 2]
-                
-                # Split after vowel if next is consonant and char after is vowel (CV-CV pattern)
-                if next_char not in vowels and char_after_next in vowels:
-                    syllables.append(current_syllable)
-                    current_syllable = ""
+    # Identify vowel positions and handle double vowels
+    vowel_info = _analyze_vowel_positions(normalized_word)
+    
+    # Apply Filipino syllabification rules
+    syllables = _split_by_filipino_rules(normalized_word, vowel_info)
+    
+    # Denormalize "ng" back to original form
+    syllables = _denormalize_ng_sequences(syllables)
+    
+    # Validate and fix any invalid patterns
+    syllables = _validate_and_fix_syllables(syllables)
+    
+    return syllables if syllables else [word]
+
+
+def _normalize_ng_sequences(word: str) -> str:
+    """Replace 'ng' with placeholder to treat as single consonant."""
+    return word.replace('ng', '§')  # Use § as placeholder for ng
+
+
+def _denormalize_ng_sequences(syllables: List[str]) -> List[str]:
+    """Replace placeholder back with 'ng'."""
+    return [syl.replace('§', 'ng') for syl in syllables]
+
+
+def _analyze_vowel_positions(word: str) -> List[Dict[str, Any]]:
+    """Analyze vowel positions and handle double vowels according to Filipino rules."""
+    vowels = set('aeiou')
+    vowel_info = []
+    
+    i = 0
+    while i < len(word):
+        if word[i] in vowels:
+            # Check for double vowels (each pronounced separately in Filipino)
+            if i + 1 < len(word) and word[i + 1] in vowels:
+                # Double vowel - separate them
+                vowel_info.append({'pos': i, 'type': 'single', 'char': word[i]})
+                vowel_info.append({'pos': i + 1, 'type': 'single', 'char': word[i + 1]})
+                i += 2
             else:
-                # Last vowel-consonant pair - keep together
-                pass
+                # Single vowel
+                vowel_info.append({'pos': i, 'type': 'single', 'char': word[i]})
+                i += 1
+        else:
+            i += 1
     
-    # Add remaining syllable
-    if current_syllable:
-        syllables.append(current_syllable)
-    
-    # Fallback: if syllabification failed, return as single syllable
-    if not syllables:
+    return vowel_info
+
+
+def _split_by_filipino_rules(word: str, vowel_info: List[Dict]) -> List[str]:
+    """Split word using Filipino syllabification rules."""
+    if not vowel_info:
         return [word]
+    
+    vowels = set('aeiou§')  # Include § as special marker
+    syllables = []
+    start_pos = 0
+    
+    for i, vowel_data in enumerate(vowel_info):
+        vowel_pos = vowel_data['pos']
         
+        # Determine where this syllable should end
+        if i == len(vowel_info) - 1:
+            # Last vowel - take everything to end of word
+            syllable = word[start_pos:]
+            syllables.append(syllable)
+        else:
+            # Look ahead to next vowel to determine split point
+            next_vowel_pos = vowel_info[i + 1]['pos']
+            consonants_between = word[vowel_pos + 1:next_vowel_pos]
+            
+            if not consonants_between:
+                # Adjacent vowels (already handled by double vowel logic)
+                syllable = word[start_pos:vowel_pos + 1]
+                syllables.append(syllable)
+                start_pos = vowel_pos + 1
+            elif len(consonants_between) == 1:
+                # Single consonant (including § which represents ng)
+                # Goes with following vowel (V-CV rule)
+                syllable = word[start_pos:vowel_pos + 1] 
+                syllables.append(syllable)
+                start_pos = vowel_pos + 1
+            else:
+                # Multiple consonants - but check for § (ng) first
+                if '§' in consonants_between:
+                    # Contains ng - treat it carefully
+                    # Find position of §
+                    ng_pos = consonants_between.find('§')
+                    if ng_pos == 0:
+                        # ng at start - take it with current syllable (like VC-V rule)
+                        syllable = word[start_pos:vowel_pos + 2]  # Include § (ng)
+                        syllables.append(syllable)
+                        start_pos = vowel_pos + 2
+                    else:
+                        # ng not at start - take first consonant with current syllable
+                        syllable = word[start_pos:vowel_pos + 2]  # Include first consonant
+                        syllables.append(syllable)
+                        start_pos = vowel_pos + 2
+                else:
+                    # Normal multiple consonants - split them
+                    # Take first consonant with current syllable (VC-CV rule)
+                    syllable = word[start_pos:vowel_pos + 2]  # Include first consonant
+                    syllables.append(syllable)
+                    start_pos = vowel_pos + 2
+    
     return syllables
+
+
+def _validate_and_fix_syllables(syllables: List[str]) -> List[str]:
+    """Validate syllables follow Filipino patterns and fix if needed."""
+    vowels = set('aeiou')
+    valid_syllables = []
+    
+    for syl in syllables:
+        # Check if syllable has a vowel (required)
+        if not any(c in vowels for c in syl):
+            # Invalid syllable - merge with previous or next
+            if valid_syllables:
+                valid_syllables[-1] += syl
+            else:
+                # First syllable - will be handled by next iteration
+                valid_syllables.append(syl)
+            continue
+            
+        # Check for oversized syllables (following Filipino rules)
+        # Allow up to 4 characters if it contains 'ng' (treated as single consonant)
+        max_length = 4 if 'ng' in syl else 3
+        
+        if len(syl) > max_length:
+            # Try to split oversized syllable
+            split_result = _split_oversized_syllable(syl)
+            valid_syllables.extend(split_result)
+        else:
+            valid_syllables.append(syl)
+    
+    return valid_syllables
+
+
+def _split_oversized_syllable(syllable: str) -> List[str]:
+    """Split syllables that are too long (4+ characters)."""
+    vowels = set('aeiou')
+    
+    # Find vowel positions in the syllable
+    vowel_positions = [i for i, c in enumerate(syllable) if c in vowels]
+    
+    if len(vowel_positions) >= 2:
+        # Multiple vowels - split between them
+        split_point = vowel_positions[1]
+        return [syllable[:split_point], syllable[split_point:]]
+    else:
+        # Single vowel - split consonant cluster
+        vowel_pos = vowel_positions[0] if vowel_positions else len(syllable) // 2
+        
+        # Find a reasonable split point
+        if vowel_pos < len(syllable) - 2:
+            # Split after vowel + 1 consonant
+            return [syllable[:vowel_pos + 2], syllable[vowel_pos + 2:]]
+        else:
+            # Can't split reasonably - return as is
+            return [syllable]
 
 
 def is_english_loanword(word: str) -> bool:
@@ -230,29 +376,57 @@ def generate_pimsleur_breakdown(phrase: str) -> List[str]:
 
 
 def _breakdown_two_words(phrase: str, words: List[str], breakdown: List[str]) -> List[str]:
-    """Handle 2-word breakdown like 'salamat po'."""
+    """
+    Handle 2-word breakdown like 'salamat po' or 'sarap naman'.
+    
+    Process BOTH words if they are multi-syllabic, working from right to left.
+    """
     first_word, second_word = words
     
-    # Add second word if single syllable
-    if is_english_loanword(second_word) or len(syllabify_tagalog_word(second_word)) == 1:
-        breakdown.append(second_word)
-    
-    # Break down first word if multi-syllable and not English
-    if not is_english_loanword(first_word):
-        syllables = syllabify_tagalog_word(first_word)
-        if len(syllables) == 2:
-            # 2-syllable pattern: backwards, then first
-            breakdown.append(syllables[1])  # Last syllable  
-            breakdown.append(syllables[0])  # First syllable
-        elif len(syllables) >= 3:
-            # 3+ syllable pattern: backwards, then combination, then first
-            breakdown.append(syllables[-1])  # Last syllable
-            breakdown.append(syllables[-2])  # Previous syllable
-            breakdown.append("".join(syllables[1:]))  # Combination (all but first)
-            breakdown.append(syllables[0])  # First syllable
+    # Process second word first (right-to-left approach)
+    if not is_english_loanword(second_word):
+        second_syllables = syllabify_tagalog_word(second_word)
         
-        # Add complete first word
-        breakdown.append(first_word)
+        if len(second_syllables) == 1:
+            # Single syllable second word
+            breakdown.append(second_word)
+        elif len(second_syllables) >= 2:
+            # Multi-syllable second word: general algorithm
+            # Start with individual syllables from end to beginning
+            for i in range(len(second_syllables) - 1, 0, -1):
+                breakdown.append(second_syllables[i])
+                
+                # Add combinations as we build up from right to left
+                if i < len(second_syllables) - 1:  # Not the last syllable
+                    combination = "".join(second_syllables[i:])
+                    breakdown.append(combination)
+            
+            # Add the first syllable
+            breakdown.append(second_syllables[0])
+            # Add complete second word
+            breakdown.append(second_word)
+    
+    # Process first word (if multi-syllable and not English)
+    if not is_english_loanword(first_word):
+        first_syllables = syllabify_tagalog_word(first_word)
+        
+        # General algorithm for any length word using loop
+        if len(first_syllables) >= 2:
+            # Start with individual syllables from end to beginning
+            for i in range(len(first_syllables) - 1, 0, -1):
+                breakdown.append(first_syllables[i])
+                
+                # Add combinations as we build up from right to left
+                if i < len(first_syllables) - 1:  # Not the last syllable
+                    combination = "".join(first_syllables[i:])
+                    breakdown.append(combination)
+            
+            # Finally add the first syllable
+            breakdown.append(first_syllables[0])
+        
+        if len(first_syllables) > 1:
+            # Add complete first word
+            breakdown.append(first_word)
     
     # Final phrases
     breakdown.append(phrase)

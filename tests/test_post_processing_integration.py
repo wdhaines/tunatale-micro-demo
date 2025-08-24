@@ -41,7 +41,7 @@ salamat po
             assert step in corrected_content
         
         # Should NOT contain the incorrect steps
-        incorrect_steps = ["lam po", "sa"]  # These are wrong
+        incorrect_steps = ["lam po"]  # These are wrong (note: "sa" is actually correct)
         for bad_step in incorrect_steps:
             assert bad_step not in corrected_content or corrected_content.count(bad_step) < content_with_incorrect_breakdown.count(bad_step)
 

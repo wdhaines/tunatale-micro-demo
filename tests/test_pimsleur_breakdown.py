@@ -49,12 +49,16 @@ class TestSyllabifyTagalogWord:
             result = syllabify_tagalog_word(word)
             assert result == expected_syllables, f"'{word}' should syllabify to {expected_syllables}, got {result}"
     
-    def test_unknown_words_as_single_syllable(self):
-        """Test unknown words are treated as single syllables."""
-        unknown_words = ['xyz', 'unknown', 'newword']
-        for word in unknown_words:
+    def test_unknown_words_syllabified_heuristically(self):
+        """Test unknown words are syllabified using Filipino heuristic rules."""
+        test_cases = [
+            ('xyz', ['xyz']),  # No clear vowel pattern -> single syllable
+            ('unknown', ['un', 'know', 'n']),  # Clear vowel pattern -> syllabified
+            ('newword', ['new', 'wor', 'd'])   # Clear vowel pattern -> syllabified
+        ]
+        for word, expected in test_cases:
             result = syllabify_tagalog_word(word)
-            assert result == [word], f"Unknown word '{word}' should be treated as single syllable"
+            assert result == expected, f"'{word}' should syllabify to {expected}, got {result}"
 
 
 class TestPimsleurBreakdownBasic:

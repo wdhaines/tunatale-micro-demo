@@ -161,9 +161,21 @@ def fix_pimsleur_breakdowns(content: str) -> str:
                             logging.info(f"Correcting breakdown for phrase: '{phrase}'")
                             correct_breakdown = generate_pimsleur_breakdown(phrase)
                             
+                            # Remove initial phrase and final phrase repetitions
+                            # The breakdown starts and ends with full phrase repetitions
+                            breakdown_steps = correct_breakdown[1:]  # Remove first (initial phrase)
+                            
+                            # Remove final repetitions of the full phrase
+                            while breakdown_steps and breakdown_steps[-1] == phrase:
+                                breakdown_steps.pop()
+                                
+                            # Keep the word-building steps but remove the final full phrase
+                            if breakdown_steps and breakdown_steps[-1] == phrase:
+                                breakdown_steps = breakdown_steps[:-1]
+                            
                             # Add correct breakdown lines with voice assignments
                             voice = "[TAGALOG-FEMALE-1]"  # Use consistent voice
-                            for breakdown_line in correct_breakdown:
+                            for breakdown_line in breakdown_steps:
                                 result_lines.append(f"{voice}: {breakdown_line}")
                             
                             # Add empty line for separation
