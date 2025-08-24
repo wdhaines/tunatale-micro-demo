@@ -945,8 +945,21 @@ class ContentGenerator:
             story_guidance=f"WIDER STRATEGY: Create new scenarios and contexts while maintaining appropriate difficulty progression from the existing {len(curriculum.days)}-day curriculum."
         )
         
-        # Generate the story using chat-based approach
-        story = self.generate_chat_story(params, target_day)
+        # Generate the story using enhanced approach with post-processing
+        from content_strategy import ContentStrategy, DifficultyLevel, EnhancedStoryParams
+        enhanced_params = EnhancedStoryParams(
+            learning_objective=params.learning_objective,
+            language=params.language,
+            cefr_level=params.cefr_level,
+            phase=params.phase,
+            new_vocabulary=params.new_vocabulary,
+            review_collocations=params.recycled_collocations,
+            focus=params.focus,
+            story_guidance=params.story_guidance,
+            content_strategy=ContentStrategy.WIDER,
+            difficulty_level=DifficultyLevel.BASIC
+        )
+        story = self.generate_enhanced_story(enhanced_params)
         if not story:
             return None
         

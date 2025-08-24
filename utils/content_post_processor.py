@@ -99,7 +99,6 @@ def extract_key_phrases_sections(content: str) -> List[Tuple[str, int, int]]:
 def fix_pimsleur_breakdowns(content: str) -> str:
     """
     Replace LLM-generated Pimsleur breakdowns with algorithmically correct ones.
-    Uses a simpler pattern-based approach.
     
     Args:
         content: Full story content with potentially incorrect breakdowns
@@ -111,59 +110,68 @@ def fix_pimsleur_breakdowns(content: str) -> str:
         lines = content.split('\n')
         result_lines = []
         i = 0
+        in_key_phrases = False
         
         while i < len(lines):
             line = lines[i].strip()
-            result_lines.append(lines[i])
             
-            # Look for Key Phrases section pattern:
-            # [TAGALOG-FEMALE-1]: phrase
-            # [NARRATOR]: translation  
-            # [TAGALOG-FEMALE-1]: phrase (repetition)
-            # [breakdown lines...]
-            
-            tagalog_match = re.match(r'\[TAGALOG-[FEMALE|MALE]+-\d+\]:\s*(.+)', line)
-            if tagalog_match and i > 0 and "Key Phrases:" in '\n'.join(lines[max(0, i-10):i]):
-                phrase = tagalog_match.group(1).strip()
+            # Check if we're entering Key Phrases section
+            if line == "Key Phrases:":
+                in_key_phrases = True
+                result_lines.append(lines[i])
+                i += 1
+                continue
                 
-                # Check if next line is narrator translation
-                if (i + 1 < len(lines) and 
-                    lines[i + 1].strip().startswith('[NARRATOR]:')):
-                    
-                    # Add the translation line
-                    i += 1
-                    result_lines.append(lines[i])
-                    
-                    # Check if next line is phrase repetition
-                    if (i + 1 < len(lines) and 
-                        lines[i + 1].strip() == f'[TAGALOG-FEMALE-1]: {phrase}' or
-                        lines[i + 1].strip() == f'[TAGALOG-MALE-1]: {phrase}' or
-                        lines[i + 1].strip() == f'[TAGALOG-FEMALE-2]: {phrase}' or  
-                        lines[i + 1].strip() == f'[TAGALOG-MALE-2]: {phrase}'):
-                        
-                        # Add the repetition line
-                        i += 1
-                        result_lines.append(lines[i])
-                        
-                        # Skip old breakdown lines until we hit next section
-                        breakdown_start = i + 1
-                        while (breakdown_start < len(lines) and 
-                               not lines[breakdown_start].strip().startswith('[TAGALOG-') and
-                               not lines[breakdown_start].strip().startswith('[NARRATOR]: Natural Speed') and
-                               not lines[breakdown_start].strip().startswith('[NARRATOR]: Slow Speed')):
-                            breakdown_start += 1
-                        
-                        # Generate correct breakdown
-                        logging.info(f"Correcting breakdown for phrase: '{phrase}'")
-                        correct_breakdown = generate_pimsleur_breakdown(phrase)
-                        
-                        # Add correct breakdown lines
-                        for breakdown_line in correct_breakdown:
-                            result_lines.append(breakdown_line)
-                        
-                        # Skip to the next section (after old breakdown)
-                        i = breakdown_start - 1  # -1 because the loop will increment
+            # Check if we're leaving Key Phrases section  
+            if in_key_phrases and line.startswith("[NARRATOR]: Natural Speed"):
+                in_key_phrases = False
+                result_lines.append(lines[i])
+                i += 1
+                continue
             
+            # Process Key Phrases section
+            if in_key_phrases:
+                # Look for Tagalog phrase pattern: [TAGALOG-X]: phrase
+                tagalog_match = re.match(r'\[TAGALOG-(?:FEMALE|MALE)-\d+\]:\s*(.+)', line)
+                if tagalog_match:
+                    phrase = tagalog_match.group(1).strip()
+                    result_lines.append(lines[i])  # Add the tagalog line
+                    i += 1
+                    
+                    # Check if next line is narrator translation
+                    if (i < len(lines) and 
+                        re.match(r'\[NARRATOR\]:\s*(.+)', lines[i].strip())):
+                        result_lines.append(lines[i])  # Add translation
+                        i += 1
+                        
+                        # Check if next line is phrase repetition 
+                        if (i < len(lines) and 
+                            re.match(r'\[TAGALOG-(?:FEMALE|MALE)-\d+\]:\s*' + re.escape(phrase), lines[i].strip())):
+                            result_lines.append(lines[i])  # Add repetition
+                            i += 1
+                            
+                            # Skip existing breakdown lines until we hit next phrase or section end
+                            while (i < len(lines) and 
+                                   lines[i].strip() and  # Not empty line
+                                   not re.match(r'\[TAGALOG-(?:FEMALE|MALE)-\d+\]:', lines[i].strip()) and  # Not next phrase
+                                   not lines[i].strip().startswith('[NARRATOR]: Natural Speed')):  # Not section end
+                                i += 1
+                            
+                            # Generate correct breakdown
+                            logging.info(f"Correcting breakdown for phrase: '{phrase}'")
+                            correct_breakdown = generate_pimsleur_breakdown(phrase)
+                            
+                            # Add correct breakdown lines with voice assignments
+                            voice = "[TAGALOG-FEMALE-1]"  # Use consistent voice
+                            for breakdown_line in correct_breakdown:
+                                result_lines.append(f"{voice}: {breakdown_line}")
+                            
+                            # Add empty line for separation
+                            result_lines.append("")
+                            continue
+                
+            # For all other lines, just add them
+            result_lines.append(lines[i])
             i += 1
         
         return '\n'.join(result_lines)
@@ -185,20 +193,35 @@ def post_process_story_content(content: str) -> str:
         Post-processed content with algorithmic corrections
     """
     if not content:
+        logging.warning("Post-processing called with empty content")
         return content
         
-    logging.info("Starting story content post-processing")
+    logging.info("🔧 Starting story content post-processing")
+    logging.debug(f"Content length: {len(content)} characters")
     
-    # Apply Pimsleur breakdown corrections
-    corrected_content = fix_pimsleur_breakdowns(content)
-    
-    # Future post-processing steps can be added here:
-    # - Content validation
-    # - Format standardization  
-    # - Quality checks
-    
-    logging.info("Story content post-processing completed")
-    return corrected_content
+    try:
+        # Apply Pimsleur breakdown corrections
+        logging.info("Applying Pimsleur breakdown corrections...")
+        corrected_content = fix_pimsleur_breakdowns(content)
+        
+        # Check if any changes were made
+        if corrected_content != content:
+            logging.info("✅ Pimsleur breakdowns were corrected")
+        else:
+            logging.info("ℹ️ No Pimsleur breakdown corrections needed")
+        
+        # Future post-processing steps can be added here:
+        # - Content validation
+        # - Format standardization  
+        # - Quality checks
+        
+        logging.info("🔧 Story content post-processing completed")
+        return corrected_content
+        
+    except Exception as e:
+        logging.error(f"❌ Post-processing failed: {e}")
+        logging.debug("Returning original content due to post-processing error")
+        return content
 
 
 if __name__ == "__main__":

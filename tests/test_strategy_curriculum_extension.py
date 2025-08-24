@@ -58,8 +58,14 @@ def content_generator():
             
             generator = ContentGenerator()
     
-    # Mock the chat story generation
-    generator.generate_chat_story = Mock(return_value="Generated test story content")
+    # Mock the LLM response chain that generate_enhanced_story actually uses
+    mock_llm_response = {
+        'choices': [{'message': {'content': "Generated test story content"}}]
+    }
+    generator.llm = Mock()
+    generator.llm.chat_response.return_value = mock_llm_response
+    
+    # Mock file operations and other dependencies
     generator._save_story = Mock(return_value="/path/to/story.txt")
     
     return generator
@@ -78,19 +84,31 @@ class TestWIDERStrategyFixes:
         mock_srs_class.return_value = mock_srs
         
         generator = ContentGenerator()
-        generator.generate_chat_story = Mock(return_value="Generated test story content")
+        
+        # Mock the LLM response chain that generate_enhanced_story actually uses
+        mock_llm_response = {
+            'choices': [{'message': {'content': "Generated test story content"}}]
+        }
+        generator.llm = Mock()
+        generator.llm.chat_response.return_value = mock_llm_response
+        
+        # Mock file operations to prevent actual file writes
         generator._save_story = Mock(return_value="/path/to/story.txt")
         
-        with patch.object(generator, '_load_curriculum', return_value=mock_curriculum):
-            result = generator.generate_strategy_based_story(
-                target_day=9, 
-                strategy=ContentStrategy.WIDER, 
-                source_day=None  # Should work without source day
-            )
+        # Mock collocation extraction and run the test
+        with patch.object(generator.collocation_extractor, 'extract_collocations', return_value=[]):
+            with patch.object(generator, '_load_curriculum', return_value=mock_curriculum):
+                # Actually test post-processing instead of mocking it
+                result = generator.generate_strategy_based_story(
+                    target_day=9, 
+                    strategy=ContentStrategy.WIDER, 
+                    source_day=None  # Should work without source day
+                )
         
         assert result is not None
         story, collocation_report = result
-        assert story == "Generated test story content"
+        # Story should be post-processed, so should not exactly equal the raw LLM output
+        assert "Generated test story content" in story
         assert 'new' in collocation_report
         assert 'reviewed' in collocation_report
     
@@ -236,21 +254,22 @@ class TestStrategyChaining:
     def test_multiple_wider_extensions(self, content_generator, mock_curriculum):
         """Test multiple WIDER strategy extensions."""
         with patch.object(content_generator, '_load_curriculum', return_value=mock_curriculum):
-            
-            # Generate days 9, 10, 11 using WIDER strategy
-            for day in [9, 10, 11]:
-                result = content_generator.generate_strategy_based_story(
-                    target_day=day,
-                    strategy=ContentStrategy.WIDER,
-                    source_day=None
-                )
+            with patch.object(content_generator.collocation_extractor, 'extract_collocations', return_value=[]):
                 
-                assert result is not None
-                assert len(mock_curriculum.days) == day  # Should progressively extend
-                
-                # Each day should have different scenario focus
-                new_day = mock_curriculum.days[-1]
-                assert new_day.day == day
+                # Generate days 9, 10, 11 using WIDER strategy
+                for day in [9, 10, 11]:
+                    result = content_generator.generate_strategy_based_story(
+                        target_day=day,
+                        strategy=ContentStrategy.WIDER,
+                        source_day=None
+                    )
+                        
+                        assert result is not None
+                        assert len(mock_curriculum.days) == day  # Should progressively extend
+                        
+                        # Each day should have different scenario focus
+                        new_day = mock_curriculum.days[-1]
+                        assert new_day.day == day
 
 
 class TestStrategyIntegration:
@@ -259,13 +278,14 @@ class TestStrategyIntegration:
     def test_wider_strategy_full_integration(self, content_generator, mock_curriculum):
         """Test complete WIDER strategy with curriculum extension."""
         with patch.object(content_generator, '_load_curriculum', return_value=mock_curriculum):
-            result = content_generator._generate_wider_content(9, mock_curriculum)
+            with patch.object(content_generator.collocation_extractor, 'extract_collocations', return_value=[]):
+                result = content_generator._generate_wider_content(9, mock_curriculum)
         
         assert result is not None
         story, report = result
         
-        # Verify story generation
-        assert story == "Generated test story content"
+        # Verify story generation (should contain the original content, possibly post-processed)
+        assert "Generated test story" in story
         assert 'new' in report
         assert 'reviewed' in report
         

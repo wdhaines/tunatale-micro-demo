@@ -931,14 +931,21 @@ class CLI:
         try:
             from srs_tracker import SRSTracker
             from pathlib import Path
+            import os
             
-            # Load SRS tracker
-            srs = SRSTracker()
-            
-            srs_paths = [
-                Path("instance/data/srs_status.json"),
-                Path("data/srs_status.json")
-            ]
+            # Determine data directory (test-aware)
+            data_dir = os.environ.get('TUNATALE_TEST_DATA_DIR', 'data')
+            if data_dir != 'data':
+                # In test mode, use the test directory
+                srs = SRSTracker(data_dir=data_dir)
+                srs_paths = [Path(data_dir) / "srs_status.json"]
+            else:
+                # Load SRS tracker with default paths
+                srs = SRSTracker()
+                srs_paths = [
+                    Path("instance/data/srs_status.json"),
+                    Path("data/srs_status.json")
+                ]
             
             srs_file_found = False
             for srs_path in srs_paths:
@@ -1022,6 +1029,7 @@ class CLI:
             from srs_tracker import SRSTracker
             from pathlib import Path
             import json
+            import os
             
             day = args.day
             print(f"Debugging content generation for day {day}...")
@@ -1034,8 +1042,9 @@ class CLI:
                 print(f"No story found for day {day}", file=sys.stderr)
                 return 1
             
-            # Load SRS status to see what was supposedly provided
-            srs = SRSTracker()
+            # Load SRS status to see what was supposedly provided (test-aware)
+            data_dir = os.environ.get('TUNATALE_TEST_DATA_DIR', 'data')
+            srs = SRSTracker(data_dir=data_dir)
             due_collocations = srs.get_due_collocations(day)
             
             # Create debug report
