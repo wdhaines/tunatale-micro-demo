@@ -11,7 +11,7 @@ class TestStoryGeneratorVocab:
         """Test that vocabulary parameters are correctly passed to the prompt template."""
         # Setup
         mock_llm = Mock()
-        mock_llm.get_response.return_value = {
+        mock_llm.chat_response.return_value = {
             'choices': [{'message': {'content': 'Test story content'}}]
         }
         mock_llm_class.return_value = mock_llm
@@ -53,20 +53,24 @@ class TestStoryGeneratorVocab:
         # Assertions
         assert result == 'Test story content'
         
-        # Get the prompt that was passed to the LLM
-        call_args = mock_llm.get_response.call_args
+        # Get the arguments that were passed to the LLM
+        call_args = mock_llm.chat_response.call_args
         
-        # The prompt could be passed as a positional or keyword argument
-        prompt = None
-        if call_args[0]:  # Check positional args
-            prompt = call_args[0][0]
-        elif 'prompt' in call_args[1]:  # Check keyword args
-            prompt = call_args[1]['prompt']
-            
-        assert prompt is not None, "Prompt was not passed to get_response"
+        # chat_response takes system_prompt, user_prompt, and response_type parameters
+        assert call_args is not None, "chat_response was not called"
         
-        # With the mocked _load_prompt, we should just see 'test prompt'
-        assert prompt == 'test prompt'
+        # Check keyword arguments
+        kwargs = call_args[1] if len(call_args) > 1 else {}
+        
+        # Verify that system_prompt and user_prompt were passed
+        assert 'system_prompt' in kwargs, "system_prompt was not passed to chat_response"
+        assert 'user_prompt' in kwargs, "user_prompt was not passed to chat_response"
+        
+        # The user_prompt should contain our day-specific content
+        user_prompt = kwargs['user_prompt']
+        
+        # With the mocked _load_prompt, the user_prompt should contain 'test prompt'
+        assert 'test prompt' in user_prompt
         
     @patch('story_generator.MockLLM')
     @patch.object(ContentGenerator, '_load_prompt', return_value='test prompt')
@@ -74,7 +78,7 @@ class TestStoryGeneratorVocab:
         """Test that empty vocabulary parameters are handled correctly."""
         # Setup
         mock_llm = Mock()
-        mock_llm.get_response.return_value = {
+        mock_llm.chat_response.return_value = {
             'choices': [{'message': {'content': 'Test story content'}}]
         }
         mock_llm_class.return_value = mock_llm
@@ -109,17 +113,21 @@ class TestStoryGeneratorVocab:
         with patch('builtins.open', create=True):
             result = generator.generate_story(params)
                
-        # Get the prompt that was passed to the LLM
-        call_args = mock_llm.get_response.call_args
+        # Get the arguments that were passed to the LLM
+        call_args = mock_llm.chat_response.call_args
         
-        # The prompt could be passed as a positional or keyword argument
-        prompt = None
-        if call_args[0]:  # Check positional args
-            prompt = call_args[0][0]
-        elif 'prompt' in call_args[1]:  # Check keyword args
-            prompt = call_args[1]['prompt']
-            
-        assert prompt is not None, "Prompt was not passed to get_response"
+        # chat_response takes system_prompt, user_prompt, and response_type parameters
+        assert call_args is not None, "chat_response was not called"
         
-        # With the mocked _load_prompt, we should just see 'test prompt'
-        assert prompt == 'test prompt'
+        # Check keyword arguments
+        kwargs = call_args[1] if len(call_args) > 1 else {}
+        
+        # Verify that system_prompt and user_prompt were passed
+        assert 'system_prompt' in kwargs, "system_prompt was not passed to chat_response"
+        assert 'user_prompt' in kwargs, "user_prompt was not passed to chat_response"
+        
+        # The user_prompt should contain our day-specific content
+        user_prompt = kwargs['user_prompt']
+        
+        # With the mocked _load_prompt, the user_prompt should contain 'test prompt'
+        assert 'test prompt' in user_prompt

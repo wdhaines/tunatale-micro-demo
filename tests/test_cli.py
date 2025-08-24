@@ -35,9 +35,8 @@ class TestCLI:
             assert "TunaTale - A language learning tool" in output
             assert "positional arguments:" in output
             assert "generate" in output
-            assert "extract" in output
+            # Note: "extract" command was removed in CLI cleanup
             assert "generate-day" in output
-            assert "continue" in output
             assert "view" in output
 
 
@@ -241,58 +240,7 @@ class TestGenerateCommand:
             assert content['learning_goal'] == 'Test Goal'
 
 
-class TestExtractCommand:
-    """Test cases for the 'extract' command."""
-
-    @patch('main.CollocationExtractor')
-    @patch('builtins.open', new_callable=mock_open, read_data='test content')
-    @patch('sys.stdout', new_callable=io.StringIO)
-    def test_extract_collocations_success(
-        self, mock_stdout, mock_file, mock_extractor, tmp_path
-    ):
-        """Test successful collocation extraction."""
-        # Skip this test if collocation_extractor is not available
-        try:
-            import collocation_extractor
-        except ImportError:
-            pytest.skip("collocation_extractor not available")
-        
-        # Setup mock collocations
-        test_collocations = {
-            'test collocation': 3,
-            'another example': 2
-        }
-        
-        # Setup mock extractor
-        mock_instance = mock_extractor.return_value
-        mock_instance.extract_from_curriculum.return_value = test_collocations
-        
-        # Mock the curriculum file
-        mock_curriculum = {
-            'content': 'Sample curriculum content',
-            'days': [{'day': 1, 'content': 'Day 1 content'}]
-        }
-        
-        # Run the extract command with no arguments
-        with patch('sys.argv', ['main.py', 'extract']), \
-             patch('pathlib.Path.exists', return_value=True), \
-             patch('pathlib.Path.is_file', return_value=True), \
-             patch('json.load', return_value=mock_curriculum):
-            result = CLI().run()
-            
-        # Verify the result - should return 0 on success
-        assert result == 0
-        mock_instance.extract_from_curriculum.assert_called_once()
-        
-        # Verify success message
-        output = mock_stdout.getvalue()
-        assert "Extracting collocations from curriculum..." in output
-        assert "Extracted 2 collocations" in output
-        assert "Top collocations:" in output
-        # The actual output will have the collocations in the order they were returned
-        # We'll just check that both are in the output
-        assert "test collocation" in output
-        assert "another example" in output
+# TestExtractCommand class removed - extract command was deprecated in CLI cleanup
 
 
 class TestViewCommand:

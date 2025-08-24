@@ -32,7 +32,7 @@ def temp_dir():
 def mock_llm():
     """Create a mock LLM that returns a predefined response."""
     mock_llm = MagicMock()
-    mock_llm.get_response.return_value = {
+    mock_llm.chat_response.return_value = {
         "choices": [{
             "message": {
                 "content": SAMPLE_STORY,
@@ -40,8 +40,8 @@ def mock_llm():
             }
         }]
     }
-    # Also mock the direct call to get_response with the same structure
-    mock_llm.return_value.get_response.return_value = {
+    # Also mock the direct call to chat_response with the same structure
+    mock_llm.return_value.chat_response.return_value = {
         "choices": [{
             "message": {
                 "content": SAMPLE_STORY,
@@ -227,7 +227,7 @@ class TestSRSIntegration:
                     }
                 }]
             }
-            with patch.object(content_gen.llm, 'get_response', return_value=mock_response):
+            with patch.object(content_gen.llm, 'chat_response', return_value=mock_response):
                 # Generate story
                 story = content_gen.generate_story(params)
                 
@@ -295,7 +295,7 @@ class TestSRSIntegration:
             # Mock the _load_curriculum method to return our test data
             with patch.object(content_gen, '_load_curriculum', return_value=curriculum_data):
                 # Mock the story generation to return our sample story
-                with patch.object(content_gen.llm, 'get_response', return_value={
+                with patch.object(content_gen.llm, 'chat_response', return_value={
                     "choices": [{"message": {"content": SAMPLE_STORY, "role": "assistant"}}]
                 }):
                     # Setup collocation extractor to return our sample collocations

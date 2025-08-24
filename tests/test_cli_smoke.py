@@ -28,7 +28,7 @@ class TestCLISmoke:
         assert "TunaTale" in result.stdout
         
         # Command help
-        commands = ["generate", "extract", "view", "analyze"]
+        commands = ["generate", "view", "analyze"]  # extract removed in CLI cleanup
         for cmd in commands:
             result = self.run_cli([cmd, "--help"])
             assert result.returncode == 0, f"{cmd} help failed"
@@ -87,10 +87,7 @@ class TestCLISmoke:
         assert result.returncode == 0
         assert "goal" in result.stdout
         
-        # Test extract help (doesn't corrupt data)
-        result = self.run_cli(["extract", "--help"], timeout=10)
-        # Don't assert success - just verify no crash
-        assert result.returncode in [0, 1, 2]
+        # extract command was removed in CLI cleanup
         
         # Test view command (safe, doesn't modify data)
         result = self.run_cli(["view", "curriculum"], timeout=10)

@@ -269,8 +269,9 @@ def content_generator(mocker, tmp_path):
     test_prompts_dir = test_output_dir / 'prompts'
     test_prompts_dir.mkdir(exist_ok=True)
     
-    # Create a test prompt file with the expected format
-    test_prompt_file = test_prompts_dir / 'story_prompt_template.txt'
+    # Create test prompt files with the expected format
+    # Main story prompt (balanced strategy)
+    test_prompt_file = test_prompts_dir / 'story_prompt_balanced.txt'
     test_prompt_file.write_text("""
     VOCABULARY CONTEXT:
     - Focus on teaching: {NEW_VOCABULARY}
@@ -281,6 +282,14 @@ def content_generator(mocker, tmp_path):
     while naturally incorporating the recycled collocations.
     The story should be appropriate for language learning.
     """)
+    
+    # Create system prompt for chat-based generation
+    system_prompt_file = test_prompts_dir / 'system_prompt.txt'
+    system_prompt_file.write_text("Test system prompt for story generation")
+    
+    # Create day prompt template for chat-based generation
+    day_prompt_file = test_prompts_dir / 'day_prompt_template.txt'
+    day_prompt_file.write_text("Test day prompt template")
     
     # Mock the DATA_DIR and PROMPTS_DIR to use our test directories
     mocker.patch('story_generator.config.DATA_DIR', test_output_dir)

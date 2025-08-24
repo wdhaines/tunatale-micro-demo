@@ -99,7 +99,7 @@ class ContentGenerator:
             self.day_prompt_template = "Test day prompt template"
         
         # Legacy prompts (for backward compatibility)
-        self.story_prompt = self._load_prompt('story_prompt_template.txt')  # Default/BALANCED
+        self.story_prompt = self._load_prompt('story_prompt_balanced.txt')  # Default/BALANCED
         
         # Try to load strategy-specific prompts, but don't fail if not available (for tests)
         try:
@@ -160,8 +160,8 @@ class ContentGenerator:
             new_vocab = ", ".join(params.new_vocabulary) if params.new_vocabulary else "None"
             recycled_collocs = ", ".join(params.recycled_collocations) if params.recycled_collocations else "None"
             
-            # Format the prompt according to story_prompt_template.txt structure
-            prompt = self.story_prompt.format(
+            # Format the day-specific prompt according to story_prompt_template.txt structure
+            day_prompt = self.story_prompt.format(
                 learning_objective=params.learning_objective,
                 focus=params.focus or f"Language learning - Phase {params.phase}",
                 learner_level=cefr_level,
@@ -170,9 +170,10 @@ class ContentGenerator:
                 story_guidance=params.story_guidance or "Create an engaging story incorporating the target vocabulary."
             )
             
-            # Get the story from the LLM
-            response = self.llm.get_response(
-                prompt=prompt,
+            # Get the story from the LLM using system/day prompt separation
+            response = self.llm.chat_response(
+                system_prompt=self.system_prompt,
+                user_prompt=day_prompt,
                 response_type="story"
             )
             
@@ -325,10 +326,10 @@ class ContentGenerator:
                         'reuse_patterns': 'true'
                     })
             
-            # Format the prompt
-            prompt = prompt_template.format(**prompt_params)
+            # Format the strategy-specific prompt
+            strategy_prompt = prompt_template.format(**prompt_params)
             
-            # Get the story from the LLM using chat-based approach
+            # Get the story from the LLM using chat-based approach with system/strategy separation
             logging.info(f"\n--- Enhanced Story Generation ({params.content_strategy.value.upper()}) ---")
             logging.info(f"Day {params.phase}: {params.learning_objective}")
             logging.info(f"Focus: {params.focus}")
@@ -338,9 +339,10 @@ class ContentGenerator:
             logging.info(f"New collocations: {new_vocab}")
             logging.info(f"Review collocations: {recycled_collocs}")
             
-            # Use get_response to generate content with strategy prompt
-            response = self.llm.get_response(
-                prompt=prompt,
+            # Use chat_response to separate system prompt from strategy prompt
+            response = self.llm.chat_response(
+                system_prompt=self.system_prompt,
+                user_prompt=strategy_prompt,
                 response_type="story"
             )
             
@@ -365,6 +367,11 @@ class ContentGenerator:
             if not story:
                 logging.error("Empty story generated")
                 return None
+            
+            # Apply post-processing to fix Pimsleur breakdowns
+            logging.info("Applying post-processing corrections to story content")
+            from utils.content_post_processor import post_process_story_content
+            story = post_process_story_content(story)
             
             # Extract and update collocations if needed
             try:
@@ -408,8 +415,9 @@ class ContentGenerator:
             if source_day:
                 logging.info(f"Source Day: {source_day}")
             
-            # Generate complete prompt using two-part architecture
-            complete_prompt = self.prompt_generator.generate_complete_prompt(
+            # Generate system and day prompts separately using two-part architecture
+            system_prompt = self.prompt_generator.load_system_prompt()
+            day_prompt = self.prompt_generator.generate_day_prompt(
                 day=day,
                 strategy=strategy,
                 source_day=source_day,
@@ -425,10 +433,15 @@ class ContentGenerator:
             logging.info(f"  - New limit: {srs_data['new_vocabulary_limit']}")
             logging.info(f"  - Difficulty: {srs_data['difficulty_level']}")
             
-            # Generate content using LLM
+            # Generate content using LLM with system/day prompt separation
             logging.info(f"Calling MockLLM with response_type='story'")
-            logging.debug(f"Prompt length: {len(complete_prompt)} characters")
-            response = self.llm.get_response(complete_prompt, response_type="story")
+            logging.debug(f"System prompt length: {len(system_prompt)} characters")
+            logging.debug(f"Day prompt length: {len(day_prompt)} characters")
+            response = self.llm.chat_response(
+                system_prompt=system_prompt,
+                user_prompt=day_prompt,
+                response_type="story"
+            )
             
             if not response or 'choices' not in response:
                 logging.error("Invalid LLM response format")
@@ -567,13 +580,15 @@ class ContentGenerator:
         
         return clean
 
-    def _save_story(self, story: str, phase: int, learning_objective: str) -> str:
+    def _save_story(self, story: str, phase: int, learning_objective: str, strategy: 'ContentStrategy' = None, source_day: int = None) -> str:
         """Save the generated story to a file.
         
         Args:
             story: The story content to save
             phase: The learning phase number
             learning_objective: The learning objective for the story (required)
+            strategy: Content generation strategy (optional)
+            source_day: Source day for DEEPER/WIDER strategies (optional)
             
         Returns:
             str: Path to the saved story file
@@ -588,12 +603,26 @@ class ContentGenerator:
         output_dir = Path(config.STORIES_DIR) if isinstance(config.STORIES_DIR, str) else config.STORIES_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
         
+        # Create smart filename with strategy information
+        strategy_suffix = ""
+        if strategy:
+            from content_strategy import ContentStrategy
+            if strategy == ContentStrategy.DEEPER:
+                strategy_suffix = f"_deeper"
+                if source_day:
+                    strategy_suffix += f"_from{source_day}"
+            elif strategy == ContentStrategy.WIDER:
+                strategy_suffix = f"_wider"
+                if source_day:
+                    strategy_suffix += f"_from{source_day}"
+            # BALANCED strategy gets no suffix (default)
+        
         # Try to extract title from story content
         title = self._extract_title(story)
         if title:
             clean_title = self._clean_filename(title)
             if clean_title:
-                filename = f"story_day{phase}_{clean_title}.txt"
+                filename = f"story_day{phase:02d}_{clean_title}{strategy_suffix}.txt"
                 story_path = output_dir / filename
                 return self._write_story_file(story_path, story)
                     
@@ -602,8 +631,8 @@ class ContentGenerator:
         if not clean_obj:  # Fallback if no valid characters remain
             clean_obj = f"phase{phase}_story"
             
-        # Create the full filename with the required format
-        filename = f"story_day{phase}_{clean_obj}.txt"
+        # Create the full filename with the required format including strategy
+        filename = f"story_day{phase:02d}_{clean_obj}{strategy_suffix}.txt"
         story_path = output_dir / filename
         
         return self._write_story_file(story_path, story)
@@ -792,15 +821,15 @@ class ContentGenerator:
             
             curriculum = self._load_curriculum()
             
-            # For DEEPER/WIDER strategies, we need a source day
-            if strategy in [ContentStrategy.DEEPER, ContentStrategy.WIDER] and not source_day:
+            # For DEEPER strategy, we need a source day
+            if strategy == ContentStrategy.DEEPER and not source_day:
                 logging.error(f"Strategy {strategy.value} requires a source_day parameter")
                 return None
             
             if strategy == ContentStrategy.DEEPER:
                 return self._generate_deeper_content(target_day, source_day, curriculum)
             elif strategy == ContentStrategy.WIDER:
-                return self._generate_wider_content(target_day, source_day, curriculum)
+                return self._generate_wider_content(target_day, curriculum)
             else:  # BALANCED - use regular generation
                 return self.generate_day_story(target_day)
                 
@@ -859,7 +888,7 @@ class ContentGenerator:
         
         # Save the story to file
         try:
-            story_path = self._save_story(story, target_day, params.learning_objective)
+            story_path = self._save_story(story, target_day, params.learning_objective, params.content_strategy, params.source_day)
             logging.info(f"Story saved to: {story_path}")
         except Exception as e:
             logging.warning(f"Failed to save story file: {e}")
@@ -871,65 +900,155 @@ class ContentGenerator:
             'bonus': []  # Will be populated by analysis if available
         }
         
+        # Extend curriculum with the new day
+        enhanced_learning_objective = f"Enhanced {source_data.learning_objective} with sophisticated Filipino"
+        extension_success = self._extend_curriculum_with_new_day(
+            curriculum, target_day, enhanced_learning_objective, source_data.focus, enhanced_collocations[:6], "deeper"
+        )
+        if not extension_success:
+            logging.warning(f"Story generated but curriculum extension failed for day {target_day}")
+        
         logging.info(f"✅ DEEPER strategy story generated for day {target_day}")
         return story, collocation_report
     
-    def _generate_wider_content(self, target_day: int, source_day: int, curriculum) -> Optional[Tuple[str, List[Dict[str, List[str]]]]]:
-        """Generate WIDER strategy content - expanded scenarios, same difficulty."""
-        # Get source day data  
-        source_data = curriculum.get_day(source_day)
-        if not source_data:
-            logging.error(f"No curriculum found for source day {source_day}")
-            return None
-            
+    def _generate_wider_content(self, target_day: int, curriculum) -> Optional[Tuple[str, List[Dict[str, List[str]]]]]:
+        """Generate WIDER strategy content - expanded scenarios based on curriculum progression."""
         logging.info(f"\n--- WIDER Strategy Generation ---")
-        logging.info(f"Target day {target_day} based on source day {source_day}: {source_data.title}")
+        logging.info(f"Target day {target_day}: Creating new scenarios based on curriculum progression")
         
-        # Expand scenarios while keeping same difficulty
-        expanded_focus = self._expand_scenario_for_wider(source_data.focus)
-        wider_collocations = source_data.collocations + self._add_scenario_collocations(source_data.focus)
+        # Analyze curriculum progression to determine appropriate difficulty and themes
+        curriculum_analysis = self._analyze_curriculum_progression(curriculum)
+        
+        # Generate new scenarios based on curriculum patterns
+        new_focus = self._generate_new_scenario_focus(curriculum_analysis, target_day)
+        
+        # Create collocations appropriate for target day difficulty level
+        wider_collocations = self._generate_progressive_collocations(curriculum_analysis, target_day)
         
         # Get review collocations from SRS
-        review_collocations = self.srs.get_due_collocations(target_day, min_items=4, max_items=6)  # More review for wider
+        review_collocations = self.srs.get_due_collocations(target_day, min_items=4, max_items=6)
         
-        # Create wider story guidance
-        wider_guidance = f"{source_data.story_guidance}. WIDER STRATEGY: Expand to new scenarios and contexts while maintaining the same language difficulty level."
+        # Create learning objective based on curriculum progression
+        learning_objective = f"Day {target_day}: {new_focus} - Building on curriculum foundation"
         
         # Create story parameters
         params = StoryParams(
-            learning_objective=f"WIDER VERSION: {source_data.learning_objective} with expanded scenarios",
+            learning_objective=learning_objective,
             language=curriculum.target_language,
-            cefr_level=curriculum.learner_level,  # Same level as original
+            cefr_level=curriculum.learner_level,
             phase=target_day,
             length=curriculum.presentation_length * 15,  # Longer for more scenarios
-            new_vocabulary=source_data.presentation_phrases + [f"expanded context: {expanded_focus}"],
-            recycled_collocations=wider_collocations + review_collocations,
+            new_vocabulary=wider_collocations[:6],  # New collocations for this scenario
+            recycled_collocations=review_collocations,
             recycled_vocabulary=[],
-            focus=expanded_focus,
-            story_guidance=wider_guidance
+            focus=new_focus,
+            story_guidance=f"WIDER STRATEGY: Create new scenarios and contexts while maintaining appropriate difficulty progression from the existing {len(curriculum.days)}-day curriculum."
         )
         
-        # Generate the story using chat-based approach
-        story = self.generate_chat_story(params, target_day)
+        # Generate the story using enhanced approach with post-processing
+        from content_strategy import ContentStrategy, DifficultyLevel, EnhancedStoryParams
+        enhanced_params = EnhancedStoryParams(
+            learning_objective=params.learning_objective,
+            language=params.language,
+            cefr_level=params.cefr_level,
+            phase=params.phase,
+            new_vocabulary=params.new_vocabulary,
+            review_collocations=params.recycled_collocations,
+            focus=params.focus,
+            story_guidance=params.story_guidance,
+            content_strategy=ContentStrategy.WIDER,
+            difficulty_level=DifficultyLevel.BASIC
+        )
+        story = self.generate_enhanced_story(enhanced_params)
         if not story:
             return None
         
         # Save the story to file
         try:
-            story_path = self._save_story(story, target_day, params.learning_objective)
+            story_path = self._save_story(story, target_day, params.learning_objective, "wider")
             logging.info(f"Story saved to: {story_path}")
         except Exception as e:
             logging.warning(f"Failed to save story file: {e}")
         
         # Analyze collocations
         collocation_report = {
-            'new': wider_collocations[:4],  # Show first 4 wider collocations  
+            'new': wider_collocations[:4],
             'reviewed': review_collocations,
             'bonus': []
         }
         
+        # Extend curriculum with the new day
+        extension_success = self._extend_curriculum_with_new_day(
+            curriculum, target_day, learning_objective, new_focus, wider_collocations[:6], "wider"
+        )
+        if not extension_success:
+            logging.warning(f"Story generated but curriculum extension failed for day {target_day}")
+        
         logging.info(f"✅ WIDER strategy story generated for day {target_day}")
         return story, collocation_report
+    
+    def _analyze_curriculum_progression(self, curriculum) -> Dict[str, Any]:
+        """Analyze curriculum to understand difficulty progression and common themes."""
+        analysis = {
+            'total_days': len(curriculum.days),
+            'common_themes': [],
+            'vocabulary_progression': [],
+            'complexity_level': curriculum.learner_level,
+            'presentation_length': curriculum.presentation_length
+        }
+        
+        # Extract themes from existing days
+        for day in curriculum.days:
+            if hasattr(day, 'focus'):
+                analysis['common_themes'].append(day.focus)
+            if hasattr(day, 'collocations'):
+                analysis['vocabulary_progression'].extend(day.collocations[:3])  # Sample from each day
+        
+        # Remove duplicates while preserving order
+        analysis['common_themes'] = list(dict.fromkeys(analysis['common_themes']))
+        analysis['vocabulary_progression'] = list(dict.fromkeys(analysis['vocabulary_progression']))
+        
+        return analysis
+    
+    def _generate_new_scenario_focus(self, curriculum_analysis: Dict[str, Any], target_day: int) -> str:
+        """Generate new scenario focus that expands on curriculum themes."""
+        base_themes = curriculum_analysis['common_themes']
+        
+        # El Nido scenario expansions that build on common travel themes
+        scenario_extensions = [
+            "Exploring hidden lagoons and boat tours",
+            "Local island hopping and snorkeling adventures", 
+            "Traditional Filipino cooking experiences",
+            "Shopping for local crafts and souvenirs at markets",
+            "Experiencing Filipino hospitality and cultural exchanges",
+            "Adventure activities: kayaking and rock climbing",
+            "Sunset viewing and photography at scenic spots",
+            "Local transportation and getting around islands"
+        ]
+        
+        # Select scenario based on target day to ensure variety
+        scenario_index = (target_day - 1) % len(scenario_extensions)
+        return scenario_extensions[scenario_index]
+    
+    def _generate_progressive_collocations(self, curriculum_analysis: Dict[str, Any], target_day: int) -> List[str]:
+        """Generate collocations appropriate for target day difficulty progression."""
+        base_collocations = [
+            "salamat po", "kumusta po", "magkano po", "puwede po ba",
+            "sarap naman", "ganda talaga", "saan po", "paano po"
+        ]
+        
+        # Add complexity based on target day
+        if target_day > 10:
+            # More advanced collocations for later days
+            advanced_collocations = [
+                "nakakamangha talaga", "sulit na sulit", "hindi ko inexpect",
+                "masaya naman dito", "sobrang ganda", "worth it ba"
+            ]
+            # Replace some basic ones with advanced ones for higher days
+            result = base_collocations[:5] + advanced_collocations[:3]
+            return result
+        
+        return base_collocations[:8]  # Limit to reasonable number
     
     def _enhance_collocations_for_deeper(self, base_collocations: List[str]) -> List[str]:
         """Enhance collocations for DEEPER strategy - more authentic Filipino."""
@@ -995,6 +1114,37 @@ class ContentGenerator:
             additional.extend(["safe po ba", "life jacket po", "boat ride po"])
             
         return additional[:3]  # Limit additional collocations
+    
+    def _extend_curriculum_with_new_day(self, curriculum, target_day: int, learning_objective: str, focus: str, collocations: List[str], strategy: str) -> bool:
+        """Extend curriculum with a new day and save it to file."""
+        try:
+            from curriculum_models import CurriculumDay
+            
+            # Create new curriculum day
+            new_day = CurriculumDay(
+                day=target_day,
+                title=f"Day {target_day}: {focus}",
+                learning_objective=learning_objective,
+                focus=focus,
+                collocations=collocations,
+                presentation_phrases=collocations[:4],  # Use first few as presentation phrases
+                story_guidance=f"Generated using {strategy.upper()} strategy"
+            )
+            
+            # Add the new day to curriculum
+            curriculum.days.append(new_day)
+            
+            # Save updated curriculum
+            curriculum_path = config.CURRICULUM_PATH
+            curriculum.save(curriculum_path)
+            
+            logging.info(f"✅ Extended curriculum with day {target_day} using {strategy} strategy")
+            logging.info(f"Curriculum now has {len(curriculum.days)} days")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Failed to extend curriculum with day {target_day}: {e}")
+            return False
     
     def generate_story_for_day(self, day: int) -> Optional[str]:
         """Generate and save a story for a specific day.

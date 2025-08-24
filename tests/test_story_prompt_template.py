@@ -6,7 +6,7 @@ from typing import Dict, List
 import pytest
 
 # Path to the story prompt template
-PROMPT_TEMPLATE_PATH = Path(__file__).parent.parent / 'prompts' / 'story_prompt_template.txt'
+PROMPT_TEMPLATE_PATH = Path(__file__).parent.parent / 'prompts' / 'story_prompt_balanced.txt'
 
 # Required template variables
 REQUIRED_VARIABLES = {

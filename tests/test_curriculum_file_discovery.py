@@ -151,42 +151,10 @@ class TestCurriculumFileDiscovery:
             print_calls = [call[0][0] for call in mock_print.call_args_list]
             assert any("No curriculum found" in call for call in print_calls)
     
-    def test_extract_with_dynamic_discovery(self):
-        """Test that extract command works with dynamic file discovery."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create curricula directory with test file
-            curricula_dir = Path(temp_dir) / "curricula"
-            curricula_dir.mkdir()
-            
-            curriculum_data = {
-                "learning_objective": "Test curriculum",
-                "days": [
-                    {
-                        "day": 1,
-                        "title": "Day 1: Test",
-                        "content": "Hello world. How are you today?"
-                    }
-                ]
-            }
-            
-            curriculum_file = curricula_dir / "curriculum_test.json"
-            curriculum_file.write_text(json.dumps(curriculum_data, indent=2))
-            
-            # Mock the collocation extractor
-            mock_extractor = MagicMock()
-            mock_extractor.extract_from_curriculum.return_value = {"hello world": 1, "how are you": 1}
-            
-            with patch('config.CURRICULA_DIR', curricula_dir):
-                with patch('main.CollocationExtractor', return_value=mock_extractor):
-                    with patch('builtins.print') as mock_print:
-                        from argparse import Namespace
-                        result = self.cli._handle_extract(Namespace())
-                        
-            assert result == 0
-            # Verify that extract_from_curriculum was called with the found file
-            mock_extractor.extract_from_curriculum.assert_called_once()
-            called_path = mock_extractor.extract_from_curriculum.call_args[0][0]
-            assert called_path.name == "curriculum_test.json"
+    # def test_extract_with_dynamic_discovery(self):
+    #     """Test that extract command works with dynamic file discovery."""
+    #     # This test was disabled because the extract command was removed in CLI cleanup
+    #     pass
     
     def test_collocation_extractor_with_custom_path(self):
         """Test that CollocationExtractor works with custom curriculum path."""

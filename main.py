@@ -78,17 +78,15 @@ class CLI:
             
             Workflow:
               1. generate    - Create a new curriculum
-              2. extract     - Extract collocations from the curriculum
-              3. extend X    - Extend curriculum to X total days (optional)
-              4. generate-day X [--strategy=wider/deeper] - Generate content with strategy
-              5. continue    - Continue to the next day's content
+              2. generate-day X [--strategy=wider/deeper] - Generate content with strategy
               
-            Strategy Commands:
-              • strategy show - View current strategy configurations
-              • strategy set <type> --max-new=N - Configure strategy parameters
-              • enhance --day=N --target=intermediate - Enhance existing content
+            Analysis Commands:
+              • analyze      - Analyze vocabulary distribution and learning progress
+              • show-day-collocations - Extract collocations from specific days
+              • show-srs-status - View SRS status for specific days
+              • debug-generation - Debug SRS vs generated content differences
               
-            View progress with: view, analyze
+            View progress with: view
             ''',
             formatter_class=argparse.RawDescriptionHelpFormatter,
             add_help=False  # We'll add help manually to control formatting
@@ -152,36 +150,6 @@ class CLI:
             help='Clear MockLLM cache before generating (forces manual input)'
         )
         
-        # Extract collocations command
-        subparsers.add_parser(
-            'extract',
-            help='Extract collocations from curriculum'
-        )
-        
-        # Extend curriculum command
-        extend_parser = subparsers.add_parser(
-            'extend',
-            help='Extend existing curriculum with additional days'
-        )
-        extend_parser.add_argument(
-            'days',
-            type=int,
-            help='Total number of days the curriculum should have after extension'
-        )
-        extend_parser.add_argument(
-            '--curriculum',
-            help='Path to curriculum file to extend (default: uses current curriculum)'
-        )
-        
-        # Story generation command
-        story_parser = subparsers.add_parser(
-            'story',
-            help='Generate a story for language learning',
-            description='Generate a story for language learning',
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter
-        )
-        self._setup_story_parser(story_parser)
-        
         # View command
         view_parser = subparsers.add_parser(
             'view',
@@ -189,18 +157,19 @@ class CLI:
         )
         self._setup_view_parser(view_parser)
         
+        
         # Generate day command
         story_day_parser = subparsers.add_parser(
             'generate-day',
             help='Generate story for specific curriculum day with SRS and strategy support'
         )
-        story_day_parser.add_argument('day', type=int, help='Day number (1-5)')
+        story_day_parser.add_argument('day', type=int, help='Day number (1-20)')
         story_day_parser.add_argument(
             '--strategy', 
             type=str, 
-            choices=['balanced', 'wider', 'deeper'],
-            default='balanced',
-            help='Content generation strategy (default: balanced)'
+            choices=['wider', 'deeper'],
+            default='wider',
+            help='Content generation strategy (default: wider)'
         )
         story_day_parser.add_argument(
             '--source-day',
@@ -211,71 +180,6 @@ class CLI:
             '--clear-cache',
             action='store_true',
             help='Clear MockLLM cache before generating (forces manual input)'
-        )
-        
-        # Strategy management command
-        strategy_parser = subparsers.add_parser(
-            'strategy',
-            help='Configure content generation strategies'
-        )
-        strategy_subparsers = strategy_parser.add_subparsers(dest='strategy_action', help='Strategy actions')
-        
-        # strategy set
-        set_parser = strategy_subparsers.add_parser('set', help='Set strategy configuration')
-        set_parser.add_argument('strategy_type', choices=['balanced', 'wider', 'deeper'], help='Strategy to configure')
-        set_parser.add_argument('--max-new', type=int, help='Maximum new collocations per lesson')
-        set_parser.add_argument('--min-review', type=int, help='Minimum review collocations per lesson')
-        set_parser.add_argument('--interval-multiplier', type=float, help='Review interval multiplier')
-        
-        # strategy show
-        strategy_subparsers.add_parser('show', help='Show current strategy configurations')
-        
-        # Enhanced generation command
-        enhance_parser = subparsers.add_parser(
-            'enhance',
-            help='Enhance existing day content using DEEPER strategy'
-        )
-        enhance_parser.add_argument('--day', type=int, required=True, help='Day to enhance')
-        enhance_parser.add_argument('--target', choices=['intermediate', 'advanced'], default='intermediate', help='Target difficulty level')
-        
-        # Strategy recommendation command
-        recommend_parser = subparsers.add_parser(
-            'recommend',
-            help='Get intelligent strategy recommendations based on content analysis'
-        )
-        recommend_parser.add_argument(
-            '--target',
-            choices=['el-nido-trip', 'general-learning'],
-            default='el-nido-trip',
-            help='Target learning objective'
-        )
-        recommend_parser.add_argument(
-            '--days',
-            type=str,
-            default='1-8',
-            help='Day range to analyze (e.g., "1-5" or "all")'
-        )
-        
-        # Content validation command  
-        validate_parser = subparsers.add_parser(
-            'validate',
-            help='Validate content for trip scenarios and vocabulary gaps'
-        )
-        validate_parser.add_argument(
-            '--trip-scenarios',
-            action='store_true',
-            help='Validate coverage of essential trip scenarios'
-        )
-        validate_parser.add_argument(
-            '--vocabulary-gaps',
-            action='store_true', 
-            help='Identify missing essential vocabulary'
-        )
-        validate_parser.add_argument(
-            '--days',
-            type=str,
-            default='1-8',
-            help='Day range to validate (e.g., "1-5" or "all")'
         )
         
         # Analyze command
@@ -404,48 +308,6 @@ class CLI:
         
         return parser
     
-    def _setup_story_parser(self, parser: argparse.ArgumentParser) -> None:
-        """Configure arguments for the story command."""
-        parser.add_argument(
-            'objective',
-            type=str,
-            help='Learning objective for the story (e.g., "ordering food")'
-        )
-        parser.add_argument(
-            '--language',
-            type=str,
-            default='English',
-            help='Target language for the story'
-        )
-        parser.add_argument(
-            '--level',
-            type=self._cefr_level_type,
-            default='B1',
-            help=f'CEFR level ({ "/".join(lvl.value for lvl in CEFRLevel) })'
-        )
-        parser.add_argument(
-            '--phase',
-            type=self._positive_int,
-            choices=range(1, 6),
-            default=1,
-            help='Learning phase (1-5)'
-        )
-        parser.add_argument(
-            '--length',
-            type=self._positive_int,
-            default=config.DEFAULT_STORY_LENGTH,
-            help=f'Target word count (default: {config.DEFAULT_STORY_LENGTH})'
-        )
-        parser.add_argument(
-            '--previous',
-            type=str,
-            help='Path to previous story file for context'
-        )
-        parser.add_argument(
-            '--output',
-            type=str,
-            help='Output file path for the generated story (default: print to stdout)'
-        )
     
     def _setup_view_parser(self, parser: argparse.ArgumentParser) -> None:
         """Configure arguments for the view command."""
@@ -457,8 +319,8 @@ class CLI:
         parser.add_argument(
             '--day',
             type=self._positive_int,
-            choices=range(1, 6),
-            help='Day number (1-5) to view'
+            choices=range(1, 21),
+            help='Day number (1-20) to view'
         )
     
     @staticmethod
@@ -495,21 +357,9 @@ class CLI:
                 handler=self._handle_generate,
                 help='Generate a new language learning curriculum (first step)'
             ),
-            'extract': Command(
-                handler=self._handle_extract,
-                help='Extract collocations from curriculum (second step)'
-            ),
-            'extend': Command(
-                handler=self._handle_extend,
-                help='Extend existing curriculum with additional days'
-            ),
             'generate-day': Command(
                 handler=self._handle_generate_day,
                 help='Generate story for specific curriculum day with SRS (third step)'
-            ),
-            'continue': Command(
-                handler=self._handle_continue,
-                help='Continue to the next day, generating content and updating SRS'
             ),
             'view': Command(
                 handler=self._handle_view,
@@ -518,22 +368,6 @@ class CLI:
             'analyze': Command(
                 handler=self._handle_analyze,
                 help='Analyze vocabulary distribution and learning progress'
-            ),
-            'strategy': Command(
-                handler=self._handle_strategy,
-                help='Configure content generation strategies'
-            ),
-            'enhance': Command(
-                handler=self._handle_enhance,
-                help='Enhance existing day content using DEEPER strategy'
-            ),
-            'recommend': Command(
-                handler=self._handle_recommend,
-                help='Get intelligent strategy recommendations based on content analysis'
-            ),
-            'validate': Command(
-                handler=self._handle_validate,
-                help='Validate content for trip scenarios and vocabulary gaps'
             ),
             'show-day-collocations': Command(
                 handler=self._handle_show_day_collocations,
@@ -610,55 +444,6 @@ class CLI:
             print(f"Error saving curriculum: {e}", file=sys.stderr)
             return 1
 
-    def _handle_extend(self, args: argparse.Namespace) -> int:
-        """Handle the extend command."""
-        logger = logging.getLogger(__name__)
-        logger.info(f"Starting curriculum extension to {args.days} days")
-        
-        try:
-            from curriculum_service import CurriculumGenerator
-            
-            target_days = args.days
-            curriculum_path = args.curriculum if args.curriculum else None
-            
-            logger.debug(f"Target days: {target_days}, Curriculum path: {curriculum_path}")
-            print(f"Extending curriculum to {target_days} days...")
-            
-            # Create curriculum generator
-            logger.debug("Creating CurriculumGenerator instance")
-            generator = CurriculumGenerator()
-            
-            # Extend the curriculum
-            logger.debug("Calling extend_curriculum method")
-            extended_curriculum = generator.extend_curriculum(target_days, curriculum_path)
-            
-            current_days = len(extended_curriculum.get('days', []))
-            logger.info(f"Extension completed successfully: {current_days} days total")
-            print(f"✓ Successfully extended curriculum to {current_days} days")
-            
-            # Show the new days that were added
-            if current_days >= target_days:
-                new_days_count = current_days - (target_days - 1)
-                if new_days_count > 0:
-                    print("\nNew days added:")
-                    start_day = current_days - new_days_count + 1
-                    for day_num in range(start_day, current_days + 1):
-                        day_key = f'day_{day_num}'
-                        if day_key in extended_curriculum['days']:
-                            day_data = extended_curriculum['days'][day_key]
-                            title = day_data.get('title', 'Untitled')
-                            print(f"  Day {day_num}: {title}")
-                            logger.debug(f"Added day {day_num}: {title}")
-            
-            return 0
-            
-        except Exception as e:
-            logger.error(f"Error extending curriculum: {e}", exc_info=True)
-            print(f"Error extending curriculum: {e}", file=sys.stderr)
-            if 'pytest' not in sys.modules:
-                import traceback
-                traceback.print_exc()
-            return 1
 
     def _handle_generate_day(self, args: argparse.Namespace) -> int:
         """Handle the generate-day command with strategy support."""
@@ -676,7 +461,6 @@ class CLI:
         try:
             # Convert string strategy to ContentStrategy enum
             strategy_map = {
-                'balanced': ContentStrategy.BALANCED,
                 'wider': ContentStrategy.WIDER,
                 'deeper': ContentStrategy.DEEPER
             }
@@ -684,8 +468,9 @@ class CLI:
             
             # Determine source day for strategies
             source_day = args.source_day
-            if not source_day and strategy in [ContentStrategy.WIDER, ContentStrategy.DEEPER]:
-                source_day = max(1, args.day - 1)  # Default to previous day
+            if not source_day and strategy == ContentStrategy.DEEPER:
+                source_day = max(1, args.day - 1)  # Default to previous day for DEEPER
+            # WIDER strategy doesn't need a source day - it analyzes curriculum progression
             
             print(f"Generating content for day {args.day} using {strategy.value.upper()} strategy...")
             if source_day:
@@ -763,129 +548,7 @@ class CLI:
             print(f"Error: {e}", file=sys.stderr)
             return 1
 
-    def _handle_continue(self, args: argparse.Namespace) -> int:
-        """Continue to the next day, generating content and updating SRS."""
-        from story_generator import ContentGenerator
-        from curriculum_models import Curriculum
-        
-        print("Continuing to the next day...")
-        
-        # Check if curriculum exists
-        if not config.CURRICULUM_PATH.exists():
-            print("Error: No curriculum found. Please generate a curriculum first using 'generate' command.", 
-                  file=sys.stderr)
-            print("\nWorkflow: generate -> extract -> generate-day -> continue...")
-            return 1
-            
-        try:
-            # Load the curriculum
-            curriculum = Curriculum.load(config.CURRICULUM_PATH)
-            
-            # Find the last generated day
-            generated_days = []
-            
-            if config.STORIES_DIR.exists():
-                for f in config.STORIES_DIR.glob("story_day*.txt"):
-                    try:
-                        day_num = int(f.stem.split('_')[1][3:])  # Extract day number from filename
-                        generated_days.append(day_num)
-                    except (IndexError, ValueError):
-                        continue
-            
-            # Determine the next day
-            if not generated_days:
-                next_day = 1
-                print("No previous content found. Starting from day 1.")
-            else:
-                next_day = max(generated_days) + 1
-                print(f"Last generated day: {max(generated_days)}")
-            
-            # Check if we've reached the end of the curriculum
-            if next_day > len(curriculum.days):
-                print(f"\n🎉 Congratulations! You've completed all {len(curriculum.days)} days of the curriculum!")
-                print("Consider generating a new curriculum to continue learning.")
-                return 0
-            
-            print(f"Generating content for day {next_day}...")
-            
-            # Generate the day's content
-            generator = ContentGenerator()
-            result = generator.generate_day_content(next_day)
-            if not result:
-                print(f"Failed to generate content for day {next_day}", file=sys.stderr)
-                return 1
-            
-            # Unpack the result
-            story, collocation_report, srs_update = result
-            
-            # Display collocation information
-            print("\n=== Learning Progress ===")
-            print(f"Day {next_day}: {curriculum.days[next_day-1].title}")
-            
-            if collocation_report.get('new'):
-                print(f"\n📚 New collocations:")
-                for colloc in collocation_report['new']:
-                    print(f"  • {colloc}")
-                    
-            if collocation_report.get('reviewed'):
-                print(f"\n🔄 Reviewed collocations:")
-                for colloc in collocation_report['reviewed']:
-                    print(f"  • {colloc}")
-                    
-            if collocation_report.get('bonus'):
-                print(f"\n🎁 Bonus collocations found in context:")
-                for colloc in collocation_report['bonus']:
-                    print(f"  • {colloc}")
-            
-            # Show SRS status
-            if hasattr(generator, 'srs'):
-                total_collocations = len(generator.srs.collocations)
-                due_count = len([c for c in generator.srs.collocations.values() 
-                               if c.next_review_day <= next_day])
-                print(f"\n📊 SRS Status: {total_collocations} collocations in system")
-                print(f"   - {due_count} due for review")
-            
-            print(f"\n✅ Successfully generated content for day {next_day}")
-            print(f"\nTo continue tomorrow, run: tunatale continue")
-            return 0
-            
-        except Exception as e:
-            print(f"Error generating content: {e}", file=sys.stderr)
-            if 'pytest' not in sys.modules:  # Don't print traceback during tests
-                import traceback
-                traceback.print_exc()
-            return 1
 
-    def _handle_extract(self, args: argparse.Namespace) -> int:
-        """Handle the extract command."""
-        print("Extracting collocations from curriculum...")
-        extractor = CollocationExtractor()
-        
-        # Check if we have a curriculum file
-        curriculum_path = self._find_curriculum_file()
-        if not curriculum_path:
-            print("No curriculum found. Please generate one with 'python main.py generate <goal>'")
-            return 1
-            
-        try:
-            # Extract collocations from the curriculum
-            collocations = extractor.extract_from_curriculum(curriculum_path)
-            
-            # Print some statistics
-            print(f"\nExtracted {len(collocations)} collocations.")
-            if collocations:
-                print("Top collocations:")
-                for i, (colloc, count) in enumerate(list(collocations.items())[:10], 1):
-                    print(f"{i}. {colloc} (x{count})")
-            
-            return 0
-            
-        except Exception as e:
-            print(f"Error extracting collocations: {e}", file=sys.stderr)
-            if 'pytest' not in sys.modules:  # Don't print traceback during tests
-                import traceback
-                traceback.print_exc()
-            return 1
 
     def _handle_analyze(self, args: argparse.Namespace) -> int:
         """Handle the analyze command.
@@ -1201,330 +864,7 @@ class CLI:
             print("-" * 50)
             return 0
     
-    def _handle_strategy(self, args: argparse.Namespace) -> int:
-        """Handle the strategy command for configuration management."""
-        from content_strategy import ContentStrategy, get_strategy_config, create_custom_strategy_config
-        
-        try:
-            if args.strategy_action == 'show':
-                # Show current configurations
-                print("Current Strategy Configurations:")
-                print("=" * 40)
-                
-                for strategy in ContentStrategy:
-                    config = get_strategy_config(strategy)
-                    print(f"\n{strategy.value.upper()} Strategy:")
-                    print(f"  Max new collocations: {config.max_new_collocations}")
-                    print(f"  Min review collocations: {config.min_review_collocations}")
-                    print(f"  Review interval multiplier: {config.review_interval_multiplier}")
-                    print(f"  Cultural authenticity priority: {config.cultural_authenticity_priority:.1f}")
-                    print(f"  Vocabulary retention focus: {config.vocabulary_retention_focus:.1f}")
-                    print(f"  Scenario creativity: {config.scenario_creativity:.1f}")
-                
-                return 0
-                
-            elif args.strategy_action == 'set':
-                # Set strategy configuration
-                strategy_map = {
-                    'balanced': ContentStrategy.BALANCED,
-                    'wider': ContentStrategy.WIDER,
-                    'deeper': ContentStrategy.DEEPER
-                }
-                strategy = strategy_map[args.strategy_type]
-                
-                # Build custom configuration
-                custom_params = {}
-                if args.max_new is not None:
-                    custom_params['max_new_collocations'] = args.max_new
-                if args.min_review is not None:
-                    custom_params['min_review_collocations'] = args.min_review
-                if args.interval_multiplier is not None:
-                    custom_params['review_interval_multiplier'] = args.interval_multiplier
-                
-                if custom_params:
-                    custom_config = create_custom_strategy_config(strategy, **custom_params)
-                    print(f"Updated {strategy.value.upper()} strategy configuration:")
-                    for key, value in custom_params.items():
-                        print(f"  {key}: {value}")
-                    print("\nNote: Configuration changes affect current session only.")
-                    print("To persist changes, configuration file support will be added in future updates.")
-                else:
-                    print("No configuration changes specified.")
-                
-                return 0
-            else:
-                print("Unknown strategy action. Use 'show' or 'set'.")
-                return 1
-                
-        except Exception as e:
-            print(f"Error managing strategy configuration: {e}", file=sys.stderr)
-            return 1
     
-    def _handle_enhance(self, args: argparse.Namespace) -> int:
-        """Handle the enhance command for DEEPER strategy enhancement."""
-        from story_generator import ContentGenerator
-        from content_strategy import ContentStrategy, DifficultyLevel, EnhancedStoryParams
-        
-        try:
-            day = args.day
-            target_map = {
-                'intermediate': DifficultyLevel.INTERMEDIATE,
-                'advanced': DifficultyLevel.ADVANCED
-            }
-            target_difficulty = target_map[args.target]
-            
-            print(f"Enhancing day {day} content to {target_difficulty.value} level using DEEPER strategy...")
-            
-            # Load existing curriculum to get context
-            if not config.CURRICULUM_PATH.exists():
-                print("Error: No curriculum found. Generate curriculum first.", file=sys.stderr)
-                return 1
-            
-            from curriculum_models import Curriculum
-            curriculum = Curriculum.load(config.CURRICULUM_PATH)
-            
-            if day > len(curriculum.days):
-                print(f"Error: Day {day} not found in curriculum (only {len(curriculum.days)} days available)", file=sys.stderr)
-                return 1
-            
-            curriculum_day = curriculum.days[day - 1]
-            
-            # Create enhanced story parameters
-            params = EnhancedStoryParams(
-                learning_objective=curriculum_day.title,
-                content_strategy=ContentStrategy.DEEPER,
-                difficulty_level=target_difficulty,
-                source_day=day,
-                phase=day + 100,  # Use high phase number to distinguish enhanced content
-                focus=f"Enhanced {curriculum_day.focus or curriculum_day.title}",
-                new_vocabulary=[],  # Focus on enhancing existing content
-                review_collocations=curriculum_day.collocations[:5] if curriculum_day.collocations else []
-            )
-            
-            generator = ContentGenerator()
-            enhanced_story = generator.generate_enhanced_story(params)
-            
-            if not enhanced_story:
-                print(f"Failed to generate enhanced content for day {day}", file=sys.stderr)
-                return 1
-            
-            # Save enhanced content with special naming
-            output_path = config.STORIES_DIR / f"story_day{day:02d}_enhanced_{target_difficulty.value}.txt"
-            config.STORIES_DIR.mkdir(parents=True, exist_ok=True)
-            
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(enhanced_story)
-                
-            print(f"\n✅ Successfully enhanced day {day} content")
-            print(f"Target difficulty: {target_difficulty.value}")
-            print(f"Enhanced story saved to: {output_path}")
-            
-            return 0
-            
-        except Exception as e:
-            print(f"Error enhancing day {args.day}: {e}", file=sys.stderr)
-            if 'pytest' not in sys.modules:
-                import traceback
-                traceback.print_exc()
-            return 1
-    
-    def _handle_recommend(self, args: argparse.Namespace) -> int:
-        """Handle the recommend command for intelligent strategy suggestions."""
-        try:
-            from strategy_recommendation_engine import StrategyRecommendationEngine
-            from pathlib import Path
-            
-            # Collect existing content
-            content_history = []
-            strategies_used = []
-            
-            # Parse day range
-            if args.days == 'all':
-                day_range = range(1, 20)  # Search up to day 20
-            else:
-                start, end = map(int, args.days.split('-'))
-                day_range = range(start, end + 1)
-            
-            # Load content for specified days
-            stories_dir = Path("instance/data/stories")
-            for day in day_range:
-                story_pattern = f"*day{day:02d}*"
-                story_files = list(stories_dir.glob(story_pattern))
-                
-                for story_file in story_files:
-                    try:
-                        with open(story_file, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                            content_history.append(content)
-                            
-                            # Try to detect strategy from filename
-                            if 'deeper' in story_file.name.lower():
-                                strategies_used.append('deeper')
-                            elif 'wider' in story_file.name.lower():
-                                strategies_used.append('wider')
-                            else:
-                                strategies_used.append('balanced')
-                    except Exception:
-                        continue
-            
-            if not content_history:
-                print("No content found for analysis. Generate some lessons first.", file=sys.stderr)
-                return 1
-            
-            # Get recommendation
-            engine = StrategyRecommendationEngine()
-            recommendation = engine.recommend_next_action(
-                content_history, strategies_used, args.target.replace('-', '_')
-            )
-            
-            print("\nSTRATEGY RECOMMENDATION")
-            print("=" * 50)
-            print(f"Recommended Strategy: {recommendation.recommended_strategy.value.upper()}")
-            print(f"Confidence Score: {recommendation.confidence_score:.2f}")
-            print(f"\nPrimary Reason:")
-            print(f"  {recommendation.primary_reason}")
-            
-            if recommendation.specific_actions:
-                print(f"\nSpecific Actions:")
-                for action in recommendation.specific_actions:
-                    print(f"  • {action}")
-            
-            if recommendation.expected_improvements:
-                print(f"\nExpected Improvements:")
-                for improvement in recommendation.expected_improvements:
-                    print(f"  • {improvement}")
-            
-            if recommendation.alternative_strategy:
-                print(f"\nAlternative Strategy: {recommendation.alternative_strategy.value}")
-            
-            if recommendation.warning_notes:
-                print(f"\nWarning Notes:")
-                for warning in recommendation.warning_notes:
-                    print(f"  ⚠️  {warning}")
-            
-            # Provide CLI command suggestion
-            print(f"\nSuggested Command:")
-            if recommendation.recommended_strategy.value == 'balanced':
-                print(f"  tunatale generate-day {len(content_history) + 1}")
-            else:
-                source_day = max(1, len(content_history))
-                print(f"  tunatale generate-day {len(content_history) + 1} --strategy={recommendation.recommended_strategy.value} --source-day={source_day}")
-            
-            return 0
-            
-        except Exception as e:
-            print(f"Error generating recommendation: {e}", file=sys.stderr)
-            import traceback
-            traceback.print_exc()
-            return 1
-    
-    def _handle_validate(self, args: argparse.Namespace) -> int:
-        """Handle the validate command for trip scenario and vocabulary validation."""
-        try:
-            from el_nido_trip_validator import ElNidoTripValidator
-            from pathlib import Path
-            
-            # Collect content for validation
-            content_list = []
-            
-            # Parse day range  
-            if args.days == 'all':
-                day_range = range(1, 20)  # Search up to day 20
-            else:
-                start, end = map(int, args.days.split('-'))
-                day_range = range(start, end + 1)
-            
-            # Load content for specified days
-            stories_dir = Path("instance/data/stories")
-            days_found = []
-            
-            for day in day_range:
-                story_pattern = f"*day{day:02d}*"
-                story_files = list(stories_dir.glob(story_pattern))
-                
-                for story_file in story_files:
-                    try:
-                        with open(story_file, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                            content_list.append(content)
-                            days_found.append(day)
-                            break  # Use first file found for each day
-                    except Exception:
-                        continue
-            
-            if not content_list:
-                print("No content found for validation. Generate some lessons first.", file=sys.stderr)
-                return 1
-            
-            print(f"Validating content from {len(days_found)} days: {', '.join(map(str, sorted(set(days_found))))}")
-            
-            validator = ElNidoTripValidator()
-            
-            if args.trip_scenarios:
-                # Validate trip scenario coverage
-                coverage = validator.validate_scenario_coverage(content_list)
-                
-                print("\nTRIP SCENARIO COVERAGE")
-                print("=" * 50)
-                print(f"Accommodation: {coverage['accommodation_coverage']:.1%}")
-                print(f"Transportation: {coverage['transportation_coverage']:.1%}")
-                print(f"Restaurant: {coverage['restaurant_coverage']:.1%}")
-                print(f"Activities: {coverage['activity_coverage']:.1%}")
-                print(f"Emergency: {coverage['emergency_coverage']:.1%}")
-                
-                # Overall assessment
-                avg_coverage = sum(coverage.values()) / len(coverage)
-                readiness_level = 'Excellent' if avg_coverage >= 0.9 else \
-                                'Good' if avg_coverage >= 0.7 else \
-                                'Adequate' if avg_coverage >= 0.5 else 'Needs Improvement'
-                
-                print(f"\nOverall Coverage: {avg_coverage:.1%} ({readiness_level})")
-                
-            if args.vocabulary_gaps:
-                # Identify vocabulary gaps
-                gaps = validator.identify_vocabulary_gaps(content_list)
-                
-                print("\nVOCABULARY GAPS ANALYSIS")
-                print("=" * 50)
-                
-                if gaps:
-                    for category, missing_words in gaps.items():
-                        if missing_words:
-                            print(f"\n{category.title().replace('_', ' ')}:")
-                            for word in missing_words[:8]:  # Show up to 8 missing words per category
-                                print(f"  • {word}")
-                            if len(missing_words) > 8:
-                                print(f"  ... and {len(missing_words) - 8} more")
-                else:
-                    print("✅ All essential vocabulary covered!")
-            
-            if not args.trip_scenarios and not args.vocabulary_gaps:
-                # Comprehensive validation
-                validation = validator.validate_content_for_trip(content_list)
-                
-                print("\nCOMPREHENSIVE TRIP VALIDATION")
-                print("=" * 50)
-                print(f"Trip Readiness Level: {validation['trip_readiness_level'].upper()}")
-                print(f"Readiness Percentage: {validation['readiness_percentage']:.1f}%")
-                print(f"Cultural Appropriateness: {validation['cultural_appropriateness'].upper()}")
-                
-                if validation['critical_gaps']:
-                    print(f"\nCritical Gaps:")
-                    for gap in validation['critical_gaps'][:5]:
-                        print(f"  🚨 {gap}")
-                
-                if validation['recommendations']:
-                    print(f"\nRecommendations:")
-                    for rec in validation['recommendations'][:3]:
-                        print(f"  💡 {rec}")
-                
-            return 0
-            
-        except Exception as e:
-            print(f"Error during validation: {e}", file=sys.stderr)
-            import traceback
-            traceback.print_exc()
-            return 1
     
     def _handle_show_day_collocations(self, args: argparse.Namespace) -> int:
         """Handle the show-day-collocations command."""
@@ -1590,14 +930,21 @@ class CLI:
         try:
             from srs_tracker import SRSTracker
             from pathlib import Path
+            import os
             
-            # Load SRS tracker
-            srs = SRSTracker()
-            
-            srs_paths = [
-                Path("instance/data/srs_status.json"),
-                Path("data/srs_status.json")
-            ]
+            # Determine data directory (test-aware)
+            data_dir = os.environ.get('TUNATALE_TEST_DATA_DIR', 'data')
+            if data_dir != 'data':
+                # In test mode, use the test directory
+                srs = SRSTracker(data_dir=data_dir)
+                srs_paths = [Path(data_dir) / "srs_status.json"]
+            else:
+                # Load SRS tracker with default paths
+                srs = SRSTracker()
+                srs_paths = [
+                    Path("instance/data/srs_status.json"),
+                    Path("data/srs_status.json")
+                ]
             
             srs_file_found = False
             for srs_path in srs_paths:
@@ -1681,6 +1028,7 @@ class CLI:
             from srs_tracker import SRSTracker
             from pathlib import Path
             import json
+            import os
             
             day = args.day
             print(f"Debugging content generation for day {day}...")
@@ -1693,8 +1041,9 @@ class CLI:
                 print(f"No story found for day {day}", file=sys.stderr)
                 return 1
             
-            # Load SRS status to see what was supposedly provided
-            srs = SRSTracker()
+            # Load SRS status to see what was supposedly provided (test-aware)
+            data_dir = os.environ.get('TUNATALE_TEST_DATA_DIR', 'data')
+            srs = SRSTracker(data_dir=data_dir)
             due_collocations = srs.get_due_collocations(day)
             
             # Create debug report

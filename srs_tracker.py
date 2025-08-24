@@ -73,6 +73,11 @@ class SRSTracker:
         from pathlib import Path
         
         self._is_test = 'pytest' in sys.modules
+        
+        # Check for test environment data directory override
+        if self._is_test and os.environ.get('TUNATALE_TEST_DATA_DIR'):
+            data_dir = os.environ['TUNATALE_TEST_DATA_DIR']
+        
         self.data_dir = Path(data_dir)
         self.filename = filename
         self.filepath = self.data_dir / filename
