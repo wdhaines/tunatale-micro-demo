@@ -91,13 +91,12 @@ class TestDay15PimsleurBreakdowns:
         phrase = "sarap naman"
         expected = [
             "sarap naman",   # Full phrase
-            "man",           # Last syllable of second word
-            "na",            # Previous syllable of second word
-            "naman",         # Complete second word
-            "sarap naman",   # Full phrase after processing second word
-            "rap",           # Last syllable of first word
-            "sa",            # First syllable of first word
-            "sarap",         # Complete first word
+            "man",           # Last syllable of naman
+            "na",            # Previous syllable of naman
+            "naman",         # Complete naman
+            "rap",           # Last syllable of sarap (IMMEDIATE breakdown)
+            "sa",            # First syllable of sarap
+            "sarap",         # Complete sarap
             "sarap naman",   # Final phrase
             "sarap naman"    # Final repetition
         ]
@@ -106,25 +105,24 @@ class TestDay15PimsleurBreakdowns:
         assert actual == expected, f"Expected {expected}, got {actual}"
 
     def test_nakakamangha_talaga_breakdown(self):
-        """Test 'nakakamangha talaga' breakdown - KEY FAILING CASE."""
+        """Test 'nakakamangha talaga' breakdown - corrected for syllable-first order."""
         phrase = "nakakamangha talaga"
         expected = [
             "nakakamangha talaga",  # Full phrase
-            "ga",                   # Last syllable of second word
-            "la",                   # Previous syllable of second word  
-            "laga",                 # Combination of syllables 2-3
-            "ta",                   # First syllable of second word
-            "talaga",               # Complete second word
-            "nakakamangha talaga",  # Full phrase after processing second word
-            "ha",                   # Last syllable of first word
+            "ga",                   # Last syllable of talaga
+            "la",                   # Previous syllable of talaga
+            "laga",                 # Buildup la+ga
+            "ta",                   # First syllable of talaga
+            "talaga",               # Complete talaga
+            "ha",                   # Last syllable of nakakamangha (IMMEDIATE breakdown)
             "mang",                 # Previous syllable
-            "mangha",               # Combination
+            "mangha",               # Buildup mang+ha
             "ka",                   # Previous syllable
-            "kamangha",             # Combination
-            "ka",                   # Previous syllable (repeated in pattern)
-            "kakamangha",           # Combination
+            "kamangha",             # Buildup ka+mang+ha
+            "ka",                   # Previous syllable
+            "kakamangha",           # Buildup ka+ka+mang+ha
             "na",                   # First syllable
-            "nakakamangha",         # Complete first word
+            "nakakamangha",         # Complete nakakamangha
             "nakakamangha talaga",  # Final phrase
             "nakakamangha talaga"   # Final repetition
         ]
@@ -219,8 +217,8 @@ class TestCurrentFailuresVsExpected:
             ("kumusta po", ["kumusta po", "po", "ta", "mus", "musta", "ku", "kumusta", "kumusta po", "kumusta po"]),
             ("magkano po", ["magkano po", "po", "no", "ka", "kano", "mag", "magkano", "magkano po", "magkano po"]),
             ("puwede po ba", ["puwede po ba", "ba", "po", "po ba", "de", "we", "wede", "pu", "puwede", "puwede po ba", "puwede po ba"]),
-            ("sarap naman", ["sarap naman", "man", "na", "naman", "sarap naman", "rap", "sa", "sarap", "sarap naman", "sarap naman"]),
-            ("nakakamangha talaga", ["nakakamangha talaga", "ga", "la", "laga", "ta", "talaga", "nakakamangha talaga", "ha", "mang", "mangha", "ka", "kamangha", "ka", "kakamangha", "na", "nakakamangha", "nakakamangha talaga", "nakakamangha talaga"])
+            ("sarap naman", ["sarap naman", "man", "na", "naman", "rap", "sa", "sarap", "sarap naman", "sarap naman"]),
+            ("nakakamangha talaga", ["nakakamangha talaga", "ga", "la", "laga", "ta", "talaga", "ha", "mang", "mangha", "ka", "kamangha", "ka", "kakamangha", "na", "nakakamangha", "nakakamangha talaga", "nakakamangha talaga"])
         ]
         
         failures = []

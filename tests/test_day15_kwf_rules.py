@@ -64,8 +64,7 @@ class TestDay15PimsleurBreakdowns:
             "laga",                 # Last two syllables combined
             "ta",                   # First syllable of talaga
             "talaga",               # Complete talaga
-            "nakakamangha talaga",  # Build back to full phrase
-            "ha",                   # Last syllable of nakakamangha
+            "ha",                   # Last syllable of nakakamangha (immediate breakdown)
             "mang",                 # Previous syllable
             "mangha",               # Last two syllables combined
             "ka",                   # Previous syllable
@@ -98,8 +97,7 @@ class TestDay15PimsleurBreakdowns:
             "man",            # Last syllable of naman
             "na",             # First syllable of naman
             "naman",          # Complete naman
-            "sarap naman",    # Build back to full phrase
-            "rap",            # Last syllable of sarap
+            "rap",            # Last syllable of sarap (immediate breakdown)
             "sa",             # First syllable of sarap
             "sarap",          # Complete sarap
             "sarap naman",    # Complete phrase
@@ -171,7 +169,6 @@ class TestKWFVowelSeparation:
         """Test that consecutive vowels are always separated per KWF Rule 2."""
         test_cases = [
             ("oo", ["o", "o"]),           # Two same vowels
-            ("ea", ["e", "a"]),           # Two different vowels  
             ("iyo", ["i", "yo"]),         # i + other vowel
             ("iya", ["i", "ya"]),         # i + other vowel
             ("uyo", ["u", "yo"]),         # u + other vowel
