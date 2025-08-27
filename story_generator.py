@@ -21,6 +21,8 @@ from content_strategy import (
 )
 from prompt_generator import DayPromptGenerator, create_prompt_generator
 from mock_srs import MockSRS, create_mock_srs, LessonVocabularyReport
+from srs_enforcer import SRSEnforcer
+from srs_database import SRSDatabase
 
 class CEFRLevel(str, Enum):
     A1 = "A1"
@@ -372,6 +374,29 @@ class ContentGenerator:
             logging.info("Applying post-processing corrections to story content")
             from utils.content_post_processor import post_process_story_content
             story = post_process_story_content(story)
+            
+            # PASS 2: Enforce SRS constraints using LLM (grammar-aware replacement)
+            try:
+                db = SRSDatabase()
+                from srs_llm_enforcer import create_llm_enforcer
+                enforcer = create_llm_enforcer(self.llm, db)
+                
+                logging.info("Applying LLM-based SRS constraint enforcement...")
+                enforced_story, violations = enforcer.enforce_with_llm(
+                    content=story,
+                    day=params.phase,
+                    context=f"strategy_{params.content_strategy.value}_generation"
+                )
+                
+                if violations:
+                    logging.info(f"LLM SRS Enforcement: {len(violations)} intelligent replacements made")
+                    story = enforced_story  # Use the enforced version
+                else:
+                    logging.info("LLM SRS Enforcement: No replacements needed")
+                    
+            except Exception as e:
+                logging.warning(f"LLM SRS enforcement failed: {e}")
+                # Continue with non-enforced story rather than failing
             
             # Extract and update collocations if needed
             try:
@@ -749,6 +774,33 @@ class ContentGenerator:
             story = self.generate_story(params, previous_story)
             if not story:
                 return None
+            
+            # PASS 2: Enforce SRS constraints using LLM (grammar-aware replacement)
+            try:
+                db = SRSDatabase()
+                from srs_llm_enforcer import create_llm_enforcer
+                enforcer = create_llm_enforcer(self.llm, db)
+                
+                logging.info("Applying LLM-based SRS constraint enforcement...")
+                enforced_story, violations = enforcer.enforce_with_llm(
+                    content=story,
+                    day=day,
+                    context="story_generation"
+                )
+                
+                if violations:
+                    logging.info(f"LLM SRS Enforcement: {len(violations)} intelligent replacements made")
+                    for violation in violations[:5]:  # Log first 5 violations  
+                        logging.info(f"  - '{violation['english']}' → '{violation['filipino']}' ({violation['count']}x)")
+                    if len(violations) > 5:
+                        logging.info(f"  ... and {len(violations) - 5} more")
+                    story = enforced_story  # Use the enforced version
+                else:
+                    logging.info("LLM SRS Enforcement: No replacements needed")
+                    
+            except Exception as e:
+                logging.warning(f"LLM SRS enforcement failed (using original story): {e}")
+                # Continue with original story if enforcement fails
                 
             # Extract collocations from the generated story
             generated_collocations = self.collocation_extractor.extract_collocations(story)

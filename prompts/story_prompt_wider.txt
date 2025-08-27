@@ -62,8 +62,23 @@
 - Focus on 8-12 essential collocations maximum
 - PRIORITIZE review collocations from Day {source_day}
 - NEVER breakdown English words - use whole words only
-- Break Tagalog words at natural syllable boundaries: "ma-gan-dang... ha-pon... po"
+- Break Tagalog words at natural syllable boundaries with PROGRESSIVE BUILDING
+- Example format for "magkano po ito":
+  ```
+  [TAGALOG-FEMALE-1]: magkano po ito
+  [NARRATOR]: how much is this
+  [TAGALOG-FEMALE-1]: magkano po ito
+  ito
+  po ito
+  po
+  kano
+  mag
+  magkano
+  magkano po
+  magkano po ito
+  ```
 - NO mixed-language breakdowns
+- Build progressively from individual syllables up to complete phrase
 
 **Section Length Requirements:**
 - Natural Speed: 3-5 minutes of substantial content (main immersion section)

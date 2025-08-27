@@ -306,6 +306,33 @@ class CLI:
             help='Save debug report to srs/debug/ directory'
         )
         
+        # SRS constraint enforcement command
+        enforce_srs_parser = subparsers.add_parser(
+            'enforce-srs',
+            help='Apply SRS constraint enforcement to existing story files'
+        )
+        enforce_srs_parser.add_argument(
+            '--day',
+            type=int,
+            help='Specific day to enforce (if not provided, enforces all stories)'
+        )
+        enforce_srs_parser.add_argument(
+            '--save',
+            action='store_true',
+            help='Save enforced version to new file'
+        )
+        
+        # Debug SRS command
+        debug_srs_parser = subparsers.add_parser(
+            'debug-srs',
+            help='Show what SRS enforcement did for a specific day'
+        )
+        debug_srs_parser.add_argument(
+            'day',
+            type=int,
+            help='Day number to show SRS debug information for'
+        )
+        
         return parser
     
     
@@ -380,6 +407,14 @@ class CLI:
             'debug-generation': Command(
                 handler=self._handle_debug_generation,
                 help='Debug what SRS provided vs what appeared in generated content'
+            ),
+            'enforce-srs': Command(
+                handler=self._handle_enforce_srs,
+                help='Apply SRS constraint enforcement to existing story files'
+            ),
+            'debug-srs': Command(
+                handler=self._handle_debug_srs,
+                help='Show what SRS enforcement did for a specific day'
             )
         }
 
@@ -1135,6 +1170,230 @@ class CLI:
                 traceback.print_exc()
             return 1
     
+    def _handle_enforce_srs(self, args: argparse.Namespace) -> int:
+        """Handle the enforce-srs command to apply constraint enforcement to stories."""
+        try:
+            from srs_enforcer import SRSEnforcer
+            from srs_database import SRSDatabase
+            from pathlib import Path
+            
+            # Initialize SRS enforcer
+            try:
+                db = SRSDatabase()
+                enforcer = SRSEnforcer(db)
+            except Exception as e:
+                print(f"Error initializing SRS enforcer: {e}", file=sys.stderr)
+                return 1
+            
+            # Handle specific day or all stories
+            if hasattr(args, 'day') and args.day:
+                # Enforce specific day
+                day = args.day
+                print(f"Applying SRS constraint enforcement to day {day}...")
+                
+                # Find the story file for this day
+                stories_dir = Path("instance/data/stories")
+                possible_patterns = [
+                    f"story_day{day}_*.txt",
+                    f"day{day}_*.txt", 
+                    f"demo-0.0.3-day-{day}.txt",
+                    f"*day{day}*.txt"
+                ]
+                
+                story_file = None
+                for pattern in possible_patterns:
+                    matches = list(stories_dir.glob(pattern))
+                    if matches:
+                        story_file = matches[0]  # Use first match
+                        break
+                
+                if not story_file:
+                    print(f"No story file found for day {day}", file=sys.stderr)
+                    return 1
+                
+                # Read and enforce
+                with open(story_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                print(f"Processing: {story_file.name}")
+                enforced_content, violations = enforcer.enforce_constraints(
+                    content=content,
+                    day=day,
+                    context=f"cli_enforcement_day{day}"
+                )
+                
+                if violations:
+                    print(f"\n📊 Summary: {len(violations)} violations found and corrected")
+                    
+                    # Save enforced version if requested
+                    if hasattr(args, 'save') and args.save:
+                        enforced_file = story_file.with_stem(f"{story_file.stem}_enforced")
+                        with open(enforced_file, 'w', encoding='utf-8') as f:
+                            f.write(enforced_content)
+                        print(f"💾 Enforced version saved to: {enforced_file}")
+                    
+                    # Show before/after examples
+                    print("\n📝 Example changes:")
+                    for i, v in enumerate(violations[:3], 1):
+                        print(f"  {i}. '{v['english']}' → '{v['filipino']}' ({v['count']}x)")
+                    if len(violations) > 3:
+                        print(f"  ... and {len(violations) - 3} more")
+                else:
+                    print("✅ No violations found - story already complies with SRS constraints")
+                
+                return 0
+            
+            else:
+                # Enforce all stories
+                print("Applying SRS constraint enforcement to all stories...")
+                
+                stories_dir = Path("instance/data/stories")
+                story_files = list(stories_dir.glob("*.txt"))
+                
+                if not story_files:
+                    print("No story files found", file=sys.stderr)
+                    return 1
+                
+                total_violations = 0
+                processed_count = 0
+                
+                for story_file in story_files:
+                    try:
+                        with open(story_file, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        
+                        # Try to extract day number from filename
+                        day_num = 1
+                        for part in story_file.name.split('_'):
+                            if 'day' in part.lower():
+                                try:
+                                    day_num = int(''.join(filter(str.isdigit, part)))
+                                    break
+                                except ValueError:
+                                    pass
+                        
+                        enforced_content, violations = enforcer.enforce_constraints(
+                            content=content,
+                            day=day_num,
+                            context=f"cli_bulk_enforcement"
+                        )
+                        
+                        if violations:
+                            total_violations += len(violations)
+                            print(f"  ✓ {story_file.name}: {len(violations)} violations corrected")
+                        
+                        processed_count += 1
+                        
+                    except Exception as e:
+                        print(f"  ❌ Error processing {story_file.name}: {e}")
+                        continue
+                
+                print(f"\n📊 Summary:")
+                print(f"  Files processed: {processed_count}")
+                print(f"  Total violations corrected: {total_violations}")
+                print(f"  Violations recorded in database for analysis")
+                
+                return 0
+            
+        except Exception as e:
+            print(f"Error in SRS enforcement: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:
+                import traceback
+                traceback.print_exc()
+            return 1
+    
+    def _handle_debug_srs(self, args: argparse.Namespace) -> int:
+        """Handle the debug-srs command to show what SRS enforcement did for a day."""
+        try:
+            from srs_database import SRSDatabase
+            import sqlite3
+            import json
+            
+            day = args.day
+            print(f"\n=== SRS Debug for Day {day} ===")
+            
+            # Load violations from database
+            try:
+                db = SRSDatabase()
+                # Use sqlite3 directly since SRSDatabase doesn't have get_connection method
+                with sqlite3.connect(db.db_path) as connection:
+                    cursor = connection.cursor()
+                    
+                    # Get violations for this day
+                cursor.execute("""
+                    SELECT english_text, known_filipino, violation_type, was_replaced, context, created_at
+                    FROM srs_violations 
+                    WHERE day = ?
+                    ORDER BY created_at DESC
+                    LIMIT 50
+                """, (day,))
+                
+                violations = cursor.fetchall()
+                
+                if not violations:
+                    print(f"No SRS enforcement data found for day {day}")
+                    print("This could mean:")
+                    print("  • No story was generated for this day with SRS enforcement")
+                    print("  • No violations were found (all content was already properly Filipino)")
+                    print("  • SRS enforcement failed or was disabled")
+                    return 1
+                
+                # Group violations by context and type
+                by_context = {}
+                for violation in violations:
+                    english, filipino, v_type, was_replaced, context, created_at = violation
+                    if context not in by_context:
+                        by_context[context] = []
+                    by_context[context].append({
+                        'english': english,
+                        'filipino': filipino,
+                        'type': v_type,
+                        'replaced': bool(was_replaced),
+                        'timestamp': created_at
+                    })
+                
+                # Display violations by context
+                for context, context_violations in by_context.items():
+                    print(f"\n📋 Context: {context}")
+                    print(f"   Total violations: {len(context_violations)}")
+                    
+                    # Show replacements made
+                    replaced = [v for v in context_violations if v['replaced']]
+                    if replaced:
+                        print(f"\n✅ Replacements Made ({len(replaced)}):")
+                        for i, v in enumerate(replaced, 1):
+                            print(f"   {i:2}. '{v['english']}' → '{v['filipino']}'")
+                            print(f"       Method: {v['type']}")
+                    
+                    # Show what wasn't replaced (if any)
+                    not_replaced = [v for v in context_violations if not v['replaced']]
+                    if not_replaced:
+                        print(f"\n⏭️ Not Replaced ({len(not_replaced)}):")
+                        for i, v in enumerate(not_replaced, 1):
+                            print(f"   {i:2}. '{v['english']}' (would be '{v['filipino']}')")
+                
+                # Show recent enforcement activity
+                print(f"\n🕐 Most Recent Enforcement:")
+                latest = violations[0] if violations else None
+                if latest:
+                    print(f"   Date: {latest[5]}")
+                    print(f"   Context: {latest[4]}")
+                    print(f"   Method: {latest[2]}")
+                
+                return 0
+                
+            except Exception as e:
+                print(f"Error accessing SRS database: {e}")
+                print("Make sure the SRS database has been initialized.")
+                return 1
+                
+        except Exception as e:
+            print(f"Error in SRS debug: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:
+                import traceback
+                traceback.print_exc()
+            return 1
+    
     def run(self) -> int:
         """Run the CLI application."""
         try:
@@ -1213,137 +1472,107 @@ class CLI:
             print(f"⚠️ Warning: Failed to clear cache: {e}", file=sys.stderr)
             
     def _clear_day_specific_cache(self, cache_dir: Path, day: int) -> int:
-        """Clear cache entries for a specific day's story generation."""
+        """Clear cache entries for a specific day's story generation AND SRS enforcement."""
         cleared_count = 0
         
-        # For day-specific clearing, we need to generate the expected prompt hash
-        # and remove any cache files that would be used for this day's generation
-        from story_generator import ContentGenerator
-        from content_strategy import ContentStrategy
+        # For day-specific clearing, we need to find cache files that contain
+        # references to this specific day in their prompts
+        import json
         
         try:
-            # Create the same prompt that would be generated for this day
-            # This ensures we clear the right cache regardless of content
-            generator = ContentGenerator()
-            
-            # Get current args to understand the strategy being used
-            import sys
-            args = sys.argv
-            strategy = ContentStrategy.BALANCED  # Default
-            source_day = None
-            
-            # Parse strategy from command line args
-            if '--strategy=deeper' in ' '.join(args):
-                strategy = ContentStrategy.DEEPER
-            elif '--strategy=wider' in ' '.join(args):
-                strategy = ContentStrategy.WIDER
-                
-            # Parse source day from command line args
-            for i, arg in enumerate(args):
-                if arg.startswith('--source-day='):
-                    source_day = int(arg.split('=')[1])
-                elif arg == '--source-day' and i + 1 < len(args):
-                    source_day = int(args[i + 1])
-            
-            # Generate the expected prompt hash for this day/strategy combination
-            if strategy in [ContentStrategy.DEEPER, ContentStrategy.WIDER]:
-                # For strategy-based generation, create the enhanced prompt
-                if source_day:
-                    try:
-                        # This will generate the same prompt that will be used
-                        result = generator.generate_strategy_based_story(
-                            target_day=day, 
-                            strategy=strategy, 
-                            source_day=source_day,
-                            _dry_run=True  # Don't actually generate, just get the prompt
-                        )
-                    except:
-                        # If dry run fails, fall back to pattern matching
-                        pass
-        except:
-            # If smart clearing fails, fall back to pattern matching
-            pass
-        
-        # Read each cache file to see if it's for the target day
-        for cache_file in cache_dir.glob('*.json'):
-            try:
-                with open(cache_file, 'r') as f:
-                    import json
-                    cache_data = json.load(f)
+            # Check all cache files for day-specific prompts
+            for cache_file in cache_dir.glob('*.json'):
+                try:
+                    with open(cache_file, 'r') as f:
+                        cache_data = json.load(f)
                     
-                # Handle both old and new cache formats
-                user_prompt = None
-                content = None
-                
-                # New format: has 'user_prompt' field
-                if 'user_prompt' in cache_data:
-                    user_prompt = cache_data['user_prompt']
-                
-                # Old format: direct content in 'choices' 
-                elif 'choices' in cache_data and cache_data['choices']:
-                    content = cache_data['choices'][0]['message']['content']
-                
-                # Skip if we can't extract searchable text
-                if not user_prompt and not content:
+                    # Check if this cache file contains prompts for the specified day
+                    if self._cache_file_contains_day(cache_data, day):
+                        cache_file.unlink()
+                        cleared_count += 1
+                        print(f"🗑️ Cleared cache file: {cache_file.name}")
+                        
+                except (json.JSONDecodeError, KeyError, OSError):
+                    # Skip corrupted or inaccessible cache files
                     continue
                     
-                # Search text is either the user prompt or the content itself
-                search_text = user_prompt if user_prompt else content
-                
-                # Look for day-specific patterns in the text
-                day_patterns = [
-                    f"Day {day} Story",           # Basic story generation
-                    f"Generate Day {day}",        # Alternative basic pattern
-                    f"Day {day}:",               # Strategy-specific prompts (DEEPER/WIDER)
-                    f"Target day {day}",         # Strategy prompts with "target day"
-                    f"day {day}",                # Lowercase variants
-                    f"Day{day}",                 # No space variants
-                ]
-                
-                # Also check for strategy-specific patterns that reference the day
-                strategy_patterns = [
-                    "DEEPER Strategy Content Generation Request",
-                    "WIDER Strategy Content Generation Request", 
-                    "Enhanced Language Complexity",
-                    "Scenario Expansion"
-                ]
-                
-                # Check if any day pattern matches
-                day_match = any(pattern in search_text for pattern in day_patterns)
-                
-                # For strategy prompts, also check if they reference the target day anywhere
-                strategy_match = False
-                if any(pattern in search_text for pattern in strategy_patterns):
-                    # If it's a strategy prompt, check if it mentions our target day anywhere
-                    strategy_match = str(day) in search_text
-                
-                # AGGRESSIVE CLEARING: For day-specific requests, be more liberal
-                # Clear any cache that might be related to this day's generation
-                aggressive_match = False
-                
-                # Check if this could be a response for the target day
-                # Look for the day number anywhere in the content or prompt
-                if str(day) in search_text:
-                    aggressive_match = True
-                
-                # For old format caches, if we can't clearly identify the day,
-                # clear it if it looks like story content for safety
-                elif content and not user_prompt:
-                    # Old format story cache - if it contains story markers, clear it
-                    story_markers = ['[NARRATOR]:', 'Key Phrases:', 'Natural Speed', 'Slow Speed']
-                    if any(marker in content for marker in story_markers):
-                        # This looks like a story cache, clear it to be safe
-                        aggressive_match = True
-                
-                if day_match or strategy_match or aggressive_match:
-                    cache_file.unlink()
-                    cleared_count += 1
-                        
-            except Exception:
-                # Skip files that can't be read/parsed
-                continue
-                
+        except Exception as e:
+            print(f"⚠️ Warning: Error during day-specific cache clearing: {e}", file=sys.stderr)
+            
         return cleared_count
+    
+    def _cache_file_contains_day(self, cache_data: dict, day: int) -> bool:
+        """Check if a cache file contains prompts related to the specified day."""
+        try:
+            # Check for user_prompt field (newer cache format)
+            if 'user_prompt' in cache_data:
+                prompt = cache_data['user_prompt']
+                
+                # Direct day references
+                day_patterns = [
+                    f"Day {day}",
+                    f"day {day}",
+                    f"for Day {day}",
+                    f"content for Day {day}",
+                    f"content for day {day}",
+                    f"Day {day}:",
+                    f"day {day}:"
+                ]
+                
+                if any(pattern in prompt for pattern in day_patterns):
+                    return True
+                
+                # For strategy-based generation, check if this might be for our target day
+                # Since strategy prompts don't always contain explicit day numbers,
+                # we'll be more aggressive and clear recent strategy caches when clearing day-specific cache
+                strategy_indicators = [
+                    "DEEPER Strategy Content Generation Request",
+                    "WIDER Strategy Content Generation Request",
+                    "Enhanced Filipino authenticity",
+                    "Enhanced Language Complexity"
+                ]
+                
+                if any(indicator in prompt for indicator in strategy_indicators):
+                    # This looks like a strategy-based cache that might be for our target day
+                    # Be aggressive and clear it
+                    return True
+                
+                # Also clear test/debug caches that might interfere
+                test_patterns = [
+                    "Test user prompt",
+                    "Test system prompt", 
+                    "debug",
+                    "Debug"
+                ]
+                
+                if any(pattern in prompt for pattern in test_patterns):
+                    return True
+            
+            # Check older cache format (direct response format)
+            if 'choices' in cache_data:
+                choices = cache_data.get('choices', [])
+                for choice in choices:
+                    if isinstance(choice, dict) and 'message' in choice:
+                        content = choice['message'].get('content', '')
+                        day_patterns = [
+                            f"Day {day}",
+                            f"day {day}"
+                        ]
+                        if any(pattern in content for pattern in day_patterns):
+                            return True
+                            
+                # Also clear empty responses that might be from failed interactive attempts
+                if choices and len(choices) == 1:
+                    choice = choices[0]
+                    if isinstance(choice, dict) and 'message' in choice:
+                        content = choice['message'].get('content', '').strip()
+                        if not content:  # Empty response
+                            return True
+                            
+        except (KeyError, TypeError):
+            pass
+            
+        return False
         
     def _clear_goal_specific_cache(self, cache_dir: Path, goal: str) -> int:
         """Clear cache entries for a specific curriculum generation goal."""

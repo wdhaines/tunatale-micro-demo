@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, TypedDict
 
 try:
+    from srs_database import SRSDatabase
+except ImportError:
+    SRSDatabase = None
+
+try:
     from content_strategy import ContentStrategy, StrategyConfig, get_strategy_config
 except ImportError:
     # Fallback if content_strategy module not available
@@ -62,12 +67,13 @@ class CollocationStatus:
 class SRSTracker:
     """Spaced Repetition System tracker for collocations."""
     
-    def __init__(self, data_dir: str = 'data', filename: str = 'srs_status.json'):
+    def __init__(self, data_dir: str = 'data', filename: str = 'srs_status.json', use_database: bool = False):
         """Initialize the SRS tracker.
         
         Args:
             data_dir: Directory to store the status file
             filename: Name of the status file
+            use_database: If True, use SQLite database instead of JSON file
         """
         import sys
         from pathlib import Path
@@ -94,12 +100,28 @@ class SRSTracker:
                     "Use a temporary directory for tests."
                 )
         
-        # Always create directory and initialize state, even in test mode
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        if self.filepath.exists():
-            self._load_state()
+        # Initialize database mode if requested
+        self.use_database = use_database
+        self.database = None
+        
+        if self.use_database:
+            if SRSDatabase is None:
+                raise ImportError("SRSDatabase not available. Cannot use database mode.")
+            
+            # For database mode, use instance/data/srs/ directory
+            db_path = "instance/data/srs/tunatale_srs.db"
+            if self._is_test:
+                db_path = str(self.data_dir / "test_srs.db")
+            
+            self.database = SRSDatabase(db_path)
+            print(f"SRS using database mode: {db_path}")
         else:
-            self._save_state()
+            # Always create directory and initialize state, even in test mode
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            if self.filepath.exists():
+                self._load_state()
+            else:
+                self._save_state()
 
     def _is_valid_collocation(self, text: str) -> bool:
         """

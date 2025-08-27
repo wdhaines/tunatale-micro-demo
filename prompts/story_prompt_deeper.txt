@@ -116,10 +116,36 @@
 - **Same flow:** If source has 3 scenes, enhanced version has 3 scenes in same order
 - **Enhanced language:** "Good morning" → "Magandang umaga po" → "Magandang umaga po sa inyo"
 
+**Key Phrases Pimsleur Breakdown Rules:**
+- Focus on 8-12 essential sophisticated collocations maximum
+- NEVER breakdown English words - use whole words only
+- Break Tagalog words at natural syllable boundaries with PROGRESSIVE BUILDING
+- Example format for "para sa ilan po":
+  ```
+  [TAGALOG-FEMALE-1]: para sa ilan po
+  [NARRATOR]: for how many
+  [TAGALOG-FEMALE-1]: para sa ilan po
+  po
+  ilan po
+  i
+  ilan
+  ilan po
+  sa ilan
+  sa ilan po
+  ra
+  pa
+  para
+  para sa
+  para sa ilan
+  para sa ilan po
+  ```
+- NO mixed-language breakdowns
+- Build progressively from individual syllables up to complete phrase
+
 **Quality Validation Checklist:**
 - ✓ Uses source day transcript as exact structural foundation
 - ✓ Maintains same characters, scenes, and dialogue flow from source
-- ✓ Uses 8-12 sophisticated collocations
+- ✓ Uses 8-12 sophisticated collocations with proper Pimsleur breakdown
 - ✓ Demonstrates enhanced Filipino authenticity
 - ✓ Maintains comprehensibility despite complexity increase
 - ✓ Incorporates all review vocabulary naturally
