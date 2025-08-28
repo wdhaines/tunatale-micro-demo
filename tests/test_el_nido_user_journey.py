@@ -259,7 +259,7 @@ class TestElNidoUserJourneys:
             "Salamat po sa lahat! Babalik po ako!"         # Farewell
         ]
         
-        # Mix of WIDER and BALANCED strategies
+        # Mix of WIDER and DEFAULT strategies
         strategies = ["wider", "balanced", "wider", "wider", "balanced", "wider", "deeper"]
         
         # Validate comprehensive scenario coverage
@@ -390,7 +390,7 @@ class TestElNidoUserJourneys:
         assert final_recommendation.confidence_score > 0.3, "Should have reasonable confidence in final recommendation"
         
         # Should focus on maintenance or advanced techniques
-        expected_final_strategies = [ContentStrategy.DEEPER, ContentStrategy.BALANCED, ContentStrategy.WIDER]
+        expected_final_strategies = [ContentStrategy.DEEPER, ContentStrategy.WIDER, ContentStrategy.WIDER]
         assert final_recommendation.recommended_strategy in expected_final_strategies
 
     def test_solo_vs_group_traveler_comparison(self, quality_analyzer, trip_validator, recommendation_engine):

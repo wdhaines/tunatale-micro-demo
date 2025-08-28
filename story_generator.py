@@ -101,7 +101,7 @@ class ContentGenerator:
             self.day_prompt_template = "Test day prompt template"
         
         # Legacy prompts (for backward compatibility)
-        self.story_prompt = self._load_prompt('story_prompt_balanced.txt')  # Default/BALANCED
+        self.story_prompt = self._load_prompt('story_prompt.txt')  # Default baseline
         
         # Try to load strategy-specific prompts, but don't fail if not available (for tests)
         try:
@@ -276,7 +276,7 @@ class ContentGenerator:
             elif params.content_strategy == ContentStrategy.WIDER and self.story_prompt_wider:
                 prompt_template = self.story_prompt_wider
             else:
-                # Use default template for BALANCED or fallback
+                # Use default template for fallback
                 prompt_template = self.story_prompt
             
             # Get strategy configuration
@@ -417,7 +417,7 @@ class ContentGenerator:
     def generate_day_with_srs(
         self, 
         day: int, 
-        strategy: ContentStrategy = ContentStrategy.BALANCED,
+        strategy: ContentStrategy = ContentStrategy.WIDER,
         source_day: Optional[int] = None,
         learning_objective: Optional[str] = None
     ) -> Optional[str]:
@@ -426,7 +426,7 @@ class ContentGenerator:
         
         Args:
             day: Day number for the lesson
-            strategy: Content generation strategy (WIDER/DEEPER/BALANCED)
+            strategy: Content generation strategy (WIDER/DEEPER)
             source_day: Source day for DEEPER strategy (which day to enhance)
             learning_objective: Optional override for learning objective
             
@@ -640,7 +640,7 @@ class ContentGenerator:
                 strategy_suffix = f"_wider"
                 if source_day:
                     strategy_suffix += f"_from{source_day}"
-            # BALANCED strategy gets no suffix (default)
+            # WIDER strategy gets no suffix (default)
         
         # Try to extract title from story content
         title = self._extract_title(story)
@@ -862,7 +862,7 @@ class ContentGenerator:
         
         Args:
             target_day: The day number for the new story
-            strategy: ContentStrategy (DEEPER, WIDER, BALANCED)
+            strategy: ContentStrategy (DEEPER, WIDER)
             source_day: Source day to base content on (required for DEEPER/WIDER)
             
         Returns:
@@ -882,7 +882,7 @@ class ContentGenerator:
                 return self._generate_deeper_content(target_day, source_day, curriculum)
             elif strategy == ContentStrategy.WIDER:
                 return self._generate_wider_content(target_day, curriculum)
-            else:  # BALANCED - use regular generation
+            else:  # Default - use regular generation
                 return self.generate_day_story(target_day)
                 
         except Exception as e:

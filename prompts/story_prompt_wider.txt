@@ -40,59 +40,17 @@
 - **Max New Words:** {max_new_words} per scenario
 - **Reuse Patterns:** {reuse_patterns}
 
-**Authentic Filipino Language:**
-- Use ONLY Tagalog spelling for loanwords: "asukal" not "azúcar", "porke" not "porque", "syempre" not "siempre"
-- NEVER use Spanish accents (á, é, í, ó, ú) or Spanish 'c' when Tagalog uses 'k'
-- Generate PURE Tagalog collocations only - NO English phrases like "very good" or "thank you"
-- Use natural "po" - formal situations, strangers, service contexts only (NOT every sentence)
+**WIDER Strategy Specific:**
 - Maintain the SAME language complexity level as Day {source_day}
 
-**Voice Assignment Rules:**
-- Male names (Carlos, Juan, Miguel) → TAGALOG-MALE voices
-- Female names (Maria, Ana, Rosa) → TAGALOG-FEMALE voices
-- Maintain consistency within lesson
-
-**Number Usage:**
-- NEVER use raw digits (10, 8:30, 150) - always spell out numbers
-- Spanish numbers for time: "alas otso y medya" not "8:30"
-- Tagalog numbers for counting: "sampu" not "10"
-- English numbers for business contexts when appropriate
-
-**Key Phrases Rules:**
-- Focus on 8-12 essential collocations maximum
+**Key Phrases Strategy:**
 - PRIORITIZE review collocations from Day {source_day}
-- NEVER breakdown English words - use whole words only
-- Break Tagalog words at natural syllable boundaries with PROGRESSIVE BUILDING
-- Example format for "magkano po ito":
-  ```
-  [TAGALOG-FEMALE-1]: magkano po ito
-  [NARRATOR]: how much is this
-  [TAGALOG-FEMALE-1]: magkano po ito
-  ito
-  po ito
-  po
-  kano
-  mag
-  magkano
-  magkano po
-  magkano po ito
-  ```
-- NO mixed-language breakdowns
-- Build progressively from individual syllables up to complete phrase
+- Focus on reinforcing learned patterns in new contexts
 
-**Section Length Requirements:**
-- Natural Speed: 3-5 minutes of substantial content (main immersion section)
-- Key Phrases: Focused, essential collocations only (not the main content)
-- Maintain proper balance - Natural Speed should be the longest section
-
-**Story Structure Requirements:**
-- Create clear beginning, middle, and end narrative flow
-- Use 60% or more dialogue throughout all sections
-- Keep paragraphs short (2-3 sentences max) for clarity
-- Use simple, clear language appropriate for the CEFR level
-- Include a title at the top
-- Word count between 400-500 words
-- NEW scenarios using familiar language patterns
+**WIDER Content Focus:**
+- Natural Speed section should be the main immersion content
+- Use Key Phrases to reinforce Day {source_day} vocabulary in new scenarios
+- NEW scenarios using familiar language patterns from Day {source_day}
 
 **Collocation Marking (for reference only - not used in output):**
 - Mark new collocations with **double asterisks** like this: **new collocation**
@@ -105,7 +63,7 @@ Generate a structured language learning lesson that uses familiar vocabulary fro
 **SECTION 1: Title and Key Phrases**
 1. Start with: [NARRATOR]: Day {phase}: {focus} – New Scenarios
 2. Add a blank line, then "Key Phrases:"
-3. For each key phrase/collocation (8-12 maximum for WIDER strategy):
+3. For each key phrase/collocation (maximum 5 for WIDER strategy):
    - [TAGALOG-FEMALE-1]: [phrase in target language, prioritizing review from Day {source_day}]
    - [NARRATOR]: [English translation]
    - [TAGALOG-FEMALE-1]: [phrase again]

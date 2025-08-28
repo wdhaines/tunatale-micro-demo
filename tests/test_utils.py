@@ -158,13 +158,13 @@ class FastRecommendations:
     
     @staticmethod
     def create_balanced_recommendation() -> StrategyRecommendation:
-        """Create BALANCED strategy recommendation."""
+        """Create DEFAULT strategy recommendation."""
         return StrategyRecommendation(
-            recommended_strategy=ContentStrategy.BALANCED,
+            recommended_strategy=ContentStrategy.WIDER,
             confidence_score=0.7,
             primary_reason="Build solid foundation before specialization",
             specific_actions=[
-                "Continue with BALANCED strategy",
+                "Continue with DEFAULT strategy",
                 "Focus on essential vocabulary and basic patterns"
             ],
             expected_improvements=[

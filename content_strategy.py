@@ -19,11 +19,9 @@ class ContentStrategy(Enum):
     
     WIDER: Generate new scenarios using familiar vocabulary
     DEEPER: Enhance existing scenarios with advanced Filipino expressions
-    BALANCED: Mix of both approaches (current default)
     """
     WIDER = "wider"
     DEEPER = "deeper"
-    BALANCED = "balanced"
 
 
 class DifficultyLevel(Enum):
@@ -107,7 +105,7 @@ class StrategyConfig:
     """
     
     # Core strategy
-    strategy: ContentStrategy = ContentStrategy.BALANCED
+    strategy: ContentStrategy = ContentStrategy.WIDER
     difficulty_level: DifficultyLevel = DifficultyLevel.BASIC
     
     # SRS parameters
@@ -261,19 +259,6 @@ DEFAULT_STRATEGY_CONFIGS = {
         cultural_authenticity_priority=0.9,
         vocabulary_retention_focus=0.6,
         scenario_creativity=0.4
-    ),
-    
-    ContentStrategy.BALANCED: StrategyConfig(
-        strategy=ContentStrategy.BALANCED,
-        difficulty_level=DifficultyLevel.BASIC,
-        max_new_collocations=5,
-        min_review_collocations=5,
-        review_interval_multiplier=1.0,
-        difficulty_preference='balanced_approach',
-        english_scaffolding_level='current_default',
-        cultural_authenticity_priority=0.5,
-        vocabulary_retention_focus=0.5,
-        scenario_creativity=0.5
     )
 }
 
@@ -291,7 +276,7 @@ class EnhancedStoryParams:
     phase: int = 1
     
     # Strategy parameters (new)
-    content_strategy: ContentStrategy = ContentStrategy.BALANCED
+    content_strategy: ContentStrategy = ContentStrategy.WIDER
     difficulty_level: DifficultyLevel = DifficultyLevel.BASIC
     source_day: Optional[int] = None  # For DEEPER mode - which day to enhance
     source_day_transcript: Optional[str] = None  # For DEEPER mode - source day content
@@ -333,7 +318,7 @@ def create_custom_strategy_config(
 
 def create_enhanced_story_params(
     learning_objective: str,
-    strategy: ContentStrategy = ContentStrategy.BALANCED,
+    strategy: ContentStrategy = ContentStrategy.WIDER,
     source_day: Optional[int] = None,
     difficulty_level: DifficultyLevel = DifficultyLevel.BASIC,
     **kwargs

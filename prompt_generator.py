@@ -75,7 +75,7 @@ class DayPromptGenerator:
     def generate_day_prompt(
         self,
         day: int,
-        strategy: ContentStrategy = ContentStrategy.BALANCED,
+        strategy: ContentStrategy = ContentStrategy.WIDER,
         source_day: Optional[int] = None,
         learning_objective: Optional[str] = None
     ) -> str:
@@ -181,7 +181,7 @@ WIDER STRATEGY - Expanded Contexts:
         
         else:
             return """
-BALANCED STRATEGY - Steady Progression:
+DEFAULT STRATEGY - Steady Progression:
 - Gradual introduction of new vocabulary and concepts
 - Balanced mix of reinforcement and new learning
 - Maintain steady complexity progression appropriate for day number
@@ -230,7 +230,7 @@ BALANCED STRATEGY - Steady Progression:
     def generate_complete_prompt(
         self,
         day: int,
-        strategy: ContentStrategy = ContentStrategy.BALANCED,
+        strategy: ContentStrategy = ContentStrategy.WIDER,
         source_day: Optional[int] = None,
         learning_objective: Optional[str] = None
     ) -> str:

@@ -109,7 +109,7 @@ class MockSRS:
         except Exception as e:
             logging.error(f"Failed to save mock SRS state: {e}")
     
-    def get_vocabulary_state_for_day(self, day: int, strategy: ContentStrategy = ContentStrategy.BALANCED) -> VocabularyState:
+    def get_vocabulary_state_for_day(self, day: int, strategy: ContentStrategy = ContentStrategy.WIDER) -> VocabularyState:
         """Get vocabulary constraints for generating content for a specific day."""
         
         # Simulate vocabulary progression based on day
@@ -195,7 +195,7 @@ class MockSRS:
         self.save_state()
         logging.info(f"Updated mock SRS: {len(self.vocabulary_state.learned_vocabulary)} learned words")
     
-    def get_srs_data_for_prompt(self, day: int, strategy: ContentStrategy = ContentStrategy.BALANCED) -> Dict[str, any]:
+    def get_srs_data_for_prompt(self, day: int, strategy: ContentStrategy = ContentStrategy.WIDER) -> Dict[str, any]:
         """Get SRS data formatted for inclusion in day prompts."""
         vocab_state = self.get_vocabulary_state_for_day(day, strategy)
         

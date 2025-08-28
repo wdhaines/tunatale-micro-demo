@@ -1,7 +1,7 @@
 """End-to-end workflow tests for WIDER vs DEEPER strategy validation.
 
 These tests demonstrate how users would validate that WIDER and DEEPER strategies
-actually produce better content than BALANCED baseline for Filipino language learning.
+actually produce better content than default baseline for Filipino language learning.
 """
 import json
 import pytest
@@ -20,7 +20,7 @@ class TestStrategyValidationWorkflows:
 
     @pytest.fixture
     def baseline_content(self):
-        """Baseline BALANCED strategy content."""
+        """Baseline DEFAULT strategy content."""
         return """
         Anna is a tourist visiting El Nido. She needs to find a hotel.
         "Excuse me, where is the hotel?" she asks a local person.
@@ -172,7 +172,7 @@ class TestStrategyValidationWorkflows:
         """Test strategy selection based on learner readiness level."""
         engine = StrategyRecommendationEngine()
         
-        # Test with beginner content (should recommend BALANCED)
+        # Test with beginner content (should recommend DEFAULT)
         beginner_content = ["Hello, where hotel?", "I want food."]
         beginner_rec = engine.recommend_next_action(
             content_history=beginner_content,
@@ -180,7 +180,7 @@ class TestStrategyValidationWorkflows:
         )
         
         # Should recommend stability over advanced strategies
-        assert beginner_rec.recommended_strategy in [ContentStrategy.BALANCED, ContentStrategy.DEEPER]
+        assert beginner_rec.recommended_strategy in [ContentStrategy.WIDER, ContentStrategy.DEEPER]
         
         # Test with intermediate content (should consider WIDER)
         intermediate_content = [
@@ -194,7 +194,7 @@ class TestStrategyValidationWorkflows:
         )
         
         # Should be open to expansion strategies
-        assert intermediate_rec.recommended_strategy in [ContentStrategy.WIDER, ContentStrategy.DEEPER, ContentStrategy.BALANCED]
+        assert intermediate_rec.recommended_strategy in [ContentStrategy.WIDER, ContentStrategy.DEEPER, ContentStrategy.WIDER]
         assert intermediate_rec.confidence_score > 0.6
 
     def test_scenario_coverage_drives_strategy_choice(self):
@@ -219,7 +219,7 @@ class TestStrategyValidationWorkflows:
         
         # If scenario coverage is low, should recommend WIDER
         if trip_metrics.overall_readiness_score < 0.7:
-            expected_strategies = [ContentStrategy.WIDER, ContentStrategy.BALANCED]
+            expected_strategies = [ContentStrategy.WIDER, ContentStrategy.WIDER]
             assert recommendation.recommended_strategy in expected_strategies
             assert "scenario" in recommendation.primary_reason.lower() or "wider" in recommendation.primary_reason.lower()
 

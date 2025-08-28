@@ -304,7 +304,7 @@ def strategy_test_params():
             language="Filipino", 
             cefr_level="A2",
             phase=3,
-            content_strategy=ContentStrategy.BALANCED,
+            content_strategy=ContentStrategy.WIDER,
             difficulty_level=DifficultyLevel.BASIC,
             new_vocabulary=["opo", "hindi po"],
             review_collocations=["kumusta po"]

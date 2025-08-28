@@ -120,14 +120,9 @@ ORIGINAL CONTENT TO REVIEW:
 VOCABULARY TO ENFORCE (English → Filipino):
 {replacement_list}
 
-CRITICAL RULES FOR ENFORCEMENT:
+SRS-SPECIFIC ENFORCEMENT RULES:
 
-1. **CONTENT-TYPE AWARENESS:**
-   - ONLY modify text spoken by TAGALOG-FEMALE/MALE voices: [TAGALOG-FEMALE-1], [TAGALOG-MALE-1], etc.
-   - NEVER modify [NARRATOR] translation lines - these must stay in English for learning
-   - NEVER modify section headers like "[NARRATOR]: Natural Speed"
-
-2. **GRAMMAR-AWARE REPLACEMENT:**
+1. **GRAMMAR-AWARE REPLACEMENT:**
    - Maintain proper Tagalog grammar and conjugation
    - Consider context when replacing words:
      - "It's delicious" → "Masarap ito" (NOT "It's masarap") 
@@ -135,13 +130,7 @@ CRITICAL RULES FOR ENFORCEMENT:
      - "I need water" → "Kailangan ko ng tubig" (NOT "I need tubig")
    - Ensure replacements sound natural to Filipino speakers
 
-3. **PRESERVE LEARNING STRUCTURE:**
-   - Keep Key Phrases section format intact
-   - Keep Natural Speed, Slow Speed, Translated section structure  
-   - Maintain syllable breakdowns in Key Phrases (only for Tagalog words)
-   - Preserve scene headers like "[NARRATOR]: At the Restaurant"
-
-4. **INTELLIGENT REPLACEMENT:**
+2. **INTELLIGENT REPLACEMENT:**
    - Only replace when it improves authenticity without breaking comprehension
    - If unsure about a replacement, keep the original
    - Focus on high-frequency words that learners should know well

@@ -1,0 +1,76 @@
+**Language Learning Content Generation Request**
+
+**Learning Objective:** {learning_objective}
+**Theme/Focus:** {focus}
+**Target CEFR Level:** {learner_level}
+**Language:** Tagalog/Filipino
+
+**New Collocations to Teach:**
+{new_collocations}
+
+**Review Collocations to Include:**
+{review_collocations}
+
+**Story Guidance:**
+{story_guidance}
+
+**CONTENT GENERATION INSTRUCTIONS:**
+
+**Collocation Marking (for reference only - not used in output):**
+- Mark new collocations with **double asterisks** like this: **new collocation**
+- Mark review collocations with *single asterisks* like this: *review collocation*
+- Example in context: "I think we should **make a decision** soon," said Maria. "Remember when we had to *deal with* something similar last month?"
+
+**Story Requirements:**
+- word count between 400-500 words
+- Use 60% or more dialogue
+- Keep paragraphs short (2-3 sentences max)
+- Include a title at the top
+- Focus on practical, immediately useful language skills
+
+**Story Structure Guidelines:**
+- clear beginning, middle, and end
+- 60% or more dialogue between characters
+- natural conversation flow with realistic interactions
+- cultural context appropriate for Filipino language learning
+- practical scenarios relevant to real-world usage
+- simple, clear language
+
+**Instructions:**
+Generate a structured language learning lesson that follows this format:
+
+**SECTION 1: Title and Key Phrases**
+1. Start with: [NARRATOR]: {focus}
+2. Add a blank line, then "Key Phrases:"
+3. For each key phrase/collocation:
+   - [TAGALOG-FEMALE-1]: [phrase in target language]
+   - [NARRATOR]: [English translation]
+   - [TAGALOG-FEMALE-1]: [phrase again]
+   - [syllable breakdown lines - break ONLY Tagalog words at natural syllable boundaries]
+   - Blank line before next phrase
+
+**SECTION 2: Natural Speed Dialogue**
+1. Add: [NARRATOR]: Natural Speed
+2. Create dialogue scenes with substantial content
+3. Use voice tags: [TAGALOG-FEMALE-1], [TAGALOG-FEMALE-2], [TAGALOG-MALE-1], [TAGALOG-MALE-2]
+4. Mix English and target language naturally in conversations
+5. Focus on practical, engaging scenarios
+
+**SECTION 3: Slow Speed**
+1. Add: [NARRATOR]: Slow Speed  
+2. Repeat the exact same dialogues but with ellipses (...) between words
+3. Example: "Magandang... hapon... po" instead of "Magandang hapon po"
+
+**SECTION 4: Translated**
+1. Add: [NARRATOR]: Translated
+2. Repeat each dialogue scene with alternating lines:
+   - [SPEAKER]: [Original line]
+   - [NARRATOR]: [English translation]
+
+**Content Guidelines:**
+- Incorporate ALL provided review collocations naturally
+- Use mostly dialogue (80%+)
+- Keep scenes realistic and engaging
+- Use appropriate voice assignments matching character gender
+- Maintain consistency across all three speed/translation sections
+- Generate authentic Filipino conversation patterns

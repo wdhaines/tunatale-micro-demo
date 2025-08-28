@@ -329,11 +329,11 @@ class TestCommandLineIntegration:
         
         # This would be tested in integration tests, but for now just verify the mapping exists
         strategy_map = {
-            'balanced': ContentStrategy.BALANCED,
+            'balanced': ContentStrategy.WIDER,
             'wider': ContentStrategy.WIDER,
             'deeper': ContentStrategy.DEEPER
         }
         
         assert strategy_map['wider'] == ContentStrategy.WIDER
         assert strategy_map['deeper'] == ContentStrategy.DEEPER
-        assert strategy_map['balanced'] == ContentStrategy.BALANCED
+        assert strategy_map['balanced'] == ContentStrategy.WIDER

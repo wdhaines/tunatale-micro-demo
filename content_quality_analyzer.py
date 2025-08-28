@@ -44,7 +44,7 @@ class ContentQualityAnalyzer:
     Analyzes content quality for Filipino language learning effectiveness.
     
     Focuses on validating that WIDER/DEEPER strategies produce measurably 
-    better content than BALANCED baseline for real-world trip preparation.
+    better content than default baseline for real-world trip preparation.
     """
     
     def __init__(self, fast_mode: bool = False):
@@ -288,7 +288,7 @@ class ContentQualityAnalyzer:
                 # WIDER should maintain consistency while expanding contexts
                 strategy_differentiation_score = min(auth_metrics['filipino_ratio'], 0.8)
             else:
-                # BALANCED baseline
+                # Default baseline
                 strategy_differentiation_score = auth_metrics['filipino_ratio']
         
         # Analyze learning objective alignment (simple keyword matching)
@@ -352,7 +352,7 @@ class ContentQualityAnalyzer:
         Compare original vs strategy-enhanced content to validate improvements.
         
         Args:
-            original_content: Baseline BALANCED content
+            original_content: Baseline default content
             enhanced_content: WIDER or DEEPER strategy content
             strategy: Strategy type used for enhancement
             

@@ -328,10 +328,10 @@ class TestStrategyCLIIntegration:
             elif strategy == ContentStrategy.WIDER:
                 return ("WIDER story", {"new": ["new1", "new2", "new3"], "review": ["rev1"]})
             else:
-                return ("BALANCED story", {"new": ["bal1", "bal2"], "review": ["rev1"]})
+                return ("DEFAULT story", {"new": ["bal1", "bal2"], "review": ["rev1"]})
         
         mock_generator.generate_strategy_based_story.side_effect = mock_strategy_generation
-        mock_generator.generate_day_story.return_value = ("BALANCED story", {"new": ["bal1"], "review": []})
+        mock_generator.generate_day_story.return_value = ("DEFAULT story", {"new": ["bal1"], "review": []})
         
         # Test workflow: Generate DEEPER day 9, then WIDER day 10
         with patch('sys.argv', ['main.py', 'generate-day', '9', '--strategy=deeper', '--source-day=6']):

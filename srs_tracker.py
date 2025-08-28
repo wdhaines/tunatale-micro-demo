@@ -18,7 +18,6 @@ except ImportError:
     from enum import Enum
     
     class ContentStrategy(Enum):
-        BALANCED = "balanced"
         WIDER = "wider" 
         DEEPER = "deeper"
         

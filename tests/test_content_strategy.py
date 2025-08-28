@@ -30,7 +30,7 @@ class TestContentStrategyEnums:
         """Test that ContentStrategy enum has correct values."""
         assert ContentStrategy.WIDER.value == "wider"
         assert ContentStrategy.DEEPER.value == "deeper" 
-        assert ContentStrategy.BALANCED.value == "balanced"
+        assert ContentStrategy.DEEPER.value == "deeper"
     
     def test_difficulty_level_enum_values(self):
         """Test that DifficultyLevel enum has correct values."""
@@ -42,7 +42,7 @@ class TestContentStrategyEnums:
         """Test that strategy configurations are properly defined."""
         assert ContentStrategy.WIDER in STRATEGY_CONFIGS
         assert ContentStrategy.DEEPER in STRATEGY_CONFIGS
-        assert ContentStrategy.BALANCED in STRATEGY_CONFIGS
+        assert ContentStrategy.WIDER in STRATEGY_CONFIGS
         
         # Test wider strategy config
         wider_config = STRATEGY_CONFIGS[ContentStrategy.WIDER]
@@ -123,7 +123,7 @@ class TestEnhancedStoryParams:
             phase=1
         )
         
-        assert params.content_strategy == ContentStrategy.BALANCED
+        assert params.content_strategy == ContentStrategy.WIDER
         assert params.difficulty_level == DifficultyLevel.BASIC
         assert params.source_day is None
 
@@ -240,20 +240,20 @@ class TestStrategyAwareContentGeneration:
         mock_content_generator.generate_enhanced_story.assert_called_once_with(deeper_params)
     
     def test_balanced_strategy_generation(self, mock_content_generator):
-        """Test content generation using BALANCED strategy (current approach)."""
+        """Test content generation using WIDER strategy (current approach)."""
         balanced_params = EnhancedStoryParams(
             learning_objective="Standard lesson progression",
             language="Filipino",
             cefr_level="A2",
             phase=2,
-            content_strategy=ContentStrategy.BALANCED,
+            content_strategy=ContentStrategy.WIDER,
             difficulty_level=DifficultyLevel.BASIC,
             new_vocabulary=["opo", "hindi po"],
             review_collocations=["kumusta po"]
         )
         
         # Test that parameters use balanced approach
-        assert balanced_params.content_strategy == ContentStrategy.BALANCED
+        assert balanced_params.content_strategy == ContentStrategy.WIDER
         assert balanced_params.source_day is None  # Not based on specific day
         
         # Mock generation

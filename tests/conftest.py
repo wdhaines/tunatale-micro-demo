@@ -270,8 +270,8 @@ def content_generator(mocker, tmp_path):
     test_prompts_dir.mkdir(exist_ok=True)
     
     # Create test prompt files with the expected format
-    # Main story prompt (balanced strategy)
-    test_prompt_file = test_prompts_dir / 'story_prompt_balanced.txt'
+    # Main story prompt (default baseline)
+    test_prompt_file = test_prompts_dir / 'story_prompt.txt'
     test_prompt_file.write_text("""
     VOCABULARY CONTEXT:
     - Focus on teaching: {NEW_VOCABULARY}

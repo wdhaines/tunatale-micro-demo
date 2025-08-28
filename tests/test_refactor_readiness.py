@@ -216,7 +216,7 @@ class TestRefactorReadiness:
     def test_strategy_framework_readiness_gate(self):
         """Gate check: Ensure strategy framework is ready for implementation."""
         # Test that all required strategy configs exist
-        required_strategies = [ContentStrategy.WIDER, ContentStrategy.DEEPER, ContentStrategy.BALANCED]
+        required_strategies = [ContentStrategy.WIDER, ContentStrategy.DEEPER, ContentStrategy.WIDER]
         
         for strategy in required_strategies:
             config = get_strategy_config(strategy)
@@ -323,13 +323,13 @@ class TestRefactorReadiness:
             language="Filipino",
             cefr_level="A2",
             phase=1,
-            content_strategy=ContentStrategy.BALANCED,
+            content_strategy=ContentStrategy.WIDER,
             new_vocabulary=["opo", "hindi po"],
             review_collocations=["kumusta po"]
         )
         
         # Verify strategy parameters
-        assert strategy_params.content_strategy == ContentStrategy.BALANCED
+        assert strategy_params.content_strategy == ContentStrategy.WIDER
         assert len(strategy_params.new_vocabulary) == 2
         assert len(strategy_params.review_collocations) == 1
         
