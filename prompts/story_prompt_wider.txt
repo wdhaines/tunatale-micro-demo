@@ -67,7 +67,7 @@ Generate a structured language learning lesson that uses familiar vocabulary fro
    - [TAGALOG-FEMALE-1]: [phrase in target language, prioritizing review from Day {source_day}]
    - [NARRATOR]: [English translation]
    - [TAGALOG-FEMALE-1]: [phrase again]
-   - [syllable breakdown lines - break ONLY Tagalog words at natural syllable boundaries]
+   - [breakdowns will be added by post-processing]
    - Blank line before next phrase
 
 **SECTION 2: Natural Speed Dialogue**

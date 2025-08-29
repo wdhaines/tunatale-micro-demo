@@ -370,11 +370,6 @@ class ContentGenerator:
                 logging.error("Empty story generated")
                 return None
             
-            # Apply post-processing to fix Pimsleur breakdowns
-            logging.info("Applying post-processing corrections to story content")
-            from utils.content_post_processor import post_process_story_content
-            story = post_process_story_content(story)
-            
             # PASS 2: Enforce SRS constraints using LLM (grammar-aware replacement)
             try:
                 db = SRSDatabase()
@@ -397,6 +392,11 @@ class ContentGenerator:
             except Exception as e:
                 logging.warning(f"LLM SRS enforcement failed: {e}")
                 # Continue with non-enforced story rather than failing
+            
+            # Apply post-processing AFTER SRS enforcement to ensure correct Pimsleur breakdowns
+            logging.info("Applying post-processing corrections to story content")
+            from utils.content_post_processor import post_process_story_content
+            story = post_process_story_content(story)
             
             # Extract and update collocations if needed
             try:
@@ -801,6 +801,11 @@ class ContentGenerator:
             except Exception as e:
                 logging.warning(f"LLM SRS enforcement failed (using original story): {e}")
                 # Continue with original story if enforcement fails
+            
+            # Apply post-processing AFTER SRS enforcement to ensure correct Pimsleur breakdowns
+            logging.info("Applying post-processing corrections to story content")
+            from utils.content_post_processor import post_process_story_content
+            story = post_process_story_content(story)
                 
             # Extract collocations from the generated story
             generated_collocations = self.collocation_extractor.extract_collocations(story)
