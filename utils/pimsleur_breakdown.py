@@ -414,16 +414,6 @@ def is_english_loanword(word: str) -> bool:
     if not word_lower:
         return False
     
-    # Step 0: Override for commonly expected English loanwords
-    # These are English-origin words that tests expect to remain unbroken
-    # even if they appear in Tagalog dictionaries
-    always_english_loanwords = {
-        'hotel', 'restaurant', 'souvenir', 'camera', 'photo', 'selfie',
-        'budget', 'wifi', 'internet', 'password', 'menu', 'receipt', 'specialty'
-    }
-    
-    if word_lower in always_english_loanwords:
-        return True  # Always treat as English loanword
     
     # Load dictionaries
     tagalog_words = _load_tagalog_dictionary()
@@ -448,13 +438,9 @@ def is_english_loanword(word: str) -> bool:
             if len(base_form) > 2 and base_form in english_words:
                 return True  # English loanword via inflection
     
-    # Step 3: Fallback - if no dictionaries available, use explicit common loanwords
+    # Fail fast if no dictionaries available
     if not tagalog_words and not english_words:
-        common_loanwords = {
-            'souvenir', 'camera', 'hotel', 'restaurant', 'photo', 'selfie',
-            'budget', 'wifi', 'internet', 'password', 'menu', 'receipt', 'specialty'
-        }
-        return word_lower in common_loanwords
+        raise RuntimeError("No language dictionaries available - cannot determine loanword status")
     
     # Default: treat as Tagalog word (allow breakdown)
     return False

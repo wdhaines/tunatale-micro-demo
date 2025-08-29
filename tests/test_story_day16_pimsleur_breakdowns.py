@@ -7,6 +7,7 @@ for every phrase in the Key Phrases section of story_day16.
 """
 
 import pytest
+from unittest.mock import patch
 from utils.pimsleur_breakdown import generate_pimsleur_breakdown
 
 
@@ -109,8 +110,14 @@ class TestStoryDay16PimsleurBreakdowns:
         actual = generate_pimsleur_breakdown(phrase)
         assert actual == expected, f"Expected {expected}, got {actual}"
 
-    def test_bakit_po_recommended_breakdown(self):
+    @patch('utils.pimsleur_breakdown._load_english_dictionary')
+    @patch('utils.pimsleur_breakdown._load_tagalog_dictionary')
+    def test_bakit_po_recommended_breakdown(self, mock_tagalog_dict, mock_english_dict):
         """Test 'bakit po recommended' breakdown - corrected English loanword handling."""
+        # Mock dictionaries to ensure 'recommended' is detected as English loanword
+        mock_tagalog_dict.return_value = {'bakit', 'po'}  # Tagalog words
+        mock_english_dict.return_value = {'recommended'}  # English loanword
+        
         phrase = "bakit po recommended"
         expected = [
             "bakit po recommended",     # Full phrase
@@ -226,8 +233,13 @@ class TestKeyPatternValidation:
         assert mat_pos < salamat_complete_pos, "Syllable 'mat' should appear before complete word 'salamat'"
         assert salamat_complete_pos < final_phrase_pos, "Complete word should appear before final phrase repetition"
 
-    def test_english_loanwords_not_broken_down(self):
+    @patch('utils.pimsleur_breakdown._load_english_dictionary')
+    @patch('utils.pimsleur_breakdown._load_tagalog_dictionary')
+    def test_english_loanwords_not_broken_down(self, mock_tagalog_dict, mock_english_dict):
         """Ensure English loanwords are not syllabified."""
+        mock_tagalog_dict.return_value = set()
+        mock_english_dict.return_value = {'hotel', 'restaurant'}
+        
         phrase = "hotel restaurant"
         breakdown = generate_pimsleur_breakdown(phrase)
         
