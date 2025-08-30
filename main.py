@@ -325,12 +325,22 @@ class CLI:
         # Debug SRS command
         debug_srs_parser = subparsers.add_parser(
             'debug-srs',
-            help='Show what SRS enforcement did for a specific day'
+            help='Debug SRS enforcement and vocabulary recognition states for a day'
         )
         debug_srs_parser.add_argument(
             'day',
             type=int,
             help='Day number to show SRS debug information for'
+        )
+        debug_srs_parser.add_argument(
+            '--vocabulary-analysis',
+            action='store_true',
+            help='Analyze vocabulary recognition states from story content'
+        )
+        debug_srs_parser.add_argument(
+            '--export',
+            type=str,
+            help='Export vocabulary analysis to JSON file (e.g., debug.json)'
         )
         
         return parser
@@ -1380,6 +1390,29 @@ class CLI:
                     print(f"   Context: {latest[4]}")
                     print(f"   Method: {latest[2]}")
                 
+                # Check if vocabulary analysis was requested
+                if hasattr(args, 'vocabulary_analysis') and args.vocabulary_analysis:
+                    print(f"\n" + "="*50)
+                    print(f"VOCABULARY ANALYSIS FOR DAY {day}")
+                    print(f"="*50)
+                    
+                    from srs_debug_analyzer import SRSDebugAnalyzer
+                    analyzer = SRSDebugAnalyzer()
+                    report = analyzer.analyze_day_vocabulary(day)
+                    
+                    if 'error' in report:
+                        print(f"❌ Error: {report['error']}")
+                    else:
+                        # Export if requested
+                        if hasattr(args, 'export') and args.export:
+                            import json
+                            with open(args.export, 'w', encoding='utf-8') as f:
+                                json.dump(report, f, indent=2, ensure_ascii=False)
+                            print(f"✅ Vocabulary analysis exported to {args.export}")
+                        
+                        # Display summary
+                        self._display_vocabulary_analysis(report)
+                
                 return 0
                 
             except Exception as e:
@@ -1393,6 +1426,49 @@ class CLI:
                 import traceback
                 traceback.print_exc()
             return 1
+    
+    def _display_vocabulary_analysis(self, report: Dict[str, Any]) -> None:
+        """Display formatted vocabulary analysis report."""
+        print(f"Story file: {report['story_file']}")
+        print(f"Total vocabulary: {report['total_vocabulary']} words")
+        
+        # Show recognition state distribution
+        distribution = report['recognition_state_distribution']
+        print(f"\n📊 Recognition State Distribution:")
+        for state, count in distribution.items():
+            if count > 0:
+                percentage = (count / report['total_vocabulary']) * 100
+                print(f"  {state.replace('_', ' ').title()}: {count} ({percentage:.1f}%)")
+        
+        # Show effectiveness metrics
+        metrics = report['srs_effectiveness_metrics']
+        print(f"\n⚡ SRS Effectiveness Metrics:")
+        for metric, value in metrics.items():
+            formatted_metric = metric.replace('_', ' ').title()
+            print(f"  {formatted_metric}: {value}")
+        
+        # Show sample vocabulary by state
+        print(f"\n📝 Sample Vocabulary by Recognition State:")
+        analyses = report['vocabulary_analyses']
+        states_shown = set()
+        
+        for analysis in analyses[:20]:  # Limit to first 20 for readability
+            state = analysis['recognition_state']
+            if state not in states_shown:
+                formatted_state = state.replace('_', ' ').title()
+                print(f"  {formatted_state}: {analysis['word']}")
+                states_shown.add(state)
+                if len(states_shown) >= 6:  # Show max 6 different states
+                    break
+        
+        # Show words needing attention if any
+        if metrics.get('words_needing_attention', 0) > 0:
+            print(f"\n⚠️ Words Needing Attention:")
+            attention_words = [a for a in analyses 
+                             if a['recognition_state'] in ['unstable', 'dormant']]
+            for word_analysis in attention_words[:10]:  # Show first 10
+                state = word_analysis['recognition_state'].replace('_', ' ')
+                print(f"   • {word_analysis['word']} ({state})")
     
     def run(self) -> int:
         """Run the CLI application."""

@@ -501,6 +501,259 @@ def srs_debug(day):
 
 ---
 
+## Phase 5: SRS Debug Analysis System (Priority 4)
+
+### 5.1 Vocabulary Recognition State Analysis
+
+**File**: `srs_debug_analyzer.py`
+
+```python
+from srs_database import SRSDatabase
+from pathlib import Path
+import re
+import json
+from typing import Dict, List, Any, Optional
+from dataclasses import dataclass
+from enum import Enum
+
+class RecognitionState(Enum):
+    """Vocabulary recognition states in TunaTale SRS system."""
+    UNKNOWN = "unknown"                    # Not in SRS at all
+    DORMANT = "dormant"                   # Not seen in 7+ days  
+    UNSTABLE = "unstable"                 # stability < 1.0
+    NATURALLY_ACQUIRING = "naturally_acquiring"  # Learning through exposure
+    EXPLICITLY_LEARNED = "explicitly_learned"   # Targeted learning pattern
+    HIGH_STABILITY = "high_stability"     # stability > 3.0 and review_count > 5
+
+@dataclass
+class VocabularyAnalysis:
+    """Analysis result for a single vocabulary item."""
+    word: str
+    recognition_state: RecognitionState
+    srs_data: Optional[Dict[str, Any]]
+    context_appearances: List[str]
+    learning_pattern: Optional[str]
+
+class SRSDebugAnalyzer:
+    """Analyzes vocabulary recognition states from story files and SRS data."""
+    
+    def __init__(self, db_path: str = "instance/data/srs/tunatale_srs.db"):
+        """Initialize analyzer with SRS database connection."""
+        self.db = SRSDatabase(db_path)
+    
+    def analyze_day_vocabulary(self, day: int) -> Dict[str, Any]:
+        """
+        Analyze vocabulary recognition states for a specific day.
+        
+        Args:
+            day: Day number to analyze
+            
+        Returns:
+            Comprehensive vocabulary analysis report
+        """
+        # Load story file for the day
+        story_content = self._load_story_file(day)
+        if not story_content:
+            return {"error": f"No story file found for day {day}"}
+        
+        # Extract Tagalog vocabulary
+        vocabulary = self._extract_tagalog_vocabulary(story_content)
+        
+        # Analyze each word
+        analyses = []
+        for word in vocabulary:
+            analysis = self._analyze_word(word, day)
+            analyses.append(analysis)
+        
+        # Generate summary statistics
+        state_counts = self._calculate_state_distribution(analyses)
+        
+        return {
+            "day": day,
+            "story_file": self._get_story_filename(day),
+            "total_vocabulary": len(vocabulary),
+            "vocabulary_analyses": [self._serialize_analysis(a) for a in analyses],
+            "recognition_state_distribution": state_counts,
+            "srs_effectiveness_metrics": self._calculate_effectiveness_metrics(analyses),
+            "generated_at": self._get_current_timestamp()
+        }
+    
+    def _load_story_file(self, day: int) -> Optional[str]:
+        """Load story content for the specified day."""
+        story_dir = Path("instance/data/stories")
+        
+        # Look for story files matching day pattern
+        patterns = [
+            f"story_day{day}_*.txt",
+            f"*day{day}*.txt", 
+            f"*day_{day}_*.txt"
+        ]
+        
+        for pattern in patterns:
+            matches = list(story_dir.glob(pattern))
+            if matches:
+                # Use first match (could be refined with strategy preference)
+                with open(matches[0], 'r', encoding='utf-8') as f:
+                    return f.read()
+        
+        return None
+    
+    def _extract_tagalog_vocabulary(self, story_content: str) -> List[str]:
+        """Extract all unique Tagalog words from TAGALOG-FEMALE/MALE speaker lines."""
+        # Pattern to match Tagalog speaker lines
+        tagalog_pattern = r'\[TAGALOG-(?:FEMALE|MALE)-\d+\]:\s*([^\n\[]+)'
+        matches = re.findall(tagalog_pattern, story_content)
+        
+        # Extract individual words, filtering out common artifacts
+        vocabulary = set()
+        for phrase in matches:
+            # Clean and split phrase
+            clean_phrase = re.sub(r'[^\w\s]', ' ', phrase.strip().lower())
+            words = clean_phrase.split()
+            
+            # Filter out breakdown artifacts and very short words
+            for word in words:
+                if len(word) >= 2 and not word.isdigit():
+                    vocabulary.add(word)
+        
+        return sorted(list(vocabulary))
+    
+    def _analyze_word(self, word: str, current_day: int) -> VocabularyAnalysis:
+        """Analyze recognition state for a single word."""
+        # Get SRS data for this word
+        srs_data = self._get_srs_data(word)
+        
+        # Determine recognition state
+        state = self._categorize_word(word, srs_data, current_day)
+        
+        # Analyze learning pattern if available
+        learning_pattern = self._analyze_learning_pattern(srs_data) if srs_data else None
+        
+        return VocabularyAnalysis(
+            word=word,
+            recognition_state=state,
+            srs_data=srs_data,
+            context_appearances=[],  # Could be enhanced to track contexts
+            learning_pattern=learning_pattern
+        )
+    
+    def _categorize_word(self, word: str, srs_data: Optional[Dict], current_day: int) -> RecognitionState:
+        """
+        Categorize word into recognition states based on SRS data.
+        
+        Recognition state logic:
+        - high_stability: stability > 3.0 AND review_count > 5 (enforced)
+        - unstable: stability < 1.0
+        - dormant: not seen in 7+ days (current_day - last_seen_day > 7)
+        - unknown: not in SRS at all
+        - explicitly_learned/naturally_acquiring: based on learning patterns
+        """
+        if not srs_data:
+            return RecognitionState.UNKNOWN
+        
+        stability = srs_data.get('stability', 1.0)
+        review_count = srs_data.get('review_count', 0)
+        last_seen_day = srs_data.get('last_seen_day', current_day)
+        
+        # Check high stability first (enforced state)
+        if stability > 3.0 and review_count > 5:
+            return RecognitionState.HIGH_STABILITY
+        
+        # Check dormant (not seen recently)
+        if current_day - last_seen_day > 7:
+            return RecognitionState.DORMANT
+        
+        # Check unstable
+        if stability < 1.0:
+            return RecognitionState.UNSTABLE
+        
+        # Distinguish explicit vs natural learning
+        if review_count > 2:
+            return RecognitionState.EXPLICITLY_LEARNED
+        else:
+            return RecognitionState.NATURALLY_ACQUIRING
+```
+
+### 5.2 CLI Integration
+
+**File**: `main.py` (addition)
+
+```python
+def debug_srs_command(args):
+    """Debug SRS vocabulary recognition states for a given day."""
+    from srs_debug_analyzer import SRSDebugAnalyzer
+    
+    analyzer = SRSDebugAnalyzer()
+    report = analyzer.analyze_day_vocabulary(args.day)
+    
+    if 'error' in report:
+        print(f"❌ Error: {report['error']}")
+        return
+    
+    if args.export:
+        # Export to JSON file
+        with open(args.export, 'w', encoding='utf-8') as f:
+            json.dump(report, f, indent=2, ensure_ascii=False)
+        print(f"✅ Report exported to {args.export}")
+    else:
+        # Display formatted console output
+        _display_srs_debug_report(report)
+
+def _display_srs_debug_report(report: Dict[str, Any]):
+    """Display formatted SRS debug report to console."""
+    print(f"\n=== SRS Debug Analysis: Day {report['day']} ===")
+    print(f"Story file: {report['story_file']}")
+    print(f"Total vocabulary: {report['total_vocabulary']} words")
+    
+    # Show recognition state distribution
+    distribution = report['recognition_state_distribution']
+    print(f"\n📊 Recognition State Distribution:")
+    for state, count in distribution.items():
+        percentage = (count / report['total_vocabulary']) * 100
+        print(f"  {state}: {count} ({percentage:.1f}%)")
+    
+    # Show effectiveness metrics
+    metrics = report['srs_effectiveness_metrics']
+    print(f"\n⚡ SRS Effectiveness Metrics:")
+    for metric, value in metrics.items():
+        print(f"  {metric}: {value}")
+    
+    # Show sample vocabulary by state
+    print(f"\n📝 Sample Vocabulary by Recognition State:")
+    analyses = report['vocabulary_analyses']
+    states_shown = set()
+    
+    for analysis in analyses[:20]:  # Limit to first 20 for readability
+        state = analysis['recognition_state']
+        if state not in states_shown:
+            print(f"  {state}: {analysis['word']}")
+            states_shown.add(state)
+            if len(states_shown) >= 6:  # Show max 6 different states
+                break
+
+# Add to CLI parser setup
+def setup_debug_srs_parser(subparsers):
+    """Setup debug-srs command parser."""
+    parser = subparsers.add_parser(
+        'debug-srs',
+        help='Debug SRS vocabulary recognition states for a day'
+    )
+    parser.add_argument(
+        '--day', 
+        type=int, 
+        required=True,
+        help='Day number to analyze (15-18 supported)'
+    )
+    parser.add_argument(
+        '--export',
+        type=str,
+        help='Export report to JSON file (e.g., debug.json)'
+    )
+    parser.set_defaults(func=debug_srs_command)
+```
+
+---
+
 ## Phase 5: Testing Strategy
 
 ### 5.1 Critical Test Cases
@@ -591,6 +844,13 @@ sqlite3 instance/data/srs/tunatale_srs.db "SELECT COUNT(*) FROM collocations"
 - [ ] Complete test suite ❌ (missing `tests/test_srs_enforcement.py`)
 - [ ] Documentation ❌
 - [ ] Performance optimization ❌
+
+### Week 5: SRS Debug Analysis System 🟡 IN PROGRESS
+- [x] Update implementation plan with Phase 5 ✅
+- [ ] Implement SRSDebugAnalyzer class ❌
+- [ ] Add CLI command for debug-srs ❌
+- [ ] Test with days 15-18 stories ❌
+- [ ] Validate recognition state categorization ❌
 
 ---
 
