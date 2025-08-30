@@ -364,14 +364,14 @@ def _load_tagalog_dictionary():
     
     # Try multiple path resolution strategies for robustness
     potential_paths = [
-        # Strategy 1: Relative to current module (original approach)
-        os.path.join(os.path.dirname(__file__), '..', 'instance', 'data', 'dictionaries', 'tagalog_words.txt'),
+        # Strategy 1: Relative to current module (new committed location)
+        os.path.join(os.path.dirname(__file__), '..', 'data', 'dictionaries', 'tagalog_words.txt'),
         # Strategy 2: Relative to current working directory
-        os.path.join(os.getcwd(), 'instance', 'data', 'dictionaries', 'tagalog_words.txt'),
+        os.path.join(os.getcwd(), 'data', 'dictionaries', 'tagalog_words.txt'),
         # Strategy 3: Relative to project root (assuming we're in utils/)
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'instance', 'data', 'dictionaries', 'tagalog_words.txt'),
-        # Strategy 4: Absolute path if we're in the right place
-        'instance/data/dictionaries/tagalog_words.txt'
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'dictionaries', 'tagalog_words.txt'),
+        # Strategy 4: Simple relative path
+        'data/dictionaries/tagalog_words.txt'
     ]
     
     for i, path in enumerate(potential_paths):
@@ -489,8 +489,8 @@ def is_english_loanword(word: str) -> bool:
         
         # Show which dictionary loading attempts were made
         tagalog_paths = [
-            os.path.abspath(os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'instance', 'data', 'dictionaries', 'tagalog_words.txt'))),
-            os.path.abspath(os.path.normpath(os.path.join(os.getcwd(), 'instance', 'data', 'dictionaries', 'tagalog_words.txt')))
+            os.path.abspath(os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'data', 'dictionaries', 'tagalog_words.txt'))),
+            os.path.abspath(os.path.normpath(os.path.join(os.getcwd(), 'data', 'dictionaries', 'tagalog_words.txt')))
         ]
         english_paths = ['/usr/share/dict/words', '/usr/dict/words', '/usr/share/dict/american-english']
         
