@@ -68,8 +68,12 @@ class TestStoryDay16PimsleurBreakdowns:
         actual = generate_pimsleur_breakdown(phrase)
         assert actual == expected, f"Expected {expected}, got {actual}"
 
-    def test_specialty_talaga_namin_breakdown(self):
+    @patch('utils.pimsleur_breakdown._load_english_dictionary')
+    @patch('utils.pimsleur_breakdown._load_tagalog_dictionary')
+    def test_specialty_talaga_namin_breakdown(self, mock_tagalog_dict, mock_english_dict):
         """Test 'specialty talaga namin' breakdown - corrected English loanword handling."""
+        mock_tagalog_dict.return_value = {'talaga', 'namin'}
+        mock_english_dict.return_value = {'specialty'}
         phrase = "specialty talaga namin"
         expected = [
             "specialty talaga namin",   # Full phrase

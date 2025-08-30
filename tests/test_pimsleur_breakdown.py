@@ -93,8 +93,12 @@ class TestPimsleurBreakdownBasic:
         expected = ["po"]
         assert result == expected, f"Expected {expected}, got {result}"
         
-    def test_english_loanword_single_word(self):
+    @patch('utils.pimsleur_breakdown._load_english_dictionary')
+    @patch('utils.pimsleur_breakdown._load_tagalog_dictionary')
+    def test_english_loanword_single_word(self, mock_tagalog_dict, mock_english_dict):
         """Test English loanwords are not broken down."""
+        mock_tagalog_dict.return_value = set()
+        mock_english_dict.return_value = {'souvenir'}
         result = generate_pimsleur_breakdown("souvenir")
         expected = ["souvenir"]
         assert result == expected, f"English loanword should not be broken down. Expected {expected}, got {result}"
@@ -179,8 +183,12 @@ class TestPimsleurBreakdownVerifiedExamples:
 class TestPimsleurBreakdownComplexExamples:
     """Test complex examples with English loanwords and multiple multi-syllable words."""
     
-    def test_meron_po_ba_kayo_ng_magandang_souvenir(self):
+    @patch('utils.pimsleur_breakdown._load_english_dictionary')
+    @patch('utils.pimsleur_breakdown._load_tagalog_dictionary')
+    def test_meron_po_ba_kayo_ng_magandang_souvenir(self, mock_tagalog_dict, mock_english_dict):
         """Test complex phrase with English loanword - verified example."""
+        mock_tagalog_dict.return_value = set()
+        mock_english_dict.return_value = {'souvenir'}
         result = generate_pimsleur_breakdown("meron po ba kayo ng magandang souvenir")
         expected = [
             "meron po ba kayo ng magandang souvenir",  # Full phrase

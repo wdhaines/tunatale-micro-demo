@@ -13,6 +13,8 @@ import os
 # Add the parent directory to the path so we can import from utils
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
+from unittest.mock import patch
+
 from utils.pimsleur_breakdown import generate_pimsleur_breakdown
 
 class TestPimsleurBuildupPattern:
@@ -107,8 +109,12 @@ class TestPimsleurBuildupPattern:
         assert "pa" in breakdown, "Missing syllable 'pa'"
         assert "paano" in breakdown, "Missing complete word 'paano'"
     
-    def test_english_loanword_no_buildup(self):
+    @patch('utils.pimsleur_breakdown._load_english_dictionary')
+    @patch('utils.pimsleur_breakdown._load_tagalog_dictionary')
+    def test_english_loanword_no_buildup(self, mock_tagalog_dict, mock_english_dict):
         """Test that English loanwords don't get syllable buildup."""
+        mock_tagalog_dict.return_value = set()
+        mock_english_dict.return_value = {'souvenir'}
         phrase = "souvenir po"
         
         breakdown = generate_pimsleur_breakdown(phrase)
