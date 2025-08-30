@@ -351,46 +351,88 @@ _english_words_cache = None
 _tagalog_words_cache = None
 
 def _load_tagalog_dictionary():
-    """Load Tagalog dictionary with caching."""
+    """Load Tagalog dictionary with caching and robust path resolution."""
     global _tagalog_words_cache
     
     if _tagalog_words_cache is not None:
         return _tagalog_words_cache
     
-    try:
-        # Load Tagalog dictionary from project resources
-        import os
-        tagalog_dict_path = os.path.join(os.path.dirname(__file__), '..', 'instance', 'data', 'dictionaries', 'tagalog_words.txt')
-        tagalog_dict_path = os.path.abspath(tagalog_dict_path)
-        
-        with open(tagalog_dict_path, 'r', encoding='utf-8') as f:
-            _tagalog_words_cache = set(word.strip().lower() for word in f if word.strip())
-        logging.debug(f"Loaded {len(_tagalog_words_cache)} Tagalog words from {tagalog_dict_path}")
-        return _tagalog_words_cache
-        
-    except (FileNotFoundError, IOError) as e:
-        logging.warning(f"Tagalog dictionary not available: {e}")
-        _tagalog_words_cache = set()
-        return _tagalog_words_cache
+    import os
+    
+    # Only show detailed debugging when there are issues
+    show_debug = False
+    
+    # Try multiple path resolution strategies for robustness
+    potential_paths = [
+        # Strategy 1: Relative to current module (original approach)
+        os.path.join(os.path.dirname(__file__), '..', 'instance', 'data', 'dictionaries', 'tagalog_words.txt'),
+        # Strategy 2: Relative to current working directory
+        os.path.join(os.getcwd(), 'instance', 'data', 'dictionaries', 'tagalog_words.txt'),
+        # Strategy 3: Relative to project root (assuming we're in utils/)
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'instance', 'data', 'dictionaries', 'tagalog_words.txt'),
+        # Strategy 4: Absolute path if we're in the right place
+        'instance/data/dictionaries/tagalog_words.txt'
+    ]
+    
+    for i, path in enumerate(potential_paths):
+        try:
+            # Normalize and make absolute
+            normalized_path = os.path.abspath(os.path.normpath(path))
+            
+            if os.path.exists(normalized_path):
+                with open(normalized_path, 'r', encoding='utf-8') as f:
+                    _tagalog_words_cache = set(word.strip().lower() for word in f if word.strip())
+                logging.info(f"Successfully loaded {len(_tagalog_words_cache)} Tagalog words from {normalized_path}")
+                return _tagalog_words_cache
+                
+        except (FileNotFoundError, IOError) as e:
+            continue
+    
+    # If all strategies failed - show detailed debugging automatically
+    logging.error(f"DICTIONARY LOADING FAILED: All Tagalog dictionary loading strategies failed")
+    logging.error(f"Current working directory: {os.getcwd()}")
+    logging.error(f"Current module file: {__file__}")
+    logging.error(f"Module directory: {os.path.dirname(__file__)}")
+    logging.error(f"Tried paths: {[os.path.abspath(os.path.normpath(p)) for p in potential_paths]}")
+    for i, path in enumerate(potential_paths):
+        normalized_path = os.path.abspath(os.path.normpath(path))
+        logging.error(f"  Strategy {i+1}: {normalized_path} - Exists: {os.path.exists(normalized_path)}")
+    
+    _tagalog_words_cache = set()
+    return _tagalog_words_cache
 
 def _load_english_dictionary():
-    """Load English dictionary from system dict with caching."""
+    """Load English dictionary from system dict with caching and debugging."""
     global _english_words_cache
     
     if _english_words_cache is not None:
         return _english_words_cache
     
-    try:
-        # Use system dictionary (available on macOS/Unix systems)
-        with open('/usr/share/dict/words', 'r', encoding='utf-8') as f:
-            _english_words_cache = set(word.strip().lower() for word in f if word.strip())
-        logging.debug(f"Loaded {len(_english_words_cache)} English words from system dictionary")
-        return _english_words_cache
-        
-    except (FileNotFoundError, IOError) as e:
-        logging.warning(f"System English dictionary not available: {e}")
-        _english_words_cache = set()
-        return _english_words_cache
+    import os
+    
+    # Try multiple common system dictionary locations
+    potential_paths = [
+        '/usr/share/dict/words',  # Standard Unix/Linux/macOS
+        '/usr/dict/words',        # Some older Unix systems
+        '/usr/share/dict/american-english',  # Ubuntu/Debian
+        '/usr/share/dict/british-english'    # Ubuntu/Debian alternative
+    ]
+    
+    for i, path in enumerate(potential_paths):
+        try:
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    _english_words_cache = set(word.strip().lower() for word in f if word.strip())
+                logging.info(f"Successfully loaded {len(_english_words_cache)} English words from {path}")
+                return _english_words_cache
+                
+        except (FileNotFoundError, IOError) as e:
+            continue
+    
+    # If all system dictionaries failed - only show detailed info if Tagalog also failed
+    logging.info(f"No system English dictionary found - this is expected on minimal CI environments")
+    _english_words_cache = set()
+    return _english_words_cache
 
 def is_english_loanword(word: str) -> bool:
     """
@@ -427,7 +469,6 @@ def is_english_loanword(word: str) -> bool:
     # Step 2: Check English dictionary second
     # Only consider it an English loanword if NOT found in Tagalog
     if word_lower in english_words:
-        # Handle inflected forms by trying to find base forms
         return True
     
     # Try inflected forms for English detection
@@ -438,9 +479,32 @@ def is_english_loanword(word: str) -> bool:
             if len(base_form) > 2 and base_form in english_words:
                 return True  # English loanword via inflection
     
-    # Fail fast if no dictionaries available
+    # Enhanced error reporting for dictionary failures - show detailed debugging automatically
     if not tagalog_words and not english_words:
-        raise RuntimeError("No language dictionaries available - cannot determine loanword status")
+        import os
+        logging.error(f"CRITICAL: No language dictionaries available for word '{word_lower}'")
+        logging.error(f"Dictionary status: Tagalog={len(tagalog_words)} words, English={len(english_words)} words")
+        logging.error(f"Current working directory: {os.getcwd()}")
+        logging.error(f"Module path: {__file__}")
+        
+        # Show which dictionary loading attempts were made
+        tagalog_paths = [
+            os.path.abspath(os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'instance', 'data', 'dictionaries', 'tagalog_words.txt'))),
+            os.path.abspath(os.path.normpath(os.path.join(os.getcwd(), 'instance', 'data', 'dictionaries', 'tagalog_words.txt')))
+        ]
+        english_paths = ['/usr/share/dict/words', '/usr/dict/words', '/usr/share/dict/american-english']
+        
+        logging.error(f"Tagalog dictionary attempts:")
+        for path in tagalog_paths:
+            logging.error(f"  {path} - Exists: {os.path.exists(path)}")
+        
+        logging.error(f"English dictionary attempts:")
+        for path in english_paths:
+            logging.error(f"  {path} - Exists: {os.path.exists(path)}")
+        
+        error_msg = (f"No language dictionaries available - cannot determine loanword status for '{word_lower}'. "
+                    f"See detailed path information in logs above.")
+        raise RuntimeError(error_msg)
     
     # Default: treat as Tagalog word (allow breakdown)
     return False
