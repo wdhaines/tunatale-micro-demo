@@ -1,0 +1,252 @@
+{
+  "session_metadata": {
+    "date": "2025-01-15",
+    "day": 16,
+    "version": "post_two_pass_srs_fixes",
+    "session_type": "srs_debugging_validation",
+    "total_observations": 28,
+    "architectural_validation": "two_pass_system_successful"
+  },
+
+  "vocabulary_recognition_states": {
+    "unknown_vocabulary_gaps": [
+      {
+        "word": "umupo",
+        "meaning": "to_sit_action_verb",
+        "priority": "high",
+        "category": "basic_action_verbs",
+        "context": "where_would_you_like_to_sit",
+        "srs_action": "add_with_low_stability"
+      },
+      {
+        "word": "lasa", 
+        "meaning": "taste_sensory_vocabulary",
+        "priority": "medium",
+        "category": "sensory_descriptors",
+        "context": "food_evaluation_discussion",
+        "srs_action": "add_for_dining_contexts"
+      },
+      {
+        "word": "grilled_cooking_method",
+        "meaning": "grilled_food_preparation",
+        "priority": "medium", 
+        "category": "cooking_methods",
+        "context": "food_preparation_discussion",
+        "learning_pattern": "improving_through_repetition",
+        "srs_action": "add_with_explicit_teaching"
+      },
+      {
+        "word": "tagalog_word_for_separate",
+        "meaning": "separate_division_concept", 
+        "priority": "high",
+        "category": "deeper_strategy_vocabulary",
+        "strategic_context": "english_to_tagalog_transition",
+        "validation": "confirms_successful_deepening_progression",
+        "srs_action": "add_as_strategic_vocabulary_advancement"
+      }
+    ],
+
+    "high_priority_collocation_gaps": [
+      {
+        "phrase": "anything_else",
+        "function": "service_completion_inquiry",
+        "priority": "high",
+        "category": "restaurant_service_phrases",
+        "utility": "broad_application_across_service_contexts",
+        "srs_action": "add_as_complete_collocation"
+      },
+      {
+        "phrase": "can_we_get",
+        "function": "request_initiation",
+        "priority": "high", 
+        "category": "transactional_communication",
+        "utility": "essential_for_ordering_requesting",
+        "srs_action": "add_as_request_phrase_pattern"
+      },
+      {
+        "phrase": "ill_have_that",
+        "function": "selection_confirmation",
+        "priority": "high",
+        "category": "ordering_vocabulary", 
+        "utility": "repeatedly_useful_as_complete_phrase",
+        "srs_action": "handle_as_collocation_unit"
+      },
+      {
+        "phrase": "are_you_ready",
+        "function": "coordination_confirmation",
+        "priority": "high",
+        "category": "group_coordination",
+        "context": "timing_readiness_verification", 
+        "repetition_observed": "building_familiarity_through_exposure",
+        "srs_action": "add_as_coordination_phrase"
+      }
+    ],
+
+    "context_dependent_complexity": [
+      {
+        "word": "kaya",
+        "known_meaning": "can_able_capability",
+        "unfamiliar_usage": "may_i_ask_politeness_context",
+        "recognition_issue": "makes_sense_retrospectively_not_immediate",
+        "complexity": "one_filipino_word_multiple_english_translations",
+        "srs_status": "known_but_context_patterns_need_reinforcement",
+        "debug_expectation": "identify_semantic_extension_challenges"
+      },
+      {
+        "word": "sana", 
+        "meaning": "if_possible_conditional_politeness",
+        "complexity": "non_direct_translation_mapping",
+        "pattern": "similar_to_kaya_translation_complexity",
+        "srs_status": "known_word_contextual_usage_unclear",
+        "debug_expectation": "track_complex_translation_relationships"
+      },
+      {
+        "word": "tama",
+        "meaning_uncertainty": "exactly_OR_is_that_right",
+        "recognition_issue": "multiple_possible_interpretations_in_context", 
+        "fuzziness": "unclear_which_meaning_applies",
+        "srs_status": "known_word_contextual_disambiguation_needed",
+        "debug_expectation": "identify_interpretation_ambiguity"
+      }
+    ],
+
+    "dormant_but_recoverable": [
+      {
+        "word": "susunod",
+        "meaning": "follow_me",
+        "recognition_pattern": "previously_known_not_in_active_memory",
+        "current_status": "retrieved_and_understood_stability_fairly_high",
+        "srs_implication": "reactivation_successful_minimal_reinforcement_needed",
+        "debug_expectation": "distinguish_dormant_from_unknown_vocabulary"
+      },
+      {
+        "word": "dessert_tagalog_word",
+        "learning_history": "definitely_taught_before",
+        "current_status": "stability_low_needs_reinforcement",
+        "srs_action": "refresher_instruction_rather_than_initial_teaching",
+        "debug_expectation": "identify_previously_taught_unstable_vocabulary"
+      }
+    ],
+
+    "natural_acquisition_successes": [
+      {
+        "words": "inside_outside",
+        "recognition_pattern": "unknown_to_passive_recognition_through_exposure",
+        "learning_mechanism": "repeated_listening_developing_understanding",
+        "current_status": "not_active_recall_but_comprehension_emerging",
+        "srs_implication": "successful_natural_acquisition_avoid_over_targeting",
+        "debug_expectation": "track_natural_learning_in_progress"
+      },
+      {
+        "word": "sariwang",
+        "meaning": "fresh",
+        "learning_pattern": "repetition_within_session_increasing_stability",
+        "recognition_improvement": "understanding_through_repeated_exposure",
+        "validation": "demonstrates_effective_organic_reinforcement",
+        "debug_expectation": "identify_real_time_natural_acquisition"
+      }
+    ],
+
+    "explicit_teaching_validation": [
+      {
+        "type": "successful_explicit_learning",
+        "description": "focus_collocations_unknown_to_high_stability",
+        "mechanism": "pronunciation_practice_creating_strong_memory",
+        "effectiveness": "rapid_stability_increase_through_focused_practice",
+        "validation": "pimsleur_breakdown_methodology_working"
+      },
+      {
+        "word": "masasabi", 
+        "initial_status": "tough_challenging_vocabulary",
+        "outcome": "picking_up_through_explicit_collocation_teaching",
+        "validation": "complex_vocabulary_responding_to_structured_instruction"
+      },
+      {
+        "phrase": "may_we_know",
+        "teaching_status": "taught_multiple_times_as_key_collocation",
+        "persistent_issue": "still_having_trouble_despite_explicit_instruction",
+        "implication": "some_vocabulary_resistant_to_standard_methodology",
+        "debug_expectation": "identify_teaching_approach_failures"
+      }
+    ]
+  },
+
+  "strategic_vocabulary_decisions": {
+    "frequency_vs_function_prioritization": [
+      {
+        "cultural_content": "sour_soup_with_grouper",
+        "assessment": "low_frequency_not_srs_priority",
+        "decision": "deliberately_excluded_despite_cultural_authenticity",
+        "principle": "functional_vocabulary_over_cultural_detail"
+      },
+      {
+        "word": "inagawa",
+        "context": "preparation_methods_central_to_scenario",
+        "priority": "higher_than_frequency_would_suggest",
+        "reasoning": "functional_importance_in_preparation_contexts",
+        "principle": "semantic_centrality_over_statistical_frequency"
+      }
+    ],
+
+    "deeper_strategy_validation": [
+      {
+        "vocabulary": "separate",
+        "transition": "english_usage_previous_content_to_tagalog_instruction",
+        "validation": "strategic_vocabulary_deepening_working",
+        "pattern": "english_acceptable_early_stages_targeted_for_tagalog_as_complexity_increases"
+      }
+    ]
+  },
+
+  "architectural_successes": [
+    {
+      "two_pass_system_validation": {
+        "critical_test_case": "service_water_to_libre_tubig",
+        "previous_failure": "dictionary_replacement_compound_phrase_processing",
+        "current_success": "intelligent_contextual_processing_working",
+        "user_satisfaction": "so_happy_that_service_water_got_turned_into_libre_tubig"
+      }
+    }
+  ],
+
+  "debug_system_requirements": {
+    "categorization_capabilities": [
+      "distinguish_unknown_from_unstable_from_context_dependent",
+      "identify_natural_acquisition_vs_explicit_teaching_needs",
+      "track_successful_vs_failing_instructional_approaches",
+      "recognize_strategic_vocabulary_transitions",
+      "validate_architectural_constraint_enforcement"
+    ],
+
+    "priority_classification_factors": [
+      "functional_importance_over_frequency_alone",
+      "semantic_centrality_in_scenario_contexts", 
+      "pragmatic_communication_value",
+      "strategic_learning_progression_appropriateness"
+    ],
+
+    "learning_mechanism_tracking": [
+      "repetition_based_natural_acquisition",
+      "explicit_pronunciation_practice_effectiveness",
+      "contextual_exposure_comprehension_building",
+      "collocation_unit_learning_vs_individual_words"
+    ]
+  },
+
+  "validation_expectations": {
+    "debug_output_should_identify": [
+      "28_distinct_vocabulary_recognition_states",
+      "successful_two_pass_constraint_enforcement",
+      "natural_vs_explicit_learning_pattern_distinctions",
+      "strategic_vocabulary_progression_validation",
+      "teaching_methodology_effectiveness_assessment"
+    ],
+
+    "decision_making_transparency": [
+      "why_certain_vocabulary_prioritized_over_others",
+      "how_functional_importance_weighted_against_frequency",
+      "which_learning_mechanisms_applied_to_different_vocabulary_types",
+      "when_natural_acquisition_preferred_over_explicit_targeting"
+    ]
+  }
+}

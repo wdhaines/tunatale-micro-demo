@@ -28,6 +28,9 @@ class SRSLLMEnforcer:
         Returns:
             Tuple of (enforced_content, violations_list)
         """
+        # Save original content before any SRS enforcement
+        self._save_original_backup(content, day, context)
+        
         # Get high-stability vocabulary that should replace English
         replacements = self._get_high_stability_replacements()
         
@@ -222,6 +225,32 @@ Return the complete content with intelligent, grammar-aware replacements applied
                 
         except Exception as e:
             self.logger.warning(f"Could not store violations in database: {e}")
+    
+    def _save_original_backup(self, content: str, day: int, context: str):
+        """Save original content before SRS enforcement is applied."""
+        try:
+            # Create backup directory if it doesn't exist
+            backup_dir = Path("instance/data/stories/originals")
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generate backup filename with context for uniqueness
+            if context and context != "story":
+                backup_filename = f"story_day{day}_original_{context}.txt"
+            else:
+                backup_filename = f"story_day{day}_original.txt"
+            
+            backup_path = backup_dir / backup_filename
+            
+            # Only save if backup doesn't already exist (preserve first original)
+            if not backup_path.exists():
+                with open(backup_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                self.logger.info(f"Original content saved to: {backup_path}")
+            else:
+                self.logger.debug(f"Original backup already exists: {backup_path}")
+                
+        except Exception as e:
+            self.logger.warning(f"Could not save original backup: {e}")
 
 
 def create_llm_enforcer(llm: MockLLM, srs_db: SRSDatabase) -> SRSLLMEnforcer:

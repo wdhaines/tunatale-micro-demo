@@ -7,12 +7,16 @@ from pathlib import Path
 from typing import List, Dict, Tuple, Set, Any, Optional
 
 import config
+from language_detector import LanguageDetector
 
 class CollocationExtractor:
     def __init__(self):
         try:
             # Load the English language model with all components
             self.nlp = spacy.load("en_core_web_sm", disable=[])
+            
+            # Initialize language detector for Filipino/English filtering
+            self.language_detector = LanguageDetector()
             
             # Add patterns for better named entity recognition
             if "entity_ruler" not in self.nlp.pipe_names:
@@ -102,6 +106,11 @@ class CollocationExtractor:
             # Skip very short words
             if len(word) < 3:
                 return False
+            
+            # Apply language filtering for single words
+            if not self.language_detector.should_keep_for_filipino_learning(word):
+                return False
+                
             return True
             
         # For multi-word phrases
@@ -121,6 +130,11 @@ class CollocationExtractor:
             
         # Skip if it contains punctuation
         if any(t.text in ',.?!;:' for t in tokens):
+            return False
+        
+        # Apply language filtering for multi-word phrases
+        phrase = ' '.join(words_lower)
+        if not self.language_detector.should_keep_for_filipino_learning(phrase):
             return False
             
         return True
@@ -170,10 +184,14 @@ class CollocationExtractor:
             for sent in doc.sents:
                 for i in range(len(sent)):
                     if self._is_valid_collocation([sent[i]]):
-                        word = sent[i].text.lower()
-                        collocations[word] += 1
-                        if debug:
-                            print(f"Debug: Added single word: {word}")
+                        word = sent[i].text.lower().strip()
+                        # Validate this is actually a single word
+                        if len(word.split()) == 1 and len(word) > 0:
+                            collocations[word] += 1
+                            if debug:
+                                print(f"Debug: Added single word: {word}")
+                        elif debug:
+                            print(f"Debug: Skipped malformed token (not single word): '{word}'")
         
         # Process all noun chunks
         for chunk in doc.noun_chunks:

@@ -124,6 +124,9 @@ class SRSEnforcer:
         if not content:
             return content, []
         
+        # Save original content before any SRS enforcement
+        self._save_original_backup(content, day, context)
+        
         violations = []
         enforced_content = content
         
@@ -225,6 +228,34 @@ class SRSEnforcer:
         """
         self.replacement_dict[english.lower()] = filipino
         print(f"Added replacement: '{english}' → '{filipino}'")
+    
+    def _save_original_backup(self, content: str, day: int, context: str):
+        """Save original content before SRS enforcement is applied."""
+        try:
+            from pathlib import Path
+            
+            # Create backup directory if it doesn't exist
+            backup_dir = Path("instance/data/stories/originals")
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generate backup filename with context for uniqueness
+            if context and context != "story":
+                backup_filename = f"story_day{day}_original_{context}.txt"
+            else:
+                backup_filename = f"story_day{day}_original.txt"
+            
+            backup_path = backup_dir / backup_filename
+            
+            # Only save if backup doesn't already exist (preserve first original)
+            if not backup_path.exists():
+                with open(backup_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                print(f"📄 Original content saved to: {backup_path}")
+            else:
+                print(f"📄 Original backup already exists: {backup_path}")
+                
+        except Exception as e:
+            print(f"⚠️ Could not save original backup: {e}")
 
 
 # Extension to SRSDatabase for violation recording

@@ -330,7 +330,8 @@ class CLI:
         debug_srs_parser.add_argument(
             'day',
             type=int,
-            help='Day number to show SRS debug information for'
+            nargs='?',
+            help='Day number to show SRS debug information for (not required for --generate-template)'
         )
         debug_srs_parser.add_argument(
             '--vocabulary-analysis',
@@ -342,6 +343,42 @@ class CLI:
             type=str,
             help='Export vocabulary analysis to JSON file (e.g., debug.json)'
         )
+        debug_srs_parser.add_argument(
+            '--validate',
+            action='store_true',
+            help='Validate vocabulary analysis against expected states'
+        )
+        debug_srs_parser.add_argument(
+            '--validation-file',
+            type=str,
+            help='Path to validation JSON file (default: day{N}_validation.json)'
+        )
+        debug_srs_parser.add_argument(
+            '--error-tolerance',
+            choices=['strict', 'medium', 'permissive'],
+            default='medium',
+            help='Error tolerance for validation parsing (default: medium)'
+        )
+        debug_srs_parser.add_argument(
+            '--generate-template',
+            choices=['simple', 'comprehensive'],
+            help='Generate validation template for LLM and exit'
+        )
+        debug_srs_parser.add_argument(
+            '--show-pre-enforcement',
+            action='store_true',
+            help='Show reconstructed content before SRS enforcement was applied'
+        )
+        
+        # Import and add new SRS management commands
+        from cli.srs_commands import add_srs_commands
+        from cli.vocab_commands import add_vocab_commands  
+        from cli.enforcement_commands import add_enforcement_commands
+        
+        # Add new SRS management command groups
+        add_srs_commands(subparsers)
+        add_vocab_commands(subparsers)
+        add_enforcement_commands(subparsers)
         
         return parser
     
@@ -1315,6 +1352,15 @@ class CLI:
     def _handle_debug_srs(self, args: argparse.Namespace) -> int:
         """Handle the debug-srs command to show what SRS enforcement did for a day."""
         try:
+            # Handle template generation first (no day required)
+            if hasattr(args, 'generate_template') and args.generate_template:
+                return self._handle_template_generation(args.generate_template)
+            
+            # Ensure day is provided for other operations
+            if args.day is None:
+                print("Error: Day number is required for SRS debug operations", file=sys.stderr)
+                return 1
+            
             from srs_database import SRSDatabase
             import sqlite3
             import json
@@ -1390,6 +1436,38 @@ class CLI:
                     print(f"   Context: {latest[4]}")
                     print(f"   Method: {latest[2]}")
                 
+                # Check if pre-enforcement content was requested
+                if hasattr(args, 'show_pre_enforcement') and args.show_pre_enforcement:
+                    print(f"\n" + "="*60)
+                    print(f"PRE-ENFORCEMENT CONTENT RECONSTRUCTION FOR DAY {day}")
+                    print(f"="*60)
+                    
+                    pre_enforcement_content = self._reconstruct_pre_enforcement_content(violations)
+                    if pre_enforcement_content:
+                        print(f"\n📄 Reconstructed Original Content:")
+                        print(f"{'─' * 50}")
+                        print(pre_enforcement_content)
+                        print(f"{'─' * 50}")
+                        
+                        # Option to save to file
+                        pre_enforcement_file = f"story_day{day}_pre_enforcement.txt"
+                        with open(pre_enforcement_file, 'w', encoding='utf-8') as f:
+                            f.write(pre_enforcement_content)
+                        print(f"✅ Pre-enforcement content saved to: {pre_enforcement_file}")
+                    else:
+                        print("❌ Could not reconstruct pre-enforcement content")
+                        
+                        # Check if original backup exists
+                        from pathlib import Path
+                        backup_dir = Path("instance/data/stories/originals")
+                        backup_files = list(backup_dir.glob(f"*day{day}_original*.txt"))
+                        if backup_files:
+                            print(f"💡 However, original backups are available:")
+                            for backup_file in backup_files:
+                                print(f"  📄 {backup_file}")
+                        else:
+                            print("💡 No original backups found. Future story generations will automatically save originals.")
+                
                 # Check if vocabulary analysis was requested
                 if hasattr(args, 'vocabulary_analysis') and args.vocabulary_analysis:
                     print(f"\n" + "="*50)
@@ -1398,20 +1476,50 @@ class CLI:
                     
                     from srs_debug_analyzer import SRSDebugAnalyzer
                     analyzer = SRSDebugAnalyzer()
-                    report = analyzer.analyze_day_vocabulary(day)
                     
-                    if 'error' in report:
-                        print(f"❌ Error: {report['error']}")
-                    else:
-                        # Export if requested
-                        if hasattr(args, 'export') and args.export:
-                            import json
-                            with open(args.export, 'w', encoding='utf-8') as f:
-                                json.dump(report, f, indent=2, ensure_ascii=False)
-                            print(f"✅ Vocabulary analysis exported to {args.export}")
+                    # Handle validation if requested
+                    if hasattr(args, 'validate') and args.validate:
+                        validation_file = args.validation_file
+                        if not validation_file:
+                            validation_file = f"day{day}_validation.json"
                         
-                        # Display summary
-                        self._display_vocabulary_analysis(report)
+                        error_tolerance = getattr(args, 'error_tolerance', 'medium')
+                        
+                        print(f"🔍 Running validation against: {validation_file}")
+                        print(f"📊 Error tolerance: {error_tolerance}")
+                        
+                        validation_results = analyzer.validate_against_expected(
+                            day, validation_file, error_tolerance
+                        )
+                        
+                        if 'error' in validation_results:
+                            print(f"❌ Validation Error: {validation_results['error']}")
+                        else:
+                            # Export validation results if requested
+                            if hasattr(args, 'export') and args.export:
+                                import json
+                                with open(args.export, 'w', encoding='utf-8') as f:
+                                    json.dump(validation_results, f, indent=2, ensure_ascii=False)
+                                print(f"✅ Validation results exported to {args.export}")
+                            
+                            # Display validation results
+                            self._display_validation_results(validation_results)
+                    else:
+                        # Regular vocabulary analysis
+                        report = analyzer.analyze_day_vocabulary(day)
+                        
+                        if 'error' in report:
+                            print(f"❌ Error: {report['error']}")
+                        else:
+                            # Export if requested
+                            if hasattr(args, 'export') and args.export:
+                                import json
+                                with open(args.export, 'w', encoding='utf-8') as f:
+                                    json.dump(report, f, indent=2, ensure_ascii=False)
+                                print(f"✅ Vocabulary analysis exported to {args.export}")
+                            
+                            # Display summary
+                            self._display_vocabulary_analysis(report)
                 
                 return 0
                 
@@ -1460,15 +1568,151 @@ class CLI:
                 states_shown.add(state)
                 if len(states_shown) >= 6:  # Show max 6 different states
                     break
+    
+    def _handle_template_generation(self, template_type: str) -> int:
+        """Handle validation template generation."""
+        try:
+            from validation_schema import generate_validation_template, generate_simple_validation_template
+            
+            if template_type == "simple":
+                template = generate_simple_validation_template()
+            else:  # comprehensive
+                template = generate_validation_template()
+            
+            print(template)
+            return 0
+            
+        except Exception as e:
+            print(f"Error generating template: {e}", file=sys.stderr)
+            return 1
+    
+    def _display_validation_results(self, results: Dict[str, Any]) -> None:
+        """Display formatted validation results."""
+        summary = results['validation_summary']
+        detailed = results['detailed_results']
+        quality = results['data_quality_report']
         
-        # Show words needing attention if any
-        if metrics.get('words_needing_attention', 0) > 0:
-            print(f"\n⚠️ Words Needing Attention:")
-            attention_words = [a for a in analyses 
-                             if a['recognition_state'] in ['unstable', 'dormant']]
-            for word_analysis in attention_words[:10]:  # Show first 10
-                state = word_analysis['recognition_state'].replace('_', ' ')
-                print(f"   • {word_analysis['word']} ({state})")
+        # Display summary metrics
+        print(f"\n📊 VALIDATION SUMMARY:")
+        print(f"  Total Expected: {summary['total_expected']}")
+        print(f"  Total Found in Analysis: {summary['total_actual']}")
+        print(f"  Matches: {summary['matches']} ({summary['match_percentage']}%)")
+        print(f"  Mismatches: {summary['mismatches']}")
+        print(f"  Missing from Actual: {summary['missing_from_actual']}")
+        print(f"  Coverage: {summary['coverage_percentage']}%")
+        
+        # Display data quality
+        print(f"\n🔍 DATA QUALITY REPORT:")
+        print(f"  Validation Confidence: {quality['validation_confidence']:.1f}%")
+        print(f"  Error Tolerance: {quality['error_tolerance']}")
+        
+        if quality['parsing_warnings']:
+            print(f"\n⚠️ PARSING WARNINGS ({len(quality['parsing_warnings'])}):")
+            for warning in quality['parsing_warnings'][:5]:  # Show first 5
+                print(f"  • {warning}")
+            if len(quality['parsing_warnings']) > 5:
+                print(f"  ... and {len(quality['parsing_warnings']) - 5} more")
+        
+        # Show matches (sample)
+        if detailed['matches']:
+            print(f"\n✅ MATCHES (sample):")
+            for match in detailed['matches'][:5]:
+                print(f"  ✓ {match['word']} → {match['actual']}")
+        
+        # Show mismatches  
+        if detailed['mismatches']:
+            print(f"\n❌ MISMATCHES ({len(detailed['mismatches'])}):")
+            for mismatch in detailed['mismatches'][:10]:
+                print(f"  ✗ {mismatch['word']}: expected '{mismatch['expected']}', got '{mismatch['actual']}'")
+        
+        # Show missing words
+        if detailed['missing_from_actual']:
+            print(f"\n🔍 MISSING FROM ANALYSIS ({len(detailed['missing_from_actual'])}):")
+            for missing in detailed['missing_from_actual'][:10]:
+                print(f"  ? {missing['word']} (expected: {missing['expected']})")
+        
+        # Show unexpected words (sample)
+        if detailed['unexpected_in_actual']:
+            print(f"\n🆕 UNEXPECTED IN ANALYSIS ({len(detailed['unexpected_in_actual'])}, showing sample):")
+            for unexpected in detailed['unexpected_in_actual'][:5]:
+                print(f"  + {unexpected['word']} → {unexpected['actual']}")
+        
+        # Performance assessment
+        if summary['match_percentage'] >= 80:
+            print(f"\n🎯 PERFORMANCE: Excellent ({summary['match_percentage']}% match)")
+        elif summary['match_percentage'] >= 60:
+            print(f"\n📊 PERFORMANCE: Good ({summary['match_percentage']}% match)")
+        else:
+            print(f"\n⚠️ PERFORMANCE: Needs improvement ({summary['match_percentage']}% match)")
+        
+        # Show performance summary
+        if summary['match_percentage'] < 50:
+            print(f"\n💡 IMPROVEMENT SUGGESTIONS:")
+            print(f"  • Review story extraction patterns for missing words")
+            print(f"  • Check SRS database for expected vocabulary")
+            print(f"  • Verify recognition state categorization logic")
+    
+    def _reconstruct_pre_enforcement_content(self, violations) -> str:
+        """Reconstruct original content before SRS enforcement was applied."""
+        try:
+            # Read the current (post-enforcement) story file
+            from pathlib import Path
+            story_dir = Path("instance/data/stories")
+            
+            # Get day from violations context or use current day
+            day_num = 16  # Default fallback
+            if violations:
+                # Try to extract day from context names
+                for violation in violations:
+                    context = violation[4]  # context is at index 4
+                    if 'day' in context.lower():
+                        import re
+                        match = re.search(r'day(\d+)', context.lower())
+                        if match:
+                            day_num = int(match.group(1))
+                            break
+            
+            # Find the story file for this day
+            day_patterns = [
+                f"story_day{day_num}_*.txt",
+                f"*day{day_num}*.txt"
+            ]
+            
+            current_content = None
+            for pattern in day_patterns:
+                matches = list(story_dir.glob(pattern))
+                if matches:
+                    with open(matches[0], 'r', encoding='utf-8') as f:
+                        current_content = f.read()
+                    break
+            
+            if not current_content:
+                return None
+            
+            # Apply reverse transformations based on violations
+            pre_enforcement_content = current_content
+            
+            # Group violations by context to process in order
+            violations_by_context = {}
+            for violation in violations:
+                english, filipino, v_type, was_replaced, context, created_at = violation
+                if was_replaced:  # Only process actual replacements
+                    if context not in violations_by_context:
+                        violations_by_context[context] = []
+                    violations_by_context[context].append((filipino, english))
+            
+            # Apply reverse transformations (Filipino back to English)
+            for context, replacements in violations_by_context.items():
+                print(f"  🔄 Reversing {len(replacements)} replacements from {context}")
+                for filipino, english in replacements:
+                    # Replace Filipino words back with English
+                    pre_enforcement_content = pre_enforcement_content.replace(filipino, english)
+            
+            return pre_enforcement_content
+            
+        except Exception as e:
+            print(f"Error reconstructing content: {e}")
+            return None
     
     def run(self) -> int:
         """Run the CLI application."""
@@ -1480,8 +1724,13 @@ class CLI:
                 self.parser.print_help()
                 return 0
             
+            # Handle subparser commands (like srs, extract-vocab, test-enforcement)
+            if hasattr(args, 'func'):
+                args.func(args)
+                return 0
+            
             # Handle regular commands
-            if args.command in self.commands:
+            if hasattr(args, 'command') and args.command in self.commands:
                 return self.commands[args.command].handler(args)
                 
             # No command provided
