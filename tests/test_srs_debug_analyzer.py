@@ -432,10 +432,19 @@ class TestSRSValidation:
     
     def test_validate_with_missing_file(self):
         """Test validation with missing validation file."""
-        result = self.analyzer.validate_against_expected(16, "nonexistent.json")
-        
-        assert 'error' in result
-        assert 'Failed to load validation file' in result['error']
+        # Use a day that might have a story file, but provide nonexistent validation file
+        # First, mock a successful story analysis to get past the first error check
+        with patch.object(self.analyzer, 'analyze_day_vocabulary') as mock_analyze:
+            mock_analyze.return_value = {
+                'total_vocabulary': 10,
+                'states_analysis': {},
+                'story_file': 'test_story.txt'
+            }
+            
+            result = self.analyzer.validate_against_expected(1, "nonexistent.json")
+            
+            assert 'error' in result
+            assert 'Failed to load validation file' in result['error']
     
     def test_extract_expected_states_simple_format(self):
         """Test extraction of expected states from simple validation format."""
