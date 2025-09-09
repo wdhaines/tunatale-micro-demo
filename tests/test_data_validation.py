@@ -18,7 +18,7 @@ from typing import Dict, Any, List
 from unittest.mock import patch, MagicMock
 
 from srs_tracker import SRSTracker, CollocationStatus
-from collocation_extractor import CollocationExtractor
+# from collocation_extractor import CollocationExtractor # Removed - using LLM-based extraction
 from curriculum_models import Curriculum, CurriculumDay
 
 

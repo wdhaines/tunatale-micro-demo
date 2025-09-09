@@ -15,7 +15,7 @@ from typing import List, Dict, Optional, Set, Tuple
 import logging
 from datetime import datetime
 
-from story_collocation_extractor import StoryCollocationExtractor
+# from story_collocation_extractor import StoryCollocationExtractor  # Removed - using LLM-based extraction
 from srs_tracker import SRSTracker
 
 

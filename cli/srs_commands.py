@@ -8,7 +8,8 @@ from typing import Dict, List, Any, Optional
 
 from srs_database import SRSDatabase
 from srs_tracker import SRSTracker
-from collocation_extractor import CollocationExtractor
+# from collocation_extractor import CollocationExtractor  # Removed - using LLM-based extraction
+from story_collocation_extractor import StoryCollocationExtractor
 from .vocab_commands import _extract_natural_speed_content
 from .utils import (
     print_success, print_warning, print_error, print_info,
@@ -91,7 +92,7 @@ def handle_populate_command(args) -> None:
     try:
         # Initialize components
         db = SRSDatabase()
-        extractor = CollocationExtractor()
+        extractor = StoryCollocationExtractor()
         
         if args.clean_first:
             if args.dry_run:
@@ -162,7 +163,7 @@ def handle_clean_command(args) -> None:
         print_error(f"Error during cleaning: {e}")
 
 
-def _populate_from_all_stories(db: SRSDatabase, extractor: CollocationExtractor, args) -> None:
+def _populate_from_all_stories(db: SRSDatabase, extractor: Any, args) -> None:
     """Populate database from all story files."""
     story_files = get_story_files()
     
@@ -193,7 +194,7 @@ def _populate_from_all_stories(db: SRSDatabase, extractor: CollocationExtractor,
         print_info(f"DRY RUN: Would process {processed_files} files, add {total_added} collocations")
 
 
-def _populate_from_day(db: SRSDatabase, extractor: CollocationExtractor, day: int, args) -> None:
+def _populate_from_day(db: SRSDatabase, extractor: Any, day: int, args) -> None:
     """Populate database from specific day."""
     story_files = get_story_files()
     target_file = None
@@ -218,7 +219,7 @@ def _populate_from_day(db: SRSDatabase, extractor: CollocationExtractor, day: in
             print_info(f"DRY RUN: Would add {added_count} collocations from day {day}")
 
 
-def _populate_from_story_file(db: SRSDatabase, extractor: CollocationExtractor, 
+def _populate_from_story_file(db: SRSDatabase, extractor: Any, 
                              story_file: Path, day_num: int, args) -> Optional[int]:
     """Populate database from Natural Speed section of a single story file."""
     try:

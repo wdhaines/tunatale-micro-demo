@@ -775,11 +775,24 @@ class CLI:
                         print("Warning: File is empty, showing empty analysis", file=sys.stderr)
                         text = ""  # Allow empty text to proceed to analysis
                 else:
-                    # Treat as direct text input
-                    text = args.file_or_text or ""
-                    if not text.strip():
-                        print("Error: No text to analyze", file=sys.stderr)
-                        return 1
+                    # Check if input looks like a file path but doesn't exist
+                    input_text = args.file_or_text or ""
+                    looks_like_file_path = (
+                        '/' in input_text or 
+                        '\\' in input_text or 
+                        input_text.endswith(('.txt', '.md', '.py', '.js', '.json', '.csv', '.log'))
+                    )
+                    
+                    if looks_like_file_path and input_text:
+                        print(f"Warning: File '{input_text}' not found, analyzing as empty text", file=sys.stderr)
+                        text = ""  # Analyze empty text when file path doesn't exist
+                        # Don't return error for nonexistent file paths - allow empty analysis
+                    else:
+                        # Treat as direct text input
+                        text = input_text
+                        if not text.strip():
+                            print("Error: No text to analyze", file=sys.stderr)
+                            return 1
             
             print(f"\n{'='*60}")
             print(f"VOCABULARY ANALYSIS".center(60))
@@ -792,7 +805,8 @@ class CLI:
             print(f"Verbose output: {'Yes' if args.verbose else 'No'}")
             
             print("\nLoading vocabulary analyzer...")
-            extractor = CollocationExtractor()
+            from story_collocation_extractor import StoryCollocationExtractor
+            extractor = StoryCollocationExtractor()
             
             # Check if Phase 3 analysis is requested
             quality_requested = hasattr(args, 'quality') and args.quality

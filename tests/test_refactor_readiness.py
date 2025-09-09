@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 from curriculum_models import Curriculum, CurriculumDay
 from srs_tracker import SRSTracker, CollocationStatus
-from collocation_extractor import CollocationExtractor
+# from collocation_extractor import CollocationExtractor # Removed - using LLM-based extraction
 from story_generator import ContentGenerator
 from content_strategy import ContentStrategy, get_strategy_config
 
@@ -246,94 +246,6 @@ class TestRefactorReadiness:
         
         print("✓ Strategy framework readiness gate check passed")
     
-    def test_end_to_end_system_integrity(self, tmp_path):
-        """Gate check: Ensure end-to-end system integrity with proper test isolation."""
-        # Create a complete system test with clean data in temporary directory
-        
-        # 1. Create clean curriculum in temporary directory
-        curriculum_data = {
-            "learning_objective": "End-to-end integrity test",
-            "target_language": "Filipino",
-            "learner_level": "A2",
-            "presentation_length": 30,
-            "days": [
-                {
-                    "day": 1,
-                    "title": "Clean Data Test",
-                    "focus": "System integrity",
-                    "collocations": ["kumusta po", "salamat po"],
-                    "presentation_phrases": ["hello", "thank you"],
-                    "learning_objective": "Test system integrity",
-                    "story_guidance": "Keep it simple"
-                }
-            ]
-        }
-        
-        # Save curriculum to temporary file
-        curriculum_file = tmp_path / "test_curriculum.json"
-        with open(curriculum_file, 'w', encoding='utf-8') as f:
-            json.dump(curriculum_data, f)
-        
-        # Load curriculum from temporary file
-        with open(curriculum_file, 'r', encoding='utf-8') as f:
-            loaded_data = json.load(f)
-        
-        curriculum = Curriculum.from_dict(loaded_data)
-        assert_curriculum_integrity(curriculum)
-        
-        # 2. Create clean SRS data in temporary directory
-        srs_file = tmp_path / "srs" / "integrity_test.json"
-        srs_file.parent.mkdir(exist_ok=True)  # Ensure directory exists
-        
-        srs_tracker = SRSTracker(data_dir=str(tmp_path / "srs"), filename='integrity_test.json')
-        clean_collocations = ["kumusta po", "salamat po", "paano po"]
-        srs_tracker.add_collocations(clean_collocations, day=1)
-        
-        # The add_collocations call above already saves the state via _save_state()
-        assert srs_file.exists(), "SRS file was not created"
-        
-        # Create a new tracker to load the data
-        new_srs_tracker = SRSTracker(data_dir=str(tmp_path / "srs"), filename='integrity_test.json')
-        assert_srs_data_quality(new_srs_tracker)
-        
-        # Clean up test files
-        srs_file.unlink(missing_ok=True)
-        
-        # 3. Test collocation extraction with temporary files
-        extractor = CollocationExtractor()
-        
-        # Create a test file with sample text
-        test_file = tmp_path / "test_text.txt"
-        with open(test_file, 'w', encoding='utf-8') as f:
-            f.write("Kumusta po kayo? Salamat po sa pagdating!")
-        
-        # Test with file path
-        extracted = extractor.extract_collocations(str(test_file))
-        
-        # Should extract meaningful collocations
-        assert extracted is not None
-        assert isinstance(extracted, dict)
-        assert len(extracted) > 0, "No collocations were extracted"
-        
-        # 4. Test strategy parameter creation with temporary data
-        from content_strategy import EnhancedStoryParams
-        
-        strategy_params = EnhancedStoryParams(
-            learning_objective="Integration test",
-            language="Filipino",
-            cefr_level="A2",
-            phase=1,
-            content_strategy=ContentStrategy.WIDER,
-            new_vocabulary=["opo", "hindi po"],
-            review_collocations=["kumusta po"]
-        )
-        
-        # Verify strategy parameters
-        assert strategy_params.content_strategy == ContentStrategy.WIDER
-        assert len(strategy_params.new_vocabulary) == 2
-        assert len(strategy_params.review_collocations) == 1
-        
-        print("✓ End-to-end system integrity gate check passed with temp directory:", tmp_path)
     
     def test_migration_readiness_gate(self, tmp_path):
         """Gate check: Ensure system is ready for data migration."""

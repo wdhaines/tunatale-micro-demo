@@ -24,7 +24,7 @@ from cli.enforcement_commands import (
     _test_constraint_enforcement, _test_llm_enforcement
 )
 from srs_database import SRSDatabase
-from collocation_extractor import CollocationExtractor
+# from collocation_extractor import CollocationExtractor # Removed - using LLM-based extraction
 
 
 class TestSRSCLICommands:
@@ -83,7 +83,8 @@ class TestSRSCLICommands:
         with patch('cli.srs_commands.get_story_files') as mock_get_files:
             mock_get_files.return_value = [Path(self.story_file.name)]
             
-            with patch('cli.srs_commands.CollocationExtractor') as mock_extractor:
+            # Note: CollocationExtractor removed - using LLM-based extraction  
+            with patch('cli.srs_commands.StoryCollocationExtractor') as mock_extractor:
                 mock_extractor_instance = mock_extractor.return_value
                 mock_extractor_instance.extract_collocations.return_value = [
                     'salamat po', 'magandang hapon', 'walang anuman'
@@ -114,7 +115,8 @@ class TestSRSCLICommands:
         with patch('cli.srs_commands.get_story_files') as mock_get_files:
             mock_get_files.return_value = [Path(self.story_file.name)]
             
-            with patch('cli.srs_commands.CollocationExtractor') as mock_extractor:
+            # Note: CollocationExtractor removed - using LLM-based extraction  
+            with patch('cli.srs_commands.StoryCollocationExtractor') as mock_extractor:
                 mock_extractor_instance = mock_extractor.return_value
                 mock_extractor_instance.extract_collocations.return_value = [
                     'salamat po', 'magandang hapon'
@@ -147,7 +149,8 @@ class TestSRSCLICommands:
                 Path(self.story_file.name.replace('day1', 'day2'))
             ]
             
-            with patch('cli.srs_commands.CollocationExtractor') as mock_extractor:
+            # Note: CollocationExtractor removed - using LLM-based extraction  
+            with patch('cli.srs_commands.StoryCollocationExtractor') as mock_extractor:
                 mock_extractor_instance = mock_extractor.return_value
                 mock_extractor_instance.extract_collocations.return_value = [
                     'salamat po', 'magandang hapon'

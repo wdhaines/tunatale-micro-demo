@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from cli.vocab_commands import _extract_natural_speed_content, _extract_from_file
-from collocation_extractor import CollocationExtractor
+# from collocation_extractor import CollocationExtractor # Removed - using LLM-based extraction
 
 
 # Sample story content with all sections for testing

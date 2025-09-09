@@ -9,7 +9,7 @@ import pytest
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
 from curriculum_models import Curriculum, CurriculumDay
 from srs_tracker import SRSTracker
-from collocation_extractor import CollocationExtractor
+# from collocation_extractor import CollocationExtractor # Removed - using LLM-based extraction
 
 # Sample test data
 SAMPLE_STORY = """
@@ -54,7 +54,7 @@ def mock_llm():
 @pytest.fixture
 def mock_collocation_extractor():
     """Create a mock collocation extractor."""
-    mock_extractor = MagicMock(spec=CollocationExtractor)
+    mock_extractor = MagicMock()  # Removed CollocationExtractor spec - using LLM-based extraction
     # Return a copy of the sample collocations to avoid modifying the original
     mock_extractor.extract_collocations.return_value = list(SAMPLE_COLLOCATIONS)
     mock_extractor.return_value = mock_extractor  # For when it's instantiated
@@ -122,7 +122,7 @@ def setup_test_environment(tmp_path, mocker):
     
     # Patch the SRSTracker and CollocationExtractor constructors to return our instances
     mocker.patch('story_generator.SRSTracker', return_value=srs_tracker)
-    mocker.patch('story_generator.CollocationExtractor', return_value=mock_extractor)
+    # Note: CollocationExtractor no longer exists - using LLM-based extraction
     
     # Patch the SRSTracker class to use our test directory
     original_srs_tracker_init = SRSTracker.__init__
@@ -198,14 +198,13 @@ class TestSRSIntegration:
     def test_generate_story_updates_srs(self, mock_load_prompt, temp_dir, mock_llm, mock_collocation_extractor):
         """Test that generating a story updates the SRS with new collocations."""
         # Setup
-        with patch('story_generator.MockLLM', return_value=mock_llm), \
-             patch('story_generator.CollocationExtractor', return_value=mock_collocation_extractor):
+        with patch('story_generator.MockLLM', return_value=mock_llm):
             
             # Initialize ContentGenerator with temp directory and mock dependencies
             content_gen = ContentGenerator()
             content_gen.srs = SRSTracker(data_dir=temp_dir)
             content_gen.llm = mock_llm
-            content_gen._collocation_extractor = mock_collocation_extractor
+            content_gen.collocation_extractor = mock_collocation_extractor
             
             # Create test parameters
             params = StoryParams(
@@ -283,14 +282,13 @@ class TestSRSIntegration:
         )
         
         # Setup mocks
-        with patch('story_generator.MockLLM', return_value=mock_llm), \
-             patch('story_generator.CollocationExtractor', return_value=mock_collocation_extractor):
+        with patch('story_generator.MockLLM', return_value=mock_llm):
             
             # Initialize ContentGenerator with temp directory and mock dependencies
             content_gen = ContentGenerator()
             content_gen.srs = SRSTracker(data_dir=temp_dir)
             content_gen.llm = mock_llm
-            content_gen._collocation_extractor = mock_collocation_extractor
+            content_gen.collocation_extractor = mock_collocation_extractor
             
             # Mock the _load_curriculum method to return our test data
             with patch.object(content_gen, '_load_curriculum', return_value=curriculum_data):
@@ -299,7 +297,7 @@ class TestSRSIntegration:
                     "choices": [{"message": {"content": SAMPLE_STORY, "role": "assistant"}}]
                 }):
                     # Setup collocation extractor to return our sample collocations
-                    content_gen._collocation_extractor.extract_collocations.return_value = list(SAMPLE_COLLOCATIONS)
+                    content_gen.collocation_extractor.extract_collocations.return_value = list(SAMPLE_COLLOCATIONS)
                     
                     # Generate story for day1
                     story = content_gen.generate_story_for_day(1)
@@ -310,7 +308,7 @@ class TestSRSIntegration:
                     assert len(story) > 0
                     
                     # Verify collocations were extracted from the story at least once
-                    content_gen._collocation_extractor.extract_collocations.assert_any_call(story)
+                    content_gen.collocation_extractor.extract_collocations.assert_any_call(story)
                     
                     # Get all collocations from SRS
                     all_collocations = content_gen.srs.get_all_collocations()

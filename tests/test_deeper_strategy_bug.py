@@ -40,7 +40,6 @@ def mock_curriculum():
 def content_generator():
     """Create a ContentGenerator with mocked dependencies."""
     with patch('story_generator.SRSTracker') as mock_srs_tracker, \
-         patch('story_generator.CollocationExtractor') as mock_extractor, \
          patch.object(ContentGenerator, '_load_prompt', return_value='test prompt'):
         
         generator = ContentGenerator()

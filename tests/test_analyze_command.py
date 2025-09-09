@@ -16,7 +16,7 @@ class TestAnalyzeCommand:
     @pytest.fixture
     def mock_extractor(self):
         """Create a mock collocation extractor with sample analysis results."""
-        with patch('main.CollocationExtractor') as mock_extractor_cls:
+        with patch('story_collocation_extractor.StoryCollocationExtractor') as mock_extractor_cls:
             mock_instance = mock_extractor_cls.return_value
             
             # Create a custom mock class that handles comparison operations

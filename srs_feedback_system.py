@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from srs_tracker import SRSTracker, ContentStrategy
 from srs_usage_validator import SRSUsageValidator, UsageAnalysis
-from story_collocation_extractor import StoryCollocationExtractor
+# from story_collocation_extractor import StoryCollocationExtractor  # Removed - using LLM-based extraction
 
 
 @dataclass 

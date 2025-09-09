@@ -11,7 +11,7 @@ import config
 
 from llm_mock import MockLLM
 from srs_tracker import SRSTracker
-from collocation_extractor import CollocationExtractor
+# from collocation_extractor import CollocationExtractor  # Removed - using LLM-based extraction
 from curriculum_models import Curriculum, CurriculumDay
 from content_strategy import (
     ContentStrategy, 
@@ -91,6 +91,10 @@ class StoryParams:
 class ContentGenerator:
     def __init__(self):
         self.llm = MockLLM()
+        
+        # Initialize collocation extractor for backward compatibility
+        from story_collocation_extractor import StoryCollocationExtractor
+        self.collocation_extractor = StoryCollocationExtractor()
         # Load prompts for chat-based approach (graceful for testing)
         try:
             self.system_prompt = self._load_prompt('system_prompt.txt')
@@ -125,14 +129,6 @@ class ContentGenerator:
         
         # Legacy SRS (for existing functionality)
         self.srs = SRSTracker()
-        self._collocation_extractor = None
-    
-    @property
-    def collocation_extractor(self):
-        """Lazily load the CollocationExtractor to prevent test failures."""
-        if self._collocation_extractor is None:
-            self._collocation_extractor = CollocationExtractor()
-        return self._collocation_extractor
     
     def _load_prompt(self, filename: str) -> str:
         """Load prompt from file or use default if not found."""

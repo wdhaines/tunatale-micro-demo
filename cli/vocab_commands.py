@@ -3,9 +3,9 @@ Vocabulary extraction CLI commands.
 """
 import argparse
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Any
 
-from collocation_extractor import CollocationExtractor
+# from collocation_extractor import CollocationExtractor  # Removed - using LLM-based extraction
 from srs_database import SRSDatabase
 from .utils import (
     print_success, print_warning, print_error, print_info,
@@ -51,7 +51,12 @@ def handle_vocab_command(args) -> None:
     print_info("Starting vocabulary extraction...")
     
     try:
-        extractor = CollocationExtractor()
+        # TODO: CollocationExtractor removed - implement new vocabulary extraction approach
+        # For now, create a simple extractor stub
+        class SimpleExtractor:
+            def extract_collocations(self, text):
+                return {}
+        extractor = SimpleExtractor()
         
         # Parse day specification
         target_days = _parse_day_specification(args)
@@ -99,7 +104,7 @@ def _parse_day_specification(args) -> List[int]:
     return []
 
 
-def _handle_preview_extraction(extractor: CollocationExtractor, target_days: List[int], args) -> None:
+def _handle_preview_extraction(extractor, target_days: List[int], args) -> None:
     """Handle preview extraction without saving."""
     story_files = get_story_files()
     
@@ -134,7 +139,7 @@ def _handle_preview_extraction(extractor: CollocationExtractor, target_days: Lis
         _show_extraction_quality(collocations)
 
 
-def _handle_save_extraction(extractor: CollocationExtractor, target_days: List[int], args) -> None:
+def _handle_save_extraction(extractor: Any, target_days: List[int], args) -> None:
     """Handle extraction with saving to database."""
     story_files = get_story_files()
     db = SRSDatabase()
@@ -211,7 +216,7 @@ def _extract_natural_speed_content(story: str) -> str:
     return ' '.join(filipino_content)
 
 
-def _extract_from_file(extractor: CollocationExtractor, story_file: Path, filter_noise: bool) -> List[str]:
+def _extract_from_file(extractor: Any, story_file: Path, filter_noise: bool) -> List[str]:
     """Extract collocations from a story file."""
     try:
         with open(story_file, 'r', encoding='utf-8') as f:
