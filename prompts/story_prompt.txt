@@ -67,6 +67,58 @@ Generate a structured language learning lesson that follows this format:
    - [SPEAKER]: [Original line]
    - [NARRATOR]: [English translation]
 
+**SECTION 5: SRS Enforcement Analysis**
+1. Add: [NARRATOR]: SRS Enforcement Analysis
+2. Generate JSON analysis with both English terms and translation pairs:
+   {{
+     "english_terms": [
+       {{"english": "Good morning", "srs_queries": ["magandang umaga", "good morning", "umaga"]}},
+       {{"english": "How much", "srs_queries": ["magkano", "how much", "presyo"]}},
+       {{"english": "excuse me", "srs_queries": ["paumanhin", "excuse", "sorry"]}},
+       {{"english": "thank you", "srs_queries": ["salamat", "thank you", "thanks"]}}
+     ],
+     "translation_pairs": [
+       {{"english": "water", "filipino": "tubig", "confidence": 1.0}},
+       {{"english": "delicious", "filipino": "masarap", "confidence": 1.0}},
+       {{"english": "thank you", "filipino": "salamat po", "confidence": 0.95}},
+       {{"english": "how much", "filipino": "magkano", "confidence": 1.0}}
+     ],
+     "key_phrases_analysis": {{
+       "phrases": ["magkano po ito", "salamat po", "kumusta po", "puwede po ba"],
+       "stability_threshold": 2.0,
+       "replacement_suggestions": {{
+         "salamat po": ["maraming salamat", "salamat na po", "pasasalamat po"],
+         "kumusta po": ["kamusta na po", "musta na", "kumusta po kayo"],
+         "magkano po": ["presyo po nito", "magkano po kaya", "ano pong halaga"]
+       }}
+     }}
+   }}
+3. For each English term found in Tagalog speaker dialogue:
+   - "english": exact English phrase/word to be replaced
+   - "srs_queries": list of Filipino terms to search for in SRS database
+4. For each translation pair from [TAGALOG-*] → [NARRATOR] dialogue alignment:
+   - "english": English word/phrase from narrator translation
+   - "filipino": corresponding Filipino word/phrase from Tagalog speaker
+   - "confidence": alignment confidence (0.8-1.0 for high quality pairs)
+5. Translation pair extraction guidelines:
+   - Analyze all [TAGALOG-SPEAKER] → [NARRATOR] pairs in Translated section
+   - Extract word-level and phrase-level alignments with high confidence
+   - Include common vocabulary: food, greetings, numbers, adjectives, verbs
+   - Exclude proper nouns, place names, and ambiguous alignments
+   - Assign confidence 1.0 for perfect matches, 0.9-0.95 for good matches, 0.8+ for acceptable
+6. Focus on English words/phrases that have clear Filipino equivalents
+7. Do not include proper nouns, place names, or culturally appropriate English terms
+8. Include both individual words and common phrases
+9. For Key Phrases Analysis:
+   - "phrases": list of Tagalog phrases from Key Phrases section
+   - "stability_threshold": SRS stability threshold (use 2.0) for flagging already-known phrases
+   - "replacement_suggestions": alternative phrases for potentially high-stability items
+10. For replacement suggestions, provide 2-3 alternatives that:
+   - Are useful collocations that haven't been learned yet
+   - Have low SRS stability (new vocabulary for the learner)
+   - Fit the general learning context and day theme
+11. Extract phrases only from Key Phrases section, not from Natural Speed dialogue
+
 **Content Guidelines:**
 - Incorporate ALL provided review collocations naturally
 - Use mostly dialogue (80%+)

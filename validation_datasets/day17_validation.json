@@ -1,0 +1,140 @@
+{
+  "day": 17,
+  "validation_date": "2025-09-03",
+  "strategy": "wider_pre_srs_fixes",
+  "validation_type": "comprehensive_baseline_before_regeneration",
+  "overall_assessment": "systematic_srs_enforcement_failures_too_much_english",
+  "user_verdict": "too_much_english",
+  "user_prediction": "when_regenerated_gonna_be_way_better",
+  "total_items_identified": 60,
+
+  "priority_classification": {
+    "CRITICAL_SRS_ENFORCEMENT_FAILURES": {
+      "good_morning": {
+        "tagalog_equivalent": "magandang_umaga",
+        "priority": "highest",
+        "category": "basic_greetings",
+        "note": "should_definitely_be_srs_enforced"
+      },
+      "discount": {
+        "tagalog_equivalent": "to_be_determined", 
+        "priority": "highest",
+        "category": "commercial_vocabulary",
+        "note": "definitely_word_learned_before"
+      },
+      "tour": {
+        "tagalog_equivalent": "to_be_determined",
+        "priority": "highest", 
+        "category": "cross_day_learning",
+        "note": "should_be_srs_enforced_learned_day_15",
+        "test_type": "bidirectional_learning_continuity"
+      },
+      "picture": {
+        "tagalog_equivalent": "to_be_determined",
+        "priority": "highest",
+        "category": "cross_day_learning", 
+        "note": "learned_all_about_taking_pictures_day_15",
+        "test_type": "cross_day_vocabulary_persistence"
+      },
+      "of_course": {
+        "tagalog_equivalent": "to_be_determined",
+        "priority": "highest",
+        "category": "mixed_enforcement_within_content",
+        "note": "weird_english_once_tagalog_other_time_same_transcript",
+        "diagnostic_significance": "selective_enforcement_failure_smoking_gun"
+      },
+      "drinks": {
+        "tagalog_equivalent": "inumin",
+        "priority": "highest",
+        "category": "food_beverage",
+        "note": "for_sure_should_be_srs_enforced"
+      },
+      "weather": {
+        "tagalog_equivalent": "to_be_determined",
+        "priority": "high",
+        "category": "travel_essential",
+        "note": "i_know_weather"
+      },
+      "first": {
+        "tagalog_equivalent": "una",
+        "priority": "high",
+        "category": "numbers_ordinal",
+        "note": "first_example_number_english_heard_so_far",
+        "context": "first_stop"
+      },
+      "next": {
+        "tagalog_equivalent": "to_be_determined",
+        "priority": "high", 
+        "category": "sequencing_vocabulary",
+        "note": "pretty_sure_learned"
+      },
+      "perfect": {
+        "tagalog_equivalent": "to_be_determined",
+        "priority": "high",
+        "category": "descriptive_vocabulary",
+        "note": "pretty_sure_learned_day_15_success_perfect_timing"
+      },
+      "friends": {
+        "tagalog_equivalent": "to_be_determined",
+        "priority": "high",
+        "category": "social_vocabulary",
+        "note": "especially_friends_should_be_srs_of_course"
+      },
+      "support": {
+        "tagalog_equivalent": "to_be_determined",
+        "priority": "medium",
+        "category": "action_vocabulary"
+      },
+      "tip": {
+        "tagalog_equivalent": "to_be_determined", 
+        "priority": "medium",
+        "category": "service_vocabulary"
+      },
+      "crew": {
+        "tagalog_equivalent": "to_be_determined",
+        "priority": "medium",
+        "category": "service_vocabulary"
+      }
+    },
+
+    "PHRASE_LEVEL_ENFORCEMENT_NEEDED": {
+      "perfect_for_swimming": {
+        "issue": "full_english_phrase_no_good",
+        "components": {
+          "perfect": "tagalog_equivalent_seen_working_day_15",
+          "swimming": "want_tagalog_equivalent_not_mag_swimming"
+        },
+        "priority": "highest",
+        "note": "complete_phrase_conversion_needed"
+      },
+      "first_stop": {
+        "components": {
+          "first": "una_equivalent", 
+          "stop": "tagalog_equivalent"
+        },
+        "priority": "high",
+        "category": "travel_logistics"
+      }
+    },
+
+    "HYBRID_CONSTRUCTION_REJECTIONS": {
+      "mag_swimming": {
+        "problem": "taglish_hybrid",
+        "user_preference": "no_good_want_tagalog_equivalent",
+        "solution": "pure_tagalog_vocabulary",
+        "priority": "high"
+      },
+      "mag_picture": {
+        "problem": "taglish_hybrid", 
+        "context": "unless_truly_loanword_day_15_photography_learning",
+        "solution": "pure_tagalog_or_confirmed_loanword",
+        "priority": "high"
+      },
+      "mag_discount": {
+        "problem": "taglish_hybrid",
+        "solution": "complete_tagalog_conversion",
+        "priority": "medium"
+      }
+    }
+  }
+}

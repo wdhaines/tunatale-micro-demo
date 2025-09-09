@@ -129,4 +129,39 @@
 - ✓ Blocks English when Filipino equivalent exists in SRS
 - ✓ Enhanced content is recognizably the same story as source day
 
+**SRS Enforcement Analysis:**
+After generating the complete lesson following the universal format (Key Phrases, Natural Speed, Slow Speed, Translated), add a final section:
+
+[NARRATOR]: SRS Enforcement Analysis
+{{
+  "english_terms": [
+    {{"english": "Good afternoon", "srs_queries": ["magandang hapon", "good afternoon", "hapon"]}},
+    {{"english": "How much", "srs_queries": ["magkano", "how much", "presyo"]}},
+    {{"english": "excuse me", "srs_queries": ["paumanhin", "excuse", "sorry"]}},
+    {{"english": "thank you", "srs_queries": ["salamat", "thank you", "thanks"]}}
+  ],
+  "key_phrases_analysis": {{
+    "phrases": ["magkano po ito", "salamat po", "kumusta po", "puwede po ba"],
+    "stability_threshold": 2.0,
+    "replacement_suggestions": {{
+      "salamat po": ["maraming salamat", "salamat na po", "pasasalamat po"],
+      "kumusta po": ["kamusta na po", "musta na", "kumusta po kayo"],
+      "magkano po": ["presyo po nito", "magkano po kaya", "ano pong halaga"]
+    }}
+  }}
+}}
+
+For each English term found in [TAGALOG-*] speaker dialogue:
+- "english": exact English phrase/word to be replaced
+- "srs_queries": list of Filipino terms to search for in SRS database
+For Key Phrases Analysis:
+- "phrases": list of Tagalog phrases from Key Phrases section
+- "stability_threshold": SRS stability threshold (use 2.0) for flagging already-known phrases
+- "replacement_suggestions": alternative phrases for potentially high-stability items
+For replacement suggestions, provide 2-3 alternatives that:
+- Are useful collocations that haven't been learned yet
+- Have low SRS stability (new vocabulary for the learner)
+- Fit the general learning context and day theme
+Focus on English words/phrases that have clear Filipino equivalents and should be replaced for enhanced authenticity.
+
 Generate content following the universal lesson format with these DEEPER strategy enhancements applied.

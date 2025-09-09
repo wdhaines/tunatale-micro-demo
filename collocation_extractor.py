@@ -1,7 +1,7 @@
 """Collocation extraction and management for TunaTale."""
 import json
 import os
-import spacy
+# import spacy  # Disabled - no longer needed with LLM-based extraction
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Dict, Tuple, Set, Any, Optional

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import config
 
 from curriculum_service import CurriculumGenerator
-from collocation_extractor import CollocationExtractor
+# from collocation_extractor import CollocationExtractor  # Disabled - no longer needed
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
 from content_strategy import ContentStrategy
 import logging
@@ -246,6 +246,11 @@ class CLI:
             type=str,
             help="File path to compare content against for strategy effectiveness"
         )
+        analyze_parser.add_argument(
+            "--extract-translations",
+            action="store_true",
+            help="Extract English↔Filipino translation pairs using LLM-based analysis"
+        )
         
         # Show day collocations command  
         show_collocations_parser = subparsers.add_parser(
@@ -369,6 +374,21 @@ class CLI:
             action='store_true',
             help='Show reconstructed content before SRS enforcement was applied'
         )
+        debug_srs_parser.add_argument(
+            '--test-words',
+            type=str,
+            help='Test specific vocabulary terms (comma-separated) against SRS system'
+        )
+        debug_srs_parser.add_argument(
+            '--test-json',
+            type=str,
+            help='Test vocabulary from JSON validation file against SRS system'
+        )
+        debug_srs_parser.add_argument(
+            '--category',
+            type=str,
+            help='Filter JSON vocabulary by category (e.g., CRITICAL_SRS_ENFORCEMENT_FAILURES)'
+        )
         
         # Import and add new SRS management commands
         from cli.srs_commands import add_srs_commands
@@ -379,9 +399,68 @@ class CLI:
         add_srs_commands(subparsers)
         add_vocab_commands(subparsers)
         add_enforcement_commands(subparsers)
+        self._add_translation_commands(subparsers)
         
         return parser
     
+    def _add_translation_commands(self, subparsers) -> None:
+        """Add translation management commands to the parser."""
+        
+        # Extract translations from all stories command
+        extract_parser = subparsers.add_parser(
+            "extract-translations",
+            help="Extract translation pairs from all story files"
+        )
+        extract_parser.add_argument(
+            "--stories-dir",
+            type=str,
+            default="instance/data/stories",
+            help="Directory containing story files (default: instance/data/stories)"
+        )
+        extract_parser.add_argument(
+            "--output-report",
+            action="store_true",
+            help="Save detailed extraction report to analysis/ directory"
+        )
+        
+        # Show translation pairs command
+        translations_parser = subparsers.add_parser(
+            "show-translations",
+            help="Show current translation pairs in enhanced database"
+        )
+        translations_parser.add_argument(
+            "--min-confidence",
+            type=float,
+            default=0.8,
+            help="Minimum confidence score to display (default: 0.8)"
+        )
+        translations_parser.add_argument(
+            "--limit",
+            type=int,
+            default=20,
+            help="Maximum number of pairs to display (default: 20)"
+        )
+        
+        # Test bidirectional lookup command
+        lookup_parser = subparsers.add_parser(
+            "lookup-translation",
+            help="Test bidirectional English↔Filipino lookup"
+        )
+        lookup_parser.add_argument(
+            "word",
+            help="English or Filipino word/phrase to lookup"
+        )
+        lookup_parser.add_argument(
+            "--reverse",
+            action="store_true",
+            help="Force reverse lookup (Filipino→English)"
+        )
+        
+        # Translation database stats command  
+        stats_parser = subparsers.add_parser(
+            "translation-stats",
+            help="Show enhanced database statistics"
+        )
     
     def _setup_view_parser(self, parser: argparse.ArgumentParser) -> None:
         """Configure arguments for the view command."""
@@ -462,6 +541,22 @@ class CLI:
             'debug-srs': Command(
                 handler=self._handle_debug_srs,
                 help='Show what SRS enforcement did for a specific day'
+            ),
+            'extract-translations': Command(
+                handler=self._handle_extract_translations,
+                help='Extract translation pairs from all story files'
+            ),
+            'show-translations': Command(
+                handler=self._handle_show_translations,
+                help='Show current translation pairs in enhanced database'
+            ),
+            'lookup-translation': Command(
+                handler=self._handle_lookup_translation,
+                help='Test bidirectional English↔Filipino lookup'
+            ),
+            'translation-stats': Command(
+                handler=self._handle_translation_stats,
+                help='Show enhanced database statistics'
             )
         }
 
@@ -744,6 +839,49 @@ class CLI:
                 
                 # Phase 3 analysis complete, continue to vocabulary analysis
                 
+            # Run LLM-based translation extraction if requested
+            if hasattr(args, 'extract_translations') and args.extract_translations:
+                print("Running LLM-based translation pair extraction...")
+                try:
+                    from llm_based_extraction_processor import LLMBasedExtractionProcessor
+                    extraction_processor = LLMBasedExtractionProcessor()
+                    
+                    # Create temporary file for extraction
+                    temp_path = Path("temp_analysis.txt")
+                    temp_path.write_text(text, encoding='utf-8')
+                    
+                    # Extract translation pairs
+                    day_number = args.day if hasattr(args, 'day') and args.day else 0
+                    report = extraction_processor.process_story_file(temp_path, day_number)
+                    
+                    # Clean up temp file
+                    if temp_path.exists():
+                        temp_path.unlink()
+                    
+                    print(f"\n{'='*60}")
+                    print(f"TRANSLATION ANALYSIS RESULTS".center(60))
+                    print(f"{'='*60}")
+                    print(f"Translation pairs found: {report.translation_pairs_found}")
+                    print(f"High confidence pairs: {report.high_confidence_pairs}")
+                    print(f"Medium confidence pairs: {report.medium_confidence_pairs}")
+                    print(f"English terms found: {report.english_terms_found}")
+                    print(f"Key phrases found: {report.key_phrases_found}")
+                    print(f"SRS analysis found: {'Yes' if report.srs_analysis_found else 'No'}")
+                    
+                    # Show translation pairs if found
+                    if report.translation_pairs_found > 0:
+                        from enhanced_srs_database import EnhancedSRSDatabase
+                        db = EnhancedSRSDatabase()
+                        pairs = db.get_translation_pairs()
+                        recent_pairs = [p for p in pairs if p.confidence >= 0.8][:10]
+                        
+                        print(f"\nHigh-Quality Translation Pairs:")
+                        for pair in recent_pairs:
+                            print(f"  {pair.english} ↔ {pair.filipino} (confidence: {pair.confidence})")
+                    
+                except Exception as e:
+                    print(f"Translation extraction failed: {e}")
+            
             print("Analyzing text...")
             try:
                 analysis = extractor.analyze_vocabulary_distribution(text)
@@ -1356,6 +1494,13 @@ class CLI:
             if hasattr(args, 'generate_template') and args.generate_template:
                 return self._handle_template_generation(args.generate_template)
             
+            # Handle vocabulary testing (no day required)
+            if hasattr(args, 'test_words') and args.test_words and args.test_words.strip():
+                return self._handle_vocabulary_testing(args.test_words, None, args.category)
+            
+            if hasattr(args, 'test_json') and args.test_json and args.test_json.strip():
+                return self._handle_vocabulary_testing(None, args.test_json, args.category)
+            
             # Ensure day is provided for other operations
             if args.day is None:
                 print("Error: Day number is required for SRS debug operations", file=sys.stderr)
@@ -1413,20 +1558,42 @@ class CLI:
                     print(f"\n📋 Context: {context}")
                     print(f"   Total violations: {len(context_violations)}")
                     
-                    # Show replacements made
-                    replaced = [v for v in context_violations if v['replaced']]
+                    # Separate violations by type
+                    english_violations = [v for v in context_violations if v['type'] != 'key_phrases_redundancy']
+                    key_phrases_violations = [v for v in context_violations if v['type'] == 'key_phrases_redundancy']
+                    
+                    # Show English replacements made
+                    replaced = [v for v in english_violations if v['replaced']]
                     if replaced:
-                        print(f"\n✅ Replacements Made ({len(replaced)}):")
+                        print(f"\n✅ English Replacements Made ({len(replaced)}):")
                         for i, v in enumerate(replaced, 1):
                             print(f"   {i:2}. '{v['english']}' → '{v['filipino']}'")
                             print(f"       Method: {v['type']}")
                     
                     # Show what wasn't replaced (if any)
-                    not_replaced = [v for v in context_violations if not v['replaced']]
+                    not_replaced = [v for v in english_violations if not v['replaced']]
                     if not_replaced:
-                        print(f"\n⏭️ Not Replaced ({len(not_replaced)}):")
+                        print(f"\n⏭️ English Not Replaced ({len(not_replaced)}):")
                         for i, v in enumerate(not_replaced, 1):
                             print(f"   {i:2}. '{v['english']}' (would be '{v['filipino']}')")
+                    
+                    # Show Key Phrases violations (separate replaced vs flagged)
+                    if key_phrases_violations:
+                        replaced_kp = [v for v in key_phrases_violations if v['replaced']]
+                        flagged_kp = [v for v in key_phrases_violations if not v['replaced']]
+                        
+                        if replaced_kp:
+                            print(f"\n🔄 Key Phrases Replaced ({len(replaced_kp)}):")
+                            for i, v in enumerate(replaced_kp, 1):
+                                print(f"   {i:2}. '{v['english']}' → '{v['filipino']}'")
+                                print(f"       Replaced with new vocabulary")
+                        
+                        if flagged_kp:
+                            print(f"\n⚠️ Key Phrases Violations ({len(flagged_kp)}):")
+                            for i, v in enumerate(flagged_kp, 1):
+                                print(f"   {i:2}. '{v['english']}' - Already known")
+                                print(f"       Matches SRS: '{v['filipino']}'")
+                                print(f"       Should not appear in Key Phrases section")
                 
                 # Show recent enforcement activity
                 print(f"\n🕐 Most Recent Enforcement:")
@@ -1534,6 +1701,272 @@ class CLI:
                 import traceback
                 traceback.print_exc()
             return 1
+
+    def _handle_vocabulary_testing(self, test_words: str, test_json: str, category: str) -> int:
+        """Handle vocabulary testing against SRS system."""
+        try:
+            from srs_database import SRSDatabase
+            from srs_llm_enforcer import create_llm_enforcer
+            from llm_mock import MockLLM
+            import json
+
+            # Initialize SRS system
+            db = SRSDatabase()
+            llm = MockLLM()  # We don't actually need LLM responses, just the enforcer
+            enforcer = create_llm_enforcer(llm, db)
+
+            vocabulary_terms = []
+
+            # Parse vocabulary terms from different sources
+            if test_words:
+                vocabulary_terms = [term.strip() for term in test_words.split(',')]
+                print(f"\n=== SRS Vocabulary Test ===")
+                print(f"Testing {len(vocabulary_terms)} terms from command line")
+            elif test_json:
+                try:
+                    with open(test_json, 'r', encoding='utf-8') as f:
+                        json_data = json.load(f)
+                    
+                    vocabulary_terms = self._extract_vocabulary_from_json(json_data, category)
+                    print(f"\n=== SRS Vocabulary Test ===")
+                    print(f"Testing {len(vocabulary_terms)} terms from {test_json}")
+                    if category:
+                        print(f"Category filter: {category}")
+                        
+                except FileNotFoundError:
+                    print(f"Error: JSON file '{test_json}' not found", file=sys.stderr)
+                    return 1
+                except json.JSONDecodeError as e:
+                    print(f"Error parsing JSON file: {e}", file=sys.stderr)
+                    return 1
+
+            if not vocabulary_terms:
+                print("No vocabulary terms to test", file=sys.stderr)
+                return 1
+
+            # Test each term against SRS system
+            matches_found = []
+            no_matches = []
+
+            for term in vocabulary_terms:
+                # Create analysis format that the enforcer expects
+                analysis = [{"english": term, "srs_queries": [term.lower(), term]}]
+                
+                # Query SRS with the term
+                replacements = enforcer._query_srs_with_analysis(analysis)
+                
+                if replacements and term in replacements:
+                    filipino_equivalent = replacements[term]
+                    matches_found.append({
+                        'english': term,
+                        'filipino': filipino_equivalent,
+                        'stability': 'unknown',  # Method doesn't return stability info
+                        'method': 'srs_query'
+                    })
+                else:
+                    no_matches.append(term)
+
+            # Display results in familiar format
+            if matches_found:
+                print(f"\n✅ Matches Found ({len(matches_found)}):")
+                for i, match in enumerate(matches_found, 1):
+                    stability = match['stability']
+                    if isinstance(stability, (int, float)):
+                        stability_str = f"stability: {stability:.1f}"
+                    else:
+                        stability_str = f"stability: {stability}"
+                    print(f"    {i}. '{match['english']}' → '{match['filipino']}' ({stability_str})")
+
+            if no_matches:
+                print(f"\n❌ No Matches ({len(no_matches)}):")
+                for i, term in enumerate(no_matches, 1):
+                    print(f"    {i}. '{term}' - No SRS equivalent found")
+
+            # Summary
+            total_terms = len(vocabulary_terms)
+            success_count = len(matches_found)
+            success_rate = (success_count / total_terms * 100) if total_terms > 0 else 0
+
+            print(f"\n📊 Success Rate: {success_rate:.0f}% ({success_count}/{total_terms} terms would be enforced)")
+
+            return 0
+
+        except Exception as e:
+            print(f"Error in vocabulary testing: {e}", file=sys.stderr)
+            if 'pytest' not in sys.modules:
+                import traceback
+                traceback.print_exc()
+            return 1
+
+    def _handle_extract_translations(self, args: argparse.Namespace) -> int:
+        """Handle the extract-translations command."""
+        try:
+            from pathlib import Path
+            from llm_based_extraction_processor import LLMBasedExtractionProcessor
+            
+            stories_dir = Path(args.stories_dir)
+            if not stories_dir.exists():
+                print(f"Error: Stories directory not found: {stories_dir}", file=sys.stderr)
+                return 1
+            
+            print(f"Extracting translation pairs from stories in: {stories_dir}")
+            processor = LLMBasedExtractionProcessor()
+            
+            # Process all stories
+            reports = processor.process_all_stories(stories_dir)
+            
+            if args.output_report:
+                # Save detailed report
+                output_file = processor.save_reports(reports)
+                print(f"Detailed report saved to: {output_file}")
+            
+            # Print summary
+            summary = processor.generate_summary_report(reports)
+            print(f"\n{'='*60}")
+            print(f"EXTRACTION SUMMARY".center(60))
+            print(f"{'='*60}")
+            print(f"Stories processed: {summary['extraction_summary']['total_stories_processed']}")
+            print(f"Translation pairs: {summary['extraction_summary']['total_translation_pairs']}")
+            print(f"High confidence pairs: {summary['extraction_summary']['high_confidence_pairs']}")
+            print(f"Database entries: {summary['database_statistics']['total_collocations']}")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"Error extracting translations: {e}", file=sys.stderr)
+            return 1
+
+    def _handle_show_translations(self, args: argparse.Namespace) -> int:
+        """Handle the show-translations command."""
+        try:
+            from enhanced_srs_database import EnhancedSRSDatabase
+            
+            db = EnhancedSRSDatabase()
+            pairs = db.get_translation_pairs()
+            
+            # Filter by confidence
+            filtered_pairs = [p for p in pairs if p.confidence >= args.min_confidence]
+            
+            # Limit results
+            display_pairs = filtered_pairs[:args.limit]
+            
+            print(f"\n{'='*60}")
+            print(f"TRANSLATION PAIRS (min confidence: {args.min_confidence})".center(60))
+            print(f"{'='*60}")
+            print(f"Showing {len(display_pairs)} of {len(filtered_pairs)} pairs")
+            
+            for i, pair in enumerate(display_pairs, 1):
+                print(f"{i:2d}. {pair.english} ↔ {pair.filipino} (confidence: {pair.confidence})")
+            
+            if len(filtered_pairs) > args.limit:
+                print(f"\n... and {len(filtered_pairs) - args.limit} more pairs")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"Error showing translations: {e}", file=sys.stderr)
+            return 1
+
+    def _handle_lookup_translation(self, args: argparse.Namespace) -> int:
+        """Handle the lookup-translation command."""
+        try:
+            from enhanced_srs_database import EnhancedSRSDatabase
+            
+            db = EnhancedSRSDatabase()
+            word = args.word.strip()
+            
+            print(f"\n{'='*50}")
+            print(f"TRANSLATION LOOKUP: '{word}'".center(50))
+            print(f"{'='*50}")
+            
+            if args.reverse:
+                # Force Filipino → English
+                english = db.find_english_equivalent(word)
+                if english:
+                    print(f"Filipino → English: {word} → {english}")
+                else:
+                    print(f"No English equivalent found for: {word}")
+            else:
+                # Try both directions
+                filipino = db.find_filipino_equivalent(word)
+                english = db.find_english_equivalent(word)
+                
+                if filipino:
+                    print(f"English → Filipino: {word} → {filipino}")
+                if english:
+                    print(f"Filipino → English: {word} → {english}")
+                
+                if not filipino and not english:
+                    print(f"No translation found for: {word}")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"Error in translation lookup: {e}", file=sys.stderr)
+            return 1
+
+    def _handle_translation_stats(self, args: argparse.Namespace) -> int:
+        """Handle the translation-stats command."""
+        try:
+            from enhanced_srs_database import EnhancedSRSDatabase
+            
+            db = EnhancedSRSDatabase()
+            stats = db.get_stats()
+            
+            print(f"\n{'='*60}")
+            print(f"ENHANCED DATABASE STATISTICS".center(60))
+            print(f"{'='*60}")
+            
+            print(f"Database location: {stats['database_path']}")
+            print(f"Total enhanced collocations: {stats['total_collocations']:,}")
+            
+            if 'enhanced_collocations' in stats:
+                print(f"\nCollocations by language:")
+                for language, count in stats['enhanced_collocations'].items():
+                    print(f"  {language.capitalize()}: {count:,}")
+            
+            print(f"\nTranslation pairs: {stats['active_translation_pairs']:,}")
+            print(f"Average confidence: {stats['average_translation_confidence']:.3f}")
+            print(f"Bidirectional mappings: {stats['mapped_collocations']:,}")
+            
+            # Show critical mappings
+            critical_words = ['water', 'delicious', 'perfect', 'beautiful', 'fresh', 'thank you']
+            print(f"\nCritical mapping status:")
+            for word in critical_words:
+                filipino = db.find_filipino_equivalent(word)
+                status = "✓" if filipino else "✗"
+                result = filipino if filipino else "Not found"
+                print(f"  {status} {word} → {result}")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"Error getting translation stats: {e}", file=sys.stderr)
+            return 1
+
+    def _extract_vocabulary_from_json(self, json_data: dict, category_filter: str) -> list:
+        """Extract vocabulary terms from JSON validation data."""
+        terms = []
+        
+        # Navigate the JSON structure based on the format you provided
+        if 'priority_classification' in json_data:
+            priority_class = json_data['priority_classification']
+            
+            # If category filter specified, only process that category
+            if category_filter and category_filter in priority_class:
+                categories = {category_filter: priority_class[category_filter]}
+            else:
+                categories = priority_class
+            
+            # Extract terms from each category
+            for category_name, category_data in categories.items():
+                if isinstance(category_data, dict):
+                    for term_key, term_data in category_data.items():
+                        # Convert underscores back to spaces for testing
+                        term = term_key.replace('_', ' ')
+                        terms.append(term)
+        
+        return terms
     
     def _display_vocabulary_analysis(self, report: Dict[str, Any]) -> None:
         """Display formatted vocabulary analysis report."""

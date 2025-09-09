@@ -404,6 +404,30 @@ class ContentGenerator:
                 logging.info(f"Extracted {len(extracted_collocations)} collocations from generated story")
             except Exception as e:
                 logging.warning(f"Failed to extract collocations: {e}")
+            
+            # Extract translation pairs from LLM-generated content
+            try:
+                from llm_based_extraction_processor import LLMBasedExtractionProcessor
+                extraction_processor = LLMBasedExtractionProcessor()
+                
+                # Create a temporary story file path to extract from
+                from pathlib import Path
+                temp_path = Path(f"temp_story_day_{params.phase}.txt")
+                
+                # Write content temporarily and extract
+                temp_path.write_text(story, encoding='utf-8')
+                report = extraction_processor.process_story_file(temp_path, params.phase)
+                
+                # Clean up temp file
+                if temp_path.exists():
+                    temp_path.unlink()
+                
+                logging.info(f"Extracted {report.translation_pairs_found} translation pairs from generated story")
+                if report.srs_analysis_found:
+                    logging.info(f"Found LLM SRS analysis with {report.high_confidence_pairs} high-confidence pairs")
+                    
+            except Exception as e:
+                logging.warning(f"Failed to extract translation pairs: {e}")
                 
             return story
             
@@ -1188,8 +1212,24 @@ class ContentGenerator:
                 story_guidance=f"Generated using {strategy.upper()} strategy"
             )
             
-            # Add the new day to curriculum
-            curriculum.days.append(new_day)
+            # Replace existing day or append new day to curriculum
+            existing_day_index = None
+            for i, day in enumerate(curriculum.days):
+                if day.day == target_day:
+                    existing_day_index = i
+                    break
+            
+            if existing_day_index is not None:
+                # Replace existing day
+                curriculum.days[existing_day_index] = new_day
+                logging.info(f"Replaced existing day {target_day} in curriculum")
+            else:
+                # Add new day
+                curriculum.days.append(new_day)
+                logging.info(f"Added new day {target_day} to curriculum")
+            
+            # Validate curriculum before saving to prevent pollution
+            self._validate_curriculum_before_save(curriculum, target_day)
             
             # Save updated curriculum
             curriculum_path = config.CURRICULUM_PATH
@@ -1281,3 +1321,36 @@ class ContentGenerator:
             with open(story_path, 'r') as f:
                 return f.read()
         return ""
+    
+    def _validate_curriculum_before_save(self, curriculum, target_day: int) -> None:
+        """Validate curriculum structure before saving to prevent pollution.
+        
+        Args:
+            curriculum: The curriculum object to validate
+            target_day: The day number that was just added/modified
+        """
+        from collections import Counter
+        
+        # Count day occurrences
+        day_counts = Counter(day.day for day in curriculum.days)
+        
+        # Check for duplicates
+        duplicates = {day: count for day, count in day_counts.items() if count > 1}
+        if duplicates:
+            raise ValueError(f"Curriculum validation failed: Duplicate days found: {duplicates}")
+        
+        # Check for invalid day numbers
+        invalid_days = [day for day in day_counts.keys() if day <= 0 or day > 1000]
+        if invalid_days:
+            raise ValueError(f"Curriculum validation failed: Invalid day numbers: {invalid_days}")
+        
+        # Check that target day exists
+        if target_day not in day_counts:
+            raise ValueError(f"Curriculum validation failed: Target day {target_day} not found after operation")
+        
+        # Check for reasonable curriculum size (prevent extreme pollution)
+        max_reasonable_days = 200
+        if len(curriculum.days) > max_reasonable_days:
+            raise ValueError(f"Curriculum validation failed: Too many days ({len(curriculum.days)}), possible pollution")
+        
+        logging.info(f"✅ Curriculum validation passed: {len(curriculum.days)} days, target day {target_day} confirmed")
