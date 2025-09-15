@@ -37,9 +37,9 @@ class SRSLLMEnforcer:
         self._save_original_backup(content, day, context)
         
         # Extract SRS analysis from story content
-        srs_analysis = self._extract_srs_analysis(content)
+        srs_analysis, analysis_found = self._extract_srs_analysis(content)
         
-        if not srs_analysis:
+        if not analysis_found:
             self.logger.info("No SRS analysis found - skipping English enforcement, checking Key Phrases only")
             # Still check Key Phrases even if no SRS analysis
             clean_content = self._remove_srs_analysis_section(content)
@@ -48,6 +48,10 @@ class SRSLLMEnforcer:
                 self.logger.info(f"Key Phrases violations found: {len(key_phrases_violations)} (no SRS analysis, no replacements made)")
                 return clean_content, key_phrases_violations
             return clean_content, []
+        
+        # Analysis was found - check if English terms need replacement
+        if not srs_analysis:
+            self.logger.info("SRS analysis found but no English terms need replacement - proceeding with Key Phrases check")
         
         # Query SRS database with analysis to get actual replacements
         srs_replacements = self._query_srs_with_analysis(srs_analysis)
@@ -147,15 +151,24 @@ class SRSLLMEnforcer:
             
         return replacements
     
-    def _extract_srs_analysis(self, content: str) -> List[Dict]:
-        """Extract SRS analysis JSON from generated story content."""
+    def _extract_srs_analysis(self, content: str) -> Tuple[List[Dict], bool]:
+        """
+        Extract SRS analysis JSON from generated story content.
+        
+        Returns:
+            Tuple of (english_terms_list, analysis_found)
+            - english_terms_list: List of English terms to replace (could be empty)
+            - analysis_found: True if SRS analysis section was found, False otherwise
+        """
         # Look for [NARRATOR]: SRS Enforcement Analysis section
         if "[NARRATOR]: SRS Enforcement Analysis" in content:
-            return self._parse_srs_json(content)
+            english_terms = self._parse_srs_json(content)
+            return english_terms, True  # Analysis section found, even if english_terms is empty
         else:
             # Fallback: Parse Translated section
             self.logger.warning("No SRS analysis found - parsing Translated section (results would be better with story re-generation)")
-            return self._parse_translated_section_fallback(content)
+            english_terms = self._parse_translated_section_fallback(content)
+            return english_terms, False  # No analysis section found
     
     def _parse_srs_json(self, content: str) -> List[Dict]:
         """Parse SRS analysis JSON from story content."""

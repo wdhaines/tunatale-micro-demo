@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 from srs_database import SRSDatabase
+from enhanced_srs_database import EnhancedSRSDatabase
 from srs_tracker import SRSTracker
 # from collocation_extractor import CollocationExtractor  # Removed - using LLM-based extraction
 from story_collocation_extractor import StoryCollocationExtractor
@@ -59,6 +60,21 @@ def add_srs_commands(subparsers) -> None:
     stats_parser.add_argument('--export-csv', type=str,
                              help='Export statistics to CSV file')
     
+    # srs status command
+    status_parser = srs_subparsers.add_parser(
+        'status',
+        help='Show SRS collocation status'
+    )
+    status_group = status_parser.add_mutually_exclusive_group()
+    status_group.add_argument('--all', action='store_true',
+                             help='Show all collocations in database')
+    status_group.add_argument('--day', type=int,
+                             help='Show collocations due for specific day')
+    status_group.add_argument('--due-only', action='store_true',
+                             help='Show only collocations due for review')
+    status_group.add_argument('--count', action='store_true',
+                             help='Show summary statistics only')
+    
     # srs clean command  
     clean_parser = srs_subparsers.add_parser(
         'clean',
@@ -69,23 +85,42 @@ def add_srs_commands(subparsers) -> None:
     clean_parser.add_argument('--backup', action='store_true',
                              help='Create backup before cleaning')
     
+    # srs translations command
+    translations_parser = srs_subparsers.add_parser(
+        'translations',
+        help='Show translation coverage and status'
+    )
+    translations_parser.add_argument('--detailed', action='store_true',
+                                   help='Show detailed translation information')
+    translations_parser.add_argument('--coverage', action='store_true',
+                                   help='Show coverage statistics only')
+    translations_parser.add_argument('--untranslated', action='store_true',
+                                   help='Show untranslated frequent items')
+    translations_parser.add_argument('--samples', type=int, default=5,
+                                   help='Number of sample translations to show (default: 5)')
+    
     # Set command handlers
     srs_parser.set_defaults(func=handle_srs_command)
 
 
-def handle_srs_command(args) -> None:
+def handle_srs_command(args) -> int:
     """Handle SRS command routing."""
     if args.srs_action == 'populate':
-        handle_populate_command(args)
+        return handle_populate_command(args)
     elif args.srs_action == 'stats':
-        handle_stats_command(args)
+        return handle_stats_command(args)
+    elif args.srs_action == 'status':
+        return handle_status_command(args)
     elif args.srs_action == 'clean':
-        handle_clean_command(args)
+        return handle_clean_command(args)
+    elif args.srs_action == 'translations':
+        return handle_translations_command(args)
     else:
         print_error("Unknown SRS action. Use --help for available commands.")
+        return 1
 
 
-def handle_populate_command(args) -> None:
+def handle_populate_command(args) -> int:
     """Handle database population command."""
     print_info("Starting SRS database population...")
     
@@ -131,6 +166,123 @@ def handle_stats_command(args) -> None:
         print_error(f"Error getting statistics: {e}")
 
 
+def handle_status_command(args) -> int:
+    """Handle SRS status display command."""
+    try:
+        db = SRSDatabase()
+        enhanced_db = EnhancedSRSDatabase()
+        
+        if args.all:
+            # Show all collocations
+            collocations = db.get_all_collocations()
+            print(f"\n=== All SRS Collocations ({len(collocations)}) ===")
+            
+            if not collocations:
+                print("  No collocations found in database.")
+                print("  Use 'srs populate --all-stories' to populate from existing stories.")
+                return
+            
+            for colloc in collocations:
+                next_review = "Never" if colloc['next_review_day'] is None else f"Day {colloc['next_review_day']}"
+                
+                # Try to find translation pair
+                translation = enhanced_db.find_english_equivalent(colloc['text'])
+                if translation:
+                    print(f"  • {colloc['text']} → {translation}")
+                else:
+                    print(f"  • {colloc['text']}")
+                print(f"    Stability: {colloc['stability']:.2f}, Next review: {next_review}")
+                
+        elif args.day is not None:
+            # Show collocations for specific day
+            day = args.day
+            
+            # Validate day parameter
+            if day < 1:
+                print_error(f"Day must be a positive integer (≥ 1), got {day}")
+                return 1
+            
+            due_collocations = db.get_due_collocations(day)
+            
+            print(f"\n=== SRS Status for Day {day} ===")
+            print(f"Due for review: {len(due_collocations)} collocations")
+            
+            if due_collocations:
+                for colloc in due_collocations:
+                    # Try to find translation pair
+                    translation = enhanced_db.find_english_equivalent(colloc['text'])
+                    if translation:
+                        print(f"  • {colloc['text']} → {translation}")
+                    else:
+                        print(f"  • {colloc['text']}")
+                    print(f"    Stability: {colloc['stability']:.2f}")
+            else:
+                print("  No collocations due for review")
+                
+        elif args.due_only:
+            # Show only collocations due for review (use current day 1 as default)
+            current_day = 1  # Could be made configurable
+            due_collocations = db.get_due_collocations(current_day)
+            
+            print(f"\n=== Collocations Due for Review ===")
+            if due_collocations:
+                for colloc in due_collocations:
+                    # Try to find translation pair
+                    translation = enhanced_db.find_english_equivalent(colloc['text'])
+                    if translation:
+                        print(f"  • {colloc['text']} → {translation}")
+                    else:
+                        print(f"  • {colloc['text']}")
+                    print(f"    Due since day: {colloc['next_review_day']}")
+            else:
+                print("  No collocations currently due for review")
+                
+        elif args.count:
+            # Show summary statistics only
+            total_collocations = db.get_collocations_count()
+            current_day = 1  # Default, could be made configurable
+            due_collocations = db.get_due_collocations(current_day)
+            
+            print(f"\n=== SRS Summary ===")
+            print(f"Total collocations tracked: {total_collocations}")
+            print(f"Due for review: {len(due_collocations)}")
+            
+            if total_collocations > 0:
+                all_collocations = db.get_all_collocations()
+                avg_stability = sum(c['stability'] for c in all_collocations) / total_collocations
+                print(f"Average stability: {avg_stability:.2f}")
+            else:
+                print("Average stability: N/A")
+                
+        else:
+            # Default: show summary if no specific option provided
+            total_collocations = db.get_collocations_count()
+            current_day = 1  # Default, could be made configurable
+            due_collocations = db.get_due_collocations(current_day)
+            
+            print(f"\n=== SRS Summary ===")
+            print(f"Total collocations tracked: {total_collocations}")
+            print(f"Due for review: {len(due_collocations)}")
+            
+            if total_collocations > 0:
+                all_collocations = db.get_all_collocations()
+                avg_stability = sum(c['stability'] for c in all_collocations) / total_collocations
+                print(f"Average stability: {avg_stability:.2f}")
+            else:
+                print("Average stability: N/A")
+                print("Use 'srs populate --all-stories' to populate from existing stories.")
+        
+        return 0
+        
+    except Exception as e:
+        print_error(f"Error showing SRS status: {e}")
+        import sys
+        if 'pytest' not in sys.modules:
+            import traceback
+            traceback.print_exc()
+        return 1
+
+
 def handle_clean_command(args) -> None:
     """Handle database cleaning command."""
     try:
@@ -161,6 +313,123 @@ def handle_clean_command(args) -> None:
             
     except Exception as e:
         print_error(f"Error during cleaning: {e}")
+
+
+def handle_translations_command(args) -> None:
+    """Handle translation status and coverage command."""
+    try:
+        # Initialize databases
+        srs_db = SRSDatabase()
+        enhanced_db = EnhancedSRSDatabase()
+        
+        # Get core statistics
+        enhanced_stats = enhanced_db.get_stats()
+        total_pairs = enhanced_stats['active_translation_pairs']
+        avg_confidence = enhanced_stats['average_translation_confidence']
+        
+        # Get SRS collocation data
+        all_collocations = srs_db.get_all_collocations()
+        frequent_collocations = srs_db.get_collocations_ready_for_translation()
+        untranslated_frequent = srs_db.get_untranslated_frequent_collocations()
+        
+        # Calculate coverage
+        frequent_count = len(frequent_collocations)
+        untranslated_count = len(untranslated_frequent)
+        translated_frequent = frequent_count - untranslated_count
+        
+        if args.coverage:
+            # Show coverage statistics only
+            print(f"\n=== SRS Translation Coverage ===")
+            print(f"Total translation pairs: {total_pairs:,}")
+            print(f"Frequent collocations (≥3): {frequent_count:,}")
+            print(f"Translated frequent items: {translated_frequent:,}")
+            print(f"Untranslated frequent items: {untranslated_count:,}")
+            
+            if frequent_count > 0:
+                coverage_pct = (translated_frequent / frequent_count) * 100
+                print(f"Frequent translation coverage: {coverage_pct:.1f}%")
+            
+            return
+        
+        if args.untranslated:
+            # Show untranslated frequent items
+            print(f"\n=== Untranslated Frequent Items ({untranslated_count}) ===")
+            
+            if untranslated_count == 0:
+                print_success("🎉 All frequent collocations have translations!")
+                return
+                
+            # Group by word count for better organization
+            by_word_count = {}
+            for item in untranslated_frequent:
+                word_count = len(item.split())
+                if word_count not in by_word_count:
+                    by_word_count[word_count] = []
+                by_word_count[word_count].append(item)
+            
+            for word_count in sorted(by_word_count.keys()):
+                items = by_word_count[word_count]
+                print(f"\n{word_count} word(s) ({len(items)} items):")
+                for item in items[:10]:  # Show first 10
+                    print(f"  • {item}")
+                if len(items) > 10:
+                    print(f"  ... and {len(items) - 10} more")
+            
+            return
+        
+        # Default: comprehensive status
+        print(f"\n=== SRS Translation Status ===")
+        print(f"Total translation pairs: {total_pairs:,}")
+        print(f"Average confidence: {avg_confidence:.3f}")
+        print(f"Database: {enhanced_stats['database_path']}")
+        
+        print(f"\n=== Collocation Coverage ===")
+        print(f"Total SRS collocations: {len(all_collocations):,}")
+        print(f"Frequent collocations (≥3): {frequent_count:,}")
+        print(f"Translated frequent items: {translated_frequent:,}")
+        print(f"Untranslated frequent items: {untranslated_count:,}")
+        
+        if frequent_count > 0:
+            coverage_pct = (translated_frequent / frequent_count) * 100
+            print(f"Frequent translation coverage: {coverage_pct:.1f}%")
+            
+            # Status indicator
+            if untranslated_count == 0:
+                print_success("Status: ✅ All frequent collocations translated")
+            else:
+                print_warning(f"Status: ⚠️ {untranslated_count} frequent items need translation")
+        
+        if args.detailed:
+            # Show sample translations
+            print(f"\n=== Sample Translations ===")
+            translation_pairs = enhanced_db.get_translation_pairs(active_only=True)
+            
+            if translation_pairs:
+                # Show highest confidence translations
+                samples = sorted(translation_pairs, key=lambda x: x.confidence, reverse=True)[:args.samples]
+                for pair in samples:
+                    print(f"  {pair.filipino} → {pair.english} ({pair.confidence:.3f})")
+            else:
+                print("  No translations found")
+                
+            # Show database breakdown
+            if 'enhanced_collocations' in enhanced_stats:
+                print(f"\n=== Database Breakdown ===")
+                for language, count in enhanced_stats['enhanced_collocations'].items():
+                    print(f"  {language.capitalize()}: {count:,}")
+        
+        # Action suggestions
+        if untranslated_count > 0:
+            print(f"\n💡 Suggested Actions:")
+            print(f"  • Run: python translate_srs_batch.py --batch-size 300")
+            print(f"  • Check: python main.py srs translations --untranslated")
+        
+    except Exception as e:
+        print_error(f"Error showing translation status: {e}")
+        import sys
+        if 'pytest' not in sys.modules:
+            import traceback
+            traceback.print_exc()
 
 
 def _populate_from_all_stories(db: SRSDatabase, extractor: Any, args) -> None:

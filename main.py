@@ -83,7 +83,6 @@ class CLI:
             Analysis Commands:
               • analyze      - Analyze vocabulary distribution and learning progress
               • show-day-collocations - Extract collocations from specific days
-              • show-srs-status - View SRS status for specific days
               • debug-generation - Debug SRS vs generated content differences
               
             View progress with: view
@@ -272,27 +271,6 @@ class CLI:
             choices=['detailed', 'simple', 'json'],
             default='detailed',
             help='Output format (default: detailed)'
-        )
-        
-        # Show SRS status command
-        show_srs_parser = subparsers.add_parser(
-            'show-srs-status', 
-            help='Show SRS status for a specific day'
-        )
-        show_srs_parser.add_argument(
-            '--day',
-            type=int,
-            help='Day number to show SRS status for'
-        )
-        show_srs_parser.add_argument(
-            '--all',
-            action='store_true',
-            help='Show all SRS collocations'
-        )
-        show_srs_parser.add_argument(
-            '--due-only',
-            action='store_true', 
-            help='Show only collocations due for review'
         )
         
         # Debug generation command
@@ -503,6 +481,23 @@ class CLI:
                 f"{value} must be a positive integer"
             ) from e
     
+    @staticmethod
+    def _validate_day_parameter(day: int, command_name: str) -> bool:
+        """Validate that day parameter is a positive integer.
+        
+        Args:
+            day: The day parameter to validate
+            command_name: Name of the command for error messages
+            
+        Returns:
+            True if valid, False if invalid (and prints error message)
+        """
+        if day < 1:
+            print(f"Error: Day must be a positive integer (≥ 1), got {day}", file=sys.stderr)
+            print(f"Usage: {command_name} <day>", file=sys.stderr)
+            return False
+        return True
+    
     def _setup_commands(self) -> None:
         """Register all command handlers."""
         self.commands = {
@@ -525,10 +520,6 @@ class CLI:
             'show-day-collocations': Command(
                 handler=self._handle_show_day_collocations,
                 help='Extract and display collocations from a specific day'
-            ),
-            'show-srs-status': Command(
-                handler=self._handle_show_srs_status,
-                help='Show SRS status for a specific day'
             ),
             'debug-generation': Command(
                 handler=self._handle_debug_generation,
@@ -1107,6 +1098,11 @@ class CLI:
             from pathlib import Path
             
             day = args.day
+            
+            # Validate day parameter
+            if not self._validate_day_parameter(day, "show-day-collocations"):
+                return 1
+            
             print(f"Extracting collocations from day {day} story...")
             
             extractor = StoryCollocationExtractor()
@@ -1159,101 +1155,6 @@ class CLI:
                 traceback.print_exc()
             return 1
     
-    def _handle_show_srs_status(self, args: argparse.Namespace) -> int:
-        """Handle the show-srs-status command."""
-        try:
-            from srs_tracker import SRSTracker
-            from pathlib import Path
-            import os
-            
-            # Determine data directory (test-aware)
-            data_dir = os.environ.get('TUNATALE_TEST_DATA_DIR', 'data')
-            if data_dir != 'data':
-                # In test mode, use the test directory
-                srs = SRSTracker(data_dir=data_dir)
-                srs_paths = [Path(data_dir) / "srs_status.json"]
-            else:
-                # Load SRS tracker with default paths
-                srs = SRSTracker()
-                srs_paths = [
-                    Path("instance/data/srs_status.json"),
-                    Path("data/srs_status.json")
-                ]
-            
-            srs_file_found = False
-            for srs_path in srs_paths:
-                if srs_path.exists():
-                    srs_file_found = True
-                    break
-            
-            if not srs_file_found:
-                print("No SRS data found. Generate some content first.", file=sys.stderr)
-                print("Checked paths:", [str(p) for p in srs_paths])
-                return 1
-            
-            if args.all:
-                # Show all collocations
-                print(f"\n=== All SRS Collocations ({len(srs.collocations)}) ===")
-                for text, status in srs.collocations.items():
-                    next_review = "Never" if status.next_review_day is None else f"Day {status.next_review_day}"
-                    print(f"  • {text}")
-                    print(f"    Stability: {status.stability:.2f}, Next review: {next_review}")
-                    
-            elif args.day:
-                # Show collocations for specific day
-                day = args.day
-                due_collocations = srs.get_due_collocations(day)
-                
-                print(f"\n=== SRS Status for Day {day} ===")
-                print(f"Due for review: {len(due_collocations)} collocations")
-                
-                if due_collocations:
-                    for colloc in due_collocations:
-                        status = srs.collocations.get(colloc)
-                        if status:
-                            print(f"  • {colloc}")
-                            print(f"    Stability: {status.stability:.2f}")
-                        else:
-                            print(f"  • {colloc} (no status data)")
-                else:
-                    print("  No collocations due for review")
-                    
-            elif args.due_only:
-                # Show only collocations due for review
-                current_day = 1  # Default to day 1, could be made configurable
-                due_collocations = srs.get_due_collocations(current_day)
-                
-                print(f"\n=== Collocations Due for Review ===")
-                if due_collocations:
-                    for colloc in due_collocations:
-                        status = srs.collocations.get(colloc)
-                        if status:
-                            print(f"  • {colloc}")
-                            print(f"    Due since day: {status.next_review_day}")
-                        else:
-                            print(f"  • {colloc} (no status data)")
-                else:
-                    print("  No collocations currently due for review")
-            else:
-                # Show summary
-                total_collocations = len(srs.collocations)
-                current_day = 1  # Default, could be made configurable
-                due_count = len([c for c in srs.collocations.values() 
-                               if c.next_review_day is not None and c.next_review_day <= current_day])
-                
-                print(f"\n=== SRS Summary ===")
-                print(f"Total collocations tracked: {total_collocations}")
-                print(f"Due for review: {due_count}")
-                print(f"Average stability: {sum(c.stability for c in srs.collocations.values()) / total_collocations:.2f}" if total_collocations > 0 else "Average stability: N/A")
-            
-            return 0
-            
-        except Exception as e:
-            print(f"Error showing SRS status: {e}", file=sys.stderr)
-            if 'pytest' not in sys.modules:
-                import traceback
-                traceback.print_exc()
-            return 1
     
     def _handle_debug_generation(self, args: argparse.Namespace) -> int:
         """Handle the debug-generation command."""
@@ -1265,6 +1166,11 @@ class CLI:
             import os
             
             day = args.day
+            
+            # Validate day parameter
+            if not self._validate_day_parameter(day, "debug-generation"):
+                return 1
+            
             print(f"Debugging content generation for day {day}...")
             
             # Extract actual collocations from generated story
@@ -1319,35 +1225,63 @@ class CLI:
                 if not found_in_story:
                     debug_report["analysis"]["srs_missing"].append(srs_colloc)
             
-            # Display debug report
+            # Display enhanced debug report with translation pairs
             print(f"\n=== Debug Report for Day {day} ===")
             print(f"Story: {Path(extraction.story_file).name}")
-            print(f"\nSRS provided {len(due_collocations)} collocations for review:")
-            for colloc in due_collocations:
-                print(f"  • {colloc}")
             
-            print(f"\nStory contained {extraction.total_unique_phrases} unique phrases")
+            # Show extracted story translation pairs
+            print(f"\n📖 STORY TRANSLATION PAIRS ({len(extraction.key_phrase_pairs) + len(extraction.translated_pairs)} found):")
             
-            print(f"\nMatches (SRS → Story):")
-            if debug_report["analysis"]["srs_matches"]:
-                for match in debug_report["analysis"]["srs_matches"]:
-                    print(f"  ✓ {match['srs_provided']} → {match['story_phrase']}")
+            if extraction.key_phrase_pairs:
+                print("From Key Phrases:")
+                for pair in extraction.key_phrase_pairs:
+                    print(f"  • {pair['tagalog']} → {pair['english']}")
+            
+            if extraction.translated_pairs:
+                print("From Dialogue:")
+                # Show first 10 dialogue pairs to avoid overwhelming output
+                dialogue_sample = extraction.translated_pairs[:10]
+                for pair in dialogue_sample:
+                    print(f"  • {pair['tagalog']} → {pair['english']}")
+                if len(extraction.translated_pairs) > 10:
+                    print(f"  ... and {len(extraction.translated_pairs) - 10} more dialogue pairs")
+            
+            # Show SRS analysis
+            print(f"\n🎯 SRS PROVIDED FOR REVIEW ({len(due_collocations)} collocations):")
+            if due_collocations:
+                for colloc in due_collocations:
+                    print(f"  • {colloc}")
             else:
-                print("  No matches found")
+                print("  None")
             
-            print(f"\nSRS collocations missing from story:")
+            print(f"\n✅ MATCHES: {len(debug_report['analysis']['srs_matches'])}/{len(due_collocations)} SRS collocations used")
+            for match in debug_report["analysis"]["srs_matches"]:
+                print(f"  ✓ {match['srs_provided']} ↔ {match['story_phrase']}")
+            
             if debug_report["analysis"]["srs_missing"]:
+                print(f"\n❌ UNUSED SRS COLLOCATIONS:")
                 for missing in debug_report["analysis"]["srs_missing"]:
                     print(f"  ✗ {missing}")
-            else:
-                print("  All SRS collocations appeared in story")
             
-            print(f"\nStory-only phrases (not from SRS):")
-            story_only_sample = debug_report["analysis"]["story_only"][:10]
-            for phrase in story_only_sample:
-                print(f"  + {phrase}")
-            if len(debug_report["analysis"]["story_only"]) > 10:
-                print(f"  ... and {len(debug_report['analysis']['story_only']) - 10} more")
+            # Show story innovations (phrases not from SRS)
+            story_only_sample = debug_report["analysis"]["story_only"][:8]
+            if story_only_sample:
+                print(f"\nℹ️  STORY INNOVATIONS:")
+                for phrase in story_only_sample:
+                    # Try to find the translation for this phrase
+                    translation = None
+                    for pair in extraction.key_phrase_pairs + extraction.translated_pairs:
+                        if pair['tagalog'] == phrase:
+                            translation = pair['english']
+                            break
+                    
+                    if translation:
+                        print(f"  + {phrase} → {translation}")
+                    else:
+                        print(f"  + {phrase}")
+                
+                if len(debug_report["analysis"]["story_only"]) > 8:
+                    print(f"  ... and {len(debug_report['analysis']['story_only']) - 8} more")
             
             # Save debug report if requested
             if args.save:
@@ -2173,8 +2107,9 @@ class CLI:
             
             # Handle subparser commands (like srs, extract-vocab, test-enforcement)
             if hasattr(args, 'func'):
-                args.func(args)
-                return 0
+                result = args.func(args)
+                # If function returns an int, use it as exit code; otherwise default to 0
+                return result if isinstance(result, int) else 0
             
             # Handle regular commands
             if hasattr(args, 'command') and args.command in self.commands:
