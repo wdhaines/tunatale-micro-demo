@@ -66,6 +66,9 @@ class SRSDatabase:
                 ON collocations(next_review_day, review_count)
             """)
             
+            # Add frequency tracking columns if they don't exist (migration)
+            self._add_frequency_tracking_columns(conn)
+            
             # Create violations table for tracking constraint enforcement
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS srs_violations (
@@ -85,6 +88,32 @@ class SRSDatabase:
                 CREATE INDEX IF NOT EXISTS idx_violations_day 
                 ON srs_violations(day, created_at)
             """)
+    
+    def _add_frequency_tracking_columns(self, conn):
+        """Add frequency tracking columns to existing database (migration)."""
+        # Check if columns already exist
+        cursor = conn.execute("PRAGMA table_info(collocations)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        
+        # Add corpus_frequency column if it doesn't exist
+        if 'corpus_frequency' not in existing_columns:
+            conn.execute("""
+                ALTER TABLE collocations 
+                ADD COLUMN corpus_frequency INTEGER DEFAULT 0
+            """)
+        
+        # Add ready_for_translation column if it doesn't exist  
+        if 'ready_for_translation' not in existing_columns:
+            conn.execute("""
+                ALTER TABLE collocations 
+                ADD COLUMN ready_for_translation BOOLEAN DEFAULT FALSE
+            """)
+        
+        # Create index on frequency fields for efficient querying
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_collocations_frequency 
+            ON collocations(corpus_frequency, ready_for_translation)
+        """)
     
     def add_collocation(self, text: str, first_seen_day: int, last_seen_day: int, 
                        appearances: List[int], review_count: int = 0, 
@@ -265,6 +294,70 @@ class SRSDatabase:
             stats['average_stability'] = round(avg_stability, 2) if avg_stability else 0.0
             
             return stats
+    
+    def update_corpus_frequency(self, text: str, frequency: int) -> bool:
+        """Update the corpus frequency for a collocation.
+        
+        Args:
+            text: The collocation text
+            frequency: New frequency count across the corpus
+            
+        Returns:
+            True if update was successful, False if collocation not found
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                UPDATE collocations 
+                SET corpus_frequency = ?, 
+                    ready_for_translation = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE text = ?
+            """, (frequency, frequency >= 3, text))
+            
+            return cursor.rowcount > 0
+    
+    def get_collocations_ready_for_translation(self) -> List[Dict[str, Any]]:
+        """Get all collocations that are ready for translation (frequency >= 3).
+        
+        Returns:
+            List of collocation dictionaries ready for translation
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("""
+                SELECT text, corpus_frequency, first_seen_day, last_seen_day,
+                       appearances, review_count, next_review_day, stability
+                FROM collocations 
+                WHERE ready_for_translation = TRUE
+                ORDER BY corpus_frequency DESC, text
+            """)
+            
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def get_untranslated_frequent_collocations(self) -> List[str]:
+        """Get collocations that are frequent (>=3) but don't have translations yet.
+        
+        Returns:
+            List of collocation texts ready for batch translation
+        """
+        try:
+            from enhanced_srs_database import EnhancedSRSDatabase
+            enhanced_db = EnhancedSRSDatabase()
+            
+            # Get all frequent collocations
+            frequent_collocations = self.get_collocations_ready_for_translation()
+            
+            # Filter out ones that already have translations
+            untranslated = []
+            for colloc in frequent_collocations:
+                if not enhanced_db.find_english_equivalent(colloc['text']):
+                    untranslated.append(colloc['text'])
+            
+            return untranslated
+            
+        except ImportError:
+            # Fallback if enhanced database not available
+            return [colloc['text'] for colloc in self.get_collocations_ready_for_translation()]
     
     def close(self):
         """Close database connection. (SQLite connections are per-operation, so this is a no-op)"""

@@ -188,6 +188,33 @@ class ContentGenerator:
                 if collocations:
                     self.srs.add_collocations(collocations, day=params.phase)
                     print(f"Added {len(collocations)} collocations to SRS")
+                    
+                    # Update corpus frequencies and check for newly frequent items
+                    try:
+                        from frequency_updater import FrequencyUpdater
+                        frequency_updater = FrequencyUpdater()
+                        
+                        # Update frequencies across the corpus
+                        stats = frequency_updater.update_frequencies_after_story_generation(
+                            story_path, verbose=True
+                        )
+                        
+                        # Check for newly frequent collocations
+                        if stats['newly_frequent_count'] > 0:
+                            newly_frequent = frequency_updater.get_newly_frequent_collocations(
+                                stats['previous_ready_count']
+                            )
+                            if newly_frequent:
+                                print(f"🎯 {len(newly_frequent)} collocations are now ready for translation:")
+                                for i, colloc in enumerate(newly_frequent[:5], 1):
+                                    print(f"  {i}. {colloc}")
+                                if len(newly_frequent) > 5:
+                                    print(f"  ... and {len(newly_frequent) - 5} more")
+                                print("💡 Consider running translate_srs_batch.py to translate these frequent items")
+                                
+                    except Exception as freq_error:
+                        print(f"Warning: Failed to update frequencies: {freq_error}")
+                        
             except Exception as e:
                 print(f"Warning: Failed to extract collocations: {e}")
                 
@@ -366,14 +393,15 @@ class ContentGenerator:
                 logging.error("Empty story generated")
                 return None
             
-            # PASS 2: Enforce SRS constraints using LLM (grammar-aware replacement)
+            # PASS 2: Enforce SRS constraints AND extract translations using LLM (combined for efficiency)
+            phrase_translations_extracted = []
             try:
                 db = SRSDatabase()
                 from srs_llm_enforcer import create_llm_enforcer
                 enforcer = create_llm_enforcer(self.llm, db)
                 
                 logging.info("Applying LLM-based SRS constraint enforcement...")
-                enforced_story, violations = enforcer.enforce_with_llm(
+                enforced_story, violations, phrase_translations = enforcer.enforce_with_llm(
                     content=story,
                     day=params.phase,
                     context=f"strategy_{params.content_strategy.value}_generation"
@@ -384,6 +412,11 @@ class ContentGenerator:
                     story = enforced_story  # Use the enforced version
                 else:
                     logging.info("LLM SRS Enforcement: No replacements needed")
+                
+                # Store phrase translations for later processing
+                if phrase_translations:
+                    phrase_translations_extracted = phrase_translations
+                    logging.info(f"Translation extraction: {len(phrase_translations)} translations extracted during enforcement")
                     
             except Exception as e:
                 logging.warning(f"LLM SRS enforcement failed: {e}")
@@ -401,29 +434,44 @@ class ContentGenerator:
             except Exception as e:
                 logging.warning(f"Failed to extract collocations: {e}")
             
-            # Extract translation pairs from LLM-generated content
-            try:
-                from llm_based_extraction_processor import LLMBasedExtractionProcessor
-                extraction_processor = LLMBasedExtractionProcessor()
-                
-                # Create a temporary story file path to extract from
-                from pathlib import Path
-                temp_path = Path(f"temp_story_day_{params.phase}.txt")
-                
-                # Write content temporarily and extract
-                temp_path.write_text(story, encoding='utf-8')
-                report = extraction_processor.process_story_file(temp_path, params.phase)
-                
-                # Clean up temp file
-                if temp_path.exists():
-                    temp_path.unlink()
-                
-                logging.info(f"Extracted {report.translation_pairs_found} translation pairs from generated story")
-                if report.srs_analysis_found:
-                    logging.info(f"Found LLM SRS analysis with {report.high_confidence_pairs} high-confidence pairs")
+            # Store phrase translations extracted during SRS enforcement (if any)
+            if phrase_translations_extracted:
+                try:
+                    from populate_phrase_translations import PhraseTranslationExtractor
+                    phrase_extractor = PhraseTranslationExtractor()
                     
-            except Exception as e:
-                logging.warning(f"Failed to extract translation pairs: {e}")
+                    # Store the translations extracted during enforcement
+                    added_count = phrase_extractor._store_phrase_translations(
+                        day=params.phase, 
+                        phrase_translations=phrase_translations_extracted, 
+                        verbose=True
+                    )
+                    
+                    logging.info(f"Stored {added_count} phrase translations extracted during SRS enforcement")
+                    
+                except Exception as e:
+                    logging.warning(f"Failed to store extracted translations: {e}")
+            else:
+                # Fallback: Use traditional separate translation extraction if none were extracted during enforcement
+                try:
+                    from populate_phrase_translations import PhraseTranslationExtractor
+                    phrase_extractor = PhraseTranslationExtractor()
+                    
+                    # Extract phrase translations from the generated story's Translated section
+                    phrase_translation_result = phrase_extractor.extract_day_phrase_translations(
+                        day=params.phase, 
+                        story_content=story,  # Pass story content directly
+                        verbose=True
+                    )
+                    
+                    if phrase_translation_result.get('success'):
+                        logging.info(f"Fallback extraction: {phrase_translation_result['phrase_translations_added']} phrase translations")
+                        logging.info(f"Translated section processed: {phrase_translation_result['translated_section_length']} characters")
+                    else:
+                        logging.warning(f"Failed to extract phrase translations: {phrase_translation_result.get('error', 'Unknown error')}")
+                        
+                except Exception as e:
+                    logging.warning(f"Fallback translation extraction failed: {e}")
                 
             return story
             
@@ -795,14 +843,15 @@ class ContentGenerator:
             if not story:
                 return None
             
-            # PASS 2: Enforce SRS constraints using LLM (grammar-aware replacement)
+            # PASS 2: Enforce SRS constraints AND extract translations using LLM (combined for efficiency)
+            phrase_translations_extracted = []
             try:
                 db = SRSDatabase()
                 from srs_llm_enforcer import create_llm_enforcer
                 enforcer = create_llm_enforcer(self.llm, db)
                 
                 logging.info("Applying LLM-based SRS constraint enforcement...")
-                enforced_story, violations = enforcer.enforce_with_llm(
+                enforced_story, violations, phrase_translations = enforcer.enforce_with_llm(
                     content=story,
                     day=day,
                     context="story_generation"
@@ -817,6 +866,11 @@ class ContentGenerator:
                     story = enforced_story  # Use the enforced version
                 else:
                     logging.info("LLM SRS Enforcement: No replacements needed")
+                
+                # Store phrase translations for later processing
+                if phrase_translations:
+                    phrase_translations_extracted = phrase_translations
+                    logging.info(f"Translation extraction: {len(phrase_translations)} translations extracted during enforcement")
                     
             except Exception as e:
                 logging.warning(f"LLM SRS enforcement failed (using original story): {e}")
@@ -826,6 +880,43 @@ class ContentGenerator:
             logging.info("Applying post-processing corrections to story content")
             from utils.content_post_processor import post_process_story_content
             story = post_process_story_content(story)
+            
+            # Store phrase translations extracted during SRS enforcement (if any)
+            if phrase_translations_extracted:
+                try:
+                    from populate_phrase_translations import PhraseTranslationExtractor
+                    phrase_extractor = PhraseTranslationExtractor()
+                    
+                    # Store the translations extracted during enforcement
+                    added_count = phrase_extractor._store_phrase_translations(
+                        day=day, 
+                        phrase_translations=phrase_translations_extracted, 
+                        verbose=False  # Keep logging minimal during story generation
+                    )
+                    
+                    logging.info(f"Stored {added_count} phrase translations extracted during SRS enforcement")
+                    
+                except Exception as e:
+                    logging.warning(f"Failed to store extracted translations: {e}")
+            else:
+                # Fallback: Use traditional separate translation extraction if none were extracted during enforcement
+                try:
+                    from populate_phrase_translations import PhraseTranslationExtractor
+                    phrase_extractor = PhraseTranslationExtractor()
+                    
+                    phrase_translation_result = phrase_extractor.extract_day_phrase_translations(
+                        day=day, 
+                        story_content=story,
+                        verbose=False  # Keep logging minimal during story generation
+                    )
+                    
+                    if phrase_translation_result.get('success'):
+                        logging.info(f"Fallback extraction: {phrase_translation_result['phrase_translations_added']} phrase translations")
+                    else:
+                        logging.warning(f"Failed to extract phrase translations: {phrase_translation_result.get('error', 'Unknown error')}")
+                        
+                except Exception as e:
+                    logging.warning(f"Fallback translation extraction failed: {e}")
                 
             # Extract collocations from the generated story
             generated_collocations = self.collocation_extractor.extract_collocations(story)

@@ -169,7 +169,7 @@ def _test_llm_enforcement(db: SRSDatabase, test_text: str, args) -> Dict[str, An
         llm_enforcer = create_llm_enforcer(llm, db)
         
         # Apply LLM enforcement
-        enforced_text, violations = llm_enforcer.enforce_with_llm(
+        enforced_text, violations, phrase_translations = llm_enforcer.enforce_with_llm(
             content=test_text,
             day=args.day if hasattr(args, 'day') and args.day else 1,
             context=args.context

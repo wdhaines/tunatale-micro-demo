@@ -121,8 +121,8 @@ kumusta po
             
             # SRS enforcer modifies content and reports violations so the enforced content is used
             def srs_enforcement_side_effect(content, day, context):
-                # Return modified content with violations
-                return ("SRS_ENFORCED_CONTENT", [{"violation": "test"}])
+                # Return modified content with violations and phrase translations
+                return ("SRS_ENFORCED_CONTENT", [{"violation": "test"}], [])
             
             mock_srs_enforcer.enforce_with_llm.side_effect = srs_enforcement_side_effect
             
@@ -158,7 +158,7 @@ kumusta po
             
             # Mock SRS enforcer that doesn't change content (no violations)
             mock_enforcer = MagicMock()
-            mock_enforcer.enforce_with_llm.return_value = ("unchanged", [])  # No violations
+            mock_enforcer.enforce_with_llm.return_value = ("unchanged", [], [])  # No violations, no translations
             mock_enforcer_creator.return_value = mock_enforcer
             
             params = EnhancedStoryParams(
@@ -237,7 +237,7 @@ kumusta po
             
             # Setup mocks
             mock_enforcer = MagicMock()
-            mock_enforcer.enforce_with_llm.return_value = ("test_content", [])
+            mock_enforcer.enforce_with_llm.return_value = ("test_content", [], [])
             mock_enforcer_creator.return_value = mock_enforcer
             
             mock_post_process.return_value = "POST_PROCESSED"
@@ -283,7 +283,8 @@ breakdown
 here
 
 [NARRATOR]: Natural Speed""", 
-                [{"english": "test", "filipino": "test", "count": 1}]
+                [{"english": "test", "filipino": "test", "count": 1}],
+                []  # phrase_translations
             )
             mock_enforcer_creator.return_value = mock_enforcer
             
@@ -328,7 +329,7 @@ here
 [NARRATOR]: Test scene""", [])
             
             mock_enforcer = MagicMock()
-            mock_enforcer.enforce_with_llm.return_value = ("unchanged", [])
+            mock_enforcer.enforce_with_llm.return_value = ("unchanged", [], [])
             mock_enforcer_creator.return_value = mock_enforcer
             
             # Test WIDER strategy with ContentGenerator.generate_strategy_based_story

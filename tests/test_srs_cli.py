@@ -575,7 +575,8 @@ class TestEnforcementCLICommands:
                 [
                     {'original': 'water', 'replacement': 'tubig', 'count': 1},
                     {'original': 'thank you', 'replacement': 'salamat po', 'count': 1}
-                ]
+                ],
+                []  # phrase_translations
             )
             mock_create_enforcer.return_value = mock_enforcer
             

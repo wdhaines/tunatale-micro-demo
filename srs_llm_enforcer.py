@@ -20,10 +20,11 @@ class SRSLLMEnforcer:
         self.enhanced_db = enhanced_db or EnhancedSRSDatabase()
         self.logger = logging.getLogger(__name__)
     
-    def enforce_with_llm(self, content: str, day: int, context: str = "story") -> Tuple[str, List[Dict[str, Any]]]:
+    def enforce_with_llm(self, content: str, day: int, context: str = "story") -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
         Use LLM for grammar-aware SRS enforcement that maintains proper Tagalog conjugation.
         Uses story-generated SRS analysis for targeted enforcement.
+        Also extracts phrase translations during enforcement for efficiency.
         
         Args:
             content: Story content to enforce (includes SRS analysis section)
@@ -31,7 +32,7 @@ class SRSLLMEnforcer:
             context: Generation context (e.g. "story", "strategy_deeper_generation")
             
         Returns:
-            Tuple of (clean_enforced_content, violations_list)
+            Tuple of (clean_enforced_content, violations_list, phrase_translations_list)
         """
         # Save original content before any SRS enforcement
         self._save_original_backup(content, day, context)
@@ -46,8 +47,8 @@ class SRSLLMEnforcer:
             key_phrases_violations = self._check_key_phrases_violations(clean_content, day, context)
             if key_phrases_violations:
                 self.logger.info(f"Key Phrases violations found: {len(key_phrases_violations)} (no SRS analysis, no replacements made)")
-                return clean_content, key_phrases_violations
-            return clean_content, []
+                return clean_content, key_phrases_violations, []
+            return clean_content, [], []
         
         # Analysis was found - check if English terms need replacement
         if not srs_analysis:
@@ -65,7 +66,7 @@ class SRSLLMEnforcer:
         # If no replacements needed at all, skip LLM enforcement
         if not srs_replacements and not key_phrases_replacements:
             self.logger.info("No SRS or Key Phrases replacements needed - skipping LLM enforcement")
-            return clean_content, key_phrases_violations
+            return clean_content, key_phrases_violations, []
         
         self.logger.info(f"Found {len(srs_replacements)} SRS-derived replacements")
         for english, filipino in srs_replacements.items():
@@ -75,16 +76,19 @@ class SRSLLMEnforcer:
         prompt = self._create_combined_enforcement_prompt(content, srs_replacements, key_phrases_replacements, day)
         
         try:
-            # Use LLM to do intelligent replacement for both English terms and Key Phrases
-            self.logger.info("Requesting combined LLM-based SRS enforcement (English terms + Key Phrases)...")
+            # Use LLM to do intelligent replacement for both English terms and Key Phrases, AND extract translations
+            self.logger.info("Requesting combined LLM-based SRS enforcement (English terms + Key Phrases) and translation extraction...")
             response = self.llm.chat_response(
-                system_prompt="You are a Filipino language expert helping with vocabulary and Key Phrases enforcement.",
+                system_prompt="You are a Filipino language expert helping with vocabulary and Key Phrases enforcement and translation extraction.",
                 user_prompt=prompt,
-                response_type="combined_srs_enforcement"
+                response_type="combined_srs_enforcement_with_translations"
             )
             
             # Extract the enforced content from LLM response
             enforced_content = self._extract_enforced_content(response)
+            
+            # Extract phrase translations from LLM response
+            phrase_translations = self._extract_phrase_translations(response)
             
             # Remove SRS Analysis section from final content
             final_content = self._remove_srs_analysis_section(enforced_content)
@@ -107,14 +111,16 @@ class SRSLLMEnforcer:
                 self.logger.info(f"Key Phrases violations found: {len(key_phrases_violations)} (already processed in main enforcement)")
             
             self.logger.info(f"SRS enforcement complete: {len(violations)} total violations found")
+            if phrase_translations:
+                self.logger.info(f"Translation extraction complete: {len(phrase_translations)} translations extracted")
             
-            return final_content, violations
+            return final_content, violations, phrase_translations
             
         except Exception as e:
             self.logger.error(f"LLM-based SRS enforcement failed: {e}")
             # Fallback to cleaned original content rather than crashing
             clean_content = self._remove_srs_analysis_section(content)
-            return clean_content, []
+            return clean_content, [], []
     
     def _get_high_stability_replacements(self) -> Dict[str, str]:
         """Get English→Filipino replacements from enhanced translation database."""
@@ -988,7 +994,7 @@ Return the complete story content with ONLY the Key Phrases section phrase and t
     
     def _create_combined_enforcement_prompt(self, content: str, srs_replacements: Dict[str, str], 
                                           key_phrases_replacements: Dict[str, str], day: int) -> str:
-        """Create LLM prompt for combined English terms and Key Phrases enforcement in single pass."""
+        """Create LLM prompt for combined English terms, Key Phrases enforcement, AND translation extraction."""
         
         # Build combined replacement list
         replacement_sections = []
@@ -1018,7 +1024,7 @@ Return the complete story content with ONLY the Key Phrases section phrase and t
         
         all_replacements = "\n\n".join(replacement_sections)
         
-        return f"""You are helping enforce SRS vocabulary and Key Phrases constraints on Filipino language learning content for Day {day}.
+        return f"""You are helping enforce SRS vocabulary and Key Phrases constraints AND extract comprehensive translations from Filipino language learning content for Day {day}.
 
 ORIGINAL CONTENT TO REVIEW:
 {content}
@@ -1026,7 +1032,7 @@ ORIGINAL CONTENT TO REVIEW:
 REPLACEMENTS TO MAKE:
 {all_replacements}
 
-ENFORCEMENT RULES:
+## TASK 1: ENFORCEMENT RULES
 
 1. **ENGLISH TERMS REPLACEMENT (in dialogue sections):**
    - Replace English terms with Filipino equivalents in Tagalog speaker lines
@@ -1047,7 +1053,50 @@ ENFORCEMENT RULES:
    - Ensure replacements sound natural to Filipino speakers
    - If unsure about a replacement, keep the original
 
-EXAMPLE TRANSFORMATIONS:
+## TASK 2: TRANSLATION EXTRACTION
+
+Additionally, extract comprehensive Filipino-to-English translation pairs from the Translated section at MULTIPLE GRANULARITIES:
+
+### 1. Complete Phrases (High Priority)
+- Useful phrases and expressions for language learning
+- Common greetings, polite forms, and everyday expressions  
+- Complete meaningful phrases that have clear English equivalents
+
+### 2. Common Collocations (Medium Priority)  
+- 2-3 word combinations that appear frequently
+- Useful word patterns and constructions
+- Partial phrases that teach grammar patterns
+
+### 3. Individual Words (Lower Priority)
+- Important vocabulary words
+- Single words that provide learning value
+- Common particles and function words
+
+## RESPONSE FORMAT
+
+Return a JSON response with this structure:
+{{
+  "enforced_content": "COMPLETE_STORY_CONTENT_WITH_REPLACEMENTS_APPLIED",
+  "phrase_translations": [
+    {{"filipino": "magandang umaga po", "english": "good morning (polite)", "confidence": 0.95}},
+    {{"filipino": "salamat sa lahat", "english": "thank you for everything", "confidence": 0.90}},
+    {{"filipino": "alas dos", "english": "two o'clock", "confidence": 0.95}},
+    {{"filipino": "sukli mo", "english": "your change", "confidence": 0.85}},
+    {{"filipino": "tubig", "english": "water", "confidence": 0.90}},
+    {{"filipino": "po", "english": "(polite marker)", "confidence": 0.80}}
+  ]
+}}
+
+## TRANSLATION GUIDELINES:
+- Extract 50-150 translations total (comprehensive coverage)
+- Include translations at all granularities: complete phrases, collocations, single words
+- Only include translations with confidence >= 0.75
+- Include politeness markers in English (e.g., "po" → "(polite)")
+- Prioritize frequent/useful items that would benefit language learners
+- Provide contextual translations even for fragments ("sukli mo" → "your change")
+- Focus on items that provide learning value at any granularity level
+
+EXAMPLE ENFORCEMENT TRANSFORMATIONS:
 
 **English Terms in Dialogue:**
 BEFORE: [TAGALOG-FEMALE-1]: I need some water please
@@ -1062,9 +1111,7 @@ AFTER Key Phrases:  [TAGALOG-FEMALE-1]: maraming salamat
 BEFORE Dialogue: [TAGALOG-FEMALE-1]: Salamat po! Reserve po namin for tomorrow.
 AFTER Dialogue:  [TAGALOG-FEMALE-1]: Maraming salamat! Reserve po namin for tomorrow.
 
-This ensures learners study "maraming salamat" in Key Phrases and then hear it reinforced in Natural Speed dialogue.
-
-Return the complete content with both English terms and Key Phrases replacements applied throughout all appropriate sections."""
+This ensures learners study "maraming salamat" in Key Phrases and then hear it reinforced in Natural Speed dialogue."""
 
     def _create_enforcement_prompt(self, content: str, replacements: Dict[str, str], day: int) -> str:
         """Create LLM prompt for grammar-aware vocabulary enforcement."""
@@ -1118,17 +1165,61 @@ AFTER:
 Return the complete content with intelligent, grammar-aware replacements applied only to Tagalog speaker lines."""
     
     def _extract_enforced_content(self, response: Dict) -> str:
-        """Extract the enforced content from LLM response."""
+        """Extract the enforced content from LLM response (handles both old and new formats)."""
+        import json
         
-        # Handle both direct and nested response formats from MockLLM
+        # First, get the raw response content
+        raw_content = None
         if 'response' in response and 'choices' in response['response']:
-            return response['response']['choices'][0]['message']['content'].strip()
+            raw_content = response['response']['choices'][0]['message']['content'].strip()
         elif 'choices' in response:
-            return response['choices'][0]['message']['content'].strip()
+            raw_content = response['choices'][0]['message']['content'].strip()
         elif isinstance(response, str):
-            return response.strip()
+            raw_content = response.strip()
         else:
             raise ValueError(f"Invalid LLM response format: {type(response)}")
+        
+        # Try to parse as JSON (new combined format)
+        try:
+            parsed_response = json.loads(raw_content)
+            if 'enforced_content' in parsed_response:
+                # New format with enforced_content
+                return parsed_response['enforced_content']
+        except (json.JSONDecodeError, TypeError):
+            # Not JSON or doesn't have enforced_content, treat as direct content (old format)
+            pass
+        
+        # Fallback to treating entire content as the story (old format)
+        return raw_content
+    
+    def _extract_phrase_translations(self, response: Dict) -> List[Dict[str, Any]]:
+        """Extract phrase translations from combined LLM response."""
+        import json
+        
+        # First, get the raw response content
+        raw_content = None
+        if 'response' in response and 'choices' in response['response']:
+            raw_content = response['response']['choices'][0]['message']['content'].strip()
+        elif 'choices' in response:
+            raw_content = response['choices'][0]['message']['content'].strip()
+        elif isinstance(response, str):
+            raw_content = response.strip()
+        else:
+            self.logger.warning(f"Invalid LLM response format for translation extraction: {type(response)}")
+            return []
+        
+        # Try to parse as JSON (new combined format)
+        try:
+            parsed_response = json.loads(raw_content)
+            if 'phrase_translations' in parsed_response:
+                translations = parsed_response['phrase_translations']
+                self.logger.info(f"Extracted {len(translations)} phrase translations from combined response")
+                return translations
+        except (json.JSONDecodeError, TypeError) as e:
+            self.logger.debug(f"Could not parse combined response as JSON for translations: {e}")
+        
+        # No translations available in this response format
+        return []
     
     def _analyze_replacements(self, original: str, enforced: str, replacements: Dict[str, str], 
                             day: int, context: str) -> List[Dict[str, Any]]:

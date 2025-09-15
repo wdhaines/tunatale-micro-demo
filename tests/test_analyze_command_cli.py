@@ -122,7 +122,7 @@ class TestAnalyzeCommandCLI:
 
 
 class TestSpecializedAnalysisCommandsCLI:
-    """Test specialized analysis commands (show-day-collocations, show-srs-status, debug-generation)."""
+    """Test specialized analysis commands (show-day-collocations, srs status, debug-generation)."""
     
     def run_cli(self, args, timeout=30):
         """Helper to run CLI commands."""
@@ -153,24 +153,24 @@ class TestSpecializedAnalysisCommandsCLI:
             assert any(word in result.stderr.lower() 
                       for word in ["day", "not found", "error", "curriculum"])
     
-    def test_show_srs_status_help(self):
-        """Test show-srs-status help."""
-        result = self.run_cli(["show-srs-status", "--help"])
+    def test_srs_status_help(self):
+        """Test srs status help."""
+        result = self.run_cli(["srs", "status", "--help"])
         assert result.returncode == 0
         help_output = result.stdout.lower()
         assert "--day" in help_output
         assert "--all" in help_output
         assert "--due-only" in help_output
     
-    def test_show_srs_status_with_all_option(self):
-        """Test show-srs-status with --all option."""
-        result = self.run_cli(["show-srs-status", "--all"])
+    def test_srs_status_with_all_option(self):
+        """Test srs status with --all option."""
+        result = self.run_cli(["srs", "status", "--all"])
         # Should either work or fail gracefully
         assert result.returncode in [0, 1]
     
-    def test_show_srs_status_with_due_only_option(self):
-        """Test show-srs-status with --due-only option."""
-        result = self.run_cli(["show-srs-status", "--due-only"])
+    def test_srs_status_with_due_only_option(self):
+        """Test srs status with --due-only option."""
+        result = self.run_cli(["srs", "status", "--due-only"])
         # Should either work or fail gracefully
         assert result.returncode in [0, 1]
     
@@ -255,7 +255,7 @@ class TestAnalysisIntegrationCLI:
         error_commands = [
             ["analyze"],  # Missing text
             ["show-day-collocations"],  # Missing day
-            ["show-srs-status", "--day"],  # Missing day value
+            ["srs", "status", "--day"],  # Missing day value
             ["debug-generation"],  # Missing day
         ]
         
@@ -270,7 +270,7 @@ class TestAnalysisIntegrationCLI:
         help_commands = [
             ["analyze", "--help"],
             ["show-day-collocations", "--help"],
-            ["show-srs-status", "--help"],
+            ["srs", "status", "--help"],
             ["debug-generation", "--help"]
         ]
         
