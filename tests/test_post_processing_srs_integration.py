@@ -185,6 +185,63 @@ kumusta po
             incorrect_patterns = ["bad_breakdown", "wrong_steps", "us\nusta"]  
             for pattern in incorrect_patterns:
                 assert pattern not in result, f"Should not have incorrect pattern '{pattern}' in final result"
+    
+    def test_text_first_response_format_compatibility(self, content_generator):
+        """Test that post-processing works with new text-first SRS response format."""
+        
+        with patch('story_generator.SRSDatabase'), \
+             patch('srs_llm_enforcer.create_llm_enforcer') as mock_enforcer_creator:
+            
+            # Mock SRS enforcer that returns text-first format (new format)
+            mock_enforcer = MagicMock()
+            
+            text_first_enforced_content = """[NARRATOR]: Day 15: Test Story
+
+Key Phrases:
+
+[TAGALOG-FEMALE-1]: kumusta po
+[NARRATOR]: how are you
+[TAGALOG-FEMALE-1]: kumusta po
+
+[NARRATOR]: Natural Speed
+
+[TAGALOG-FEMALE-1]: Kumusta po kayo?
+[TAGALOG-MALE-1]: Mabuti po."""
+            
+            # Mock text-first format enforcement (clean content, no JSON wrapping)
+            mock_enforcer.enforce_with_llm.return_value = (
+                text_first_enforced_content,  # Clean, copyable content
+                [],  # No violations
+                [{"filipino": "kumusta po", "english": "how are you", "confidence": 0.9}]  # Extracted translations
+            )
+            mock_enforcer_creator.return_value = mock_enforcer
+            
+            params = EnhancedStoryParams(
+                learning_objective="Test text-first format",
+                language="Tagalog",
+                cefr_level=CEFRLevel.A2,
+                phase=15,
+                content_strategy=ContentStrategy.WIDER,
+                difficulty_level=DifficultyLevel.BASIC,
+                focus="Text format test",
+                story_guidance="Test guidance"
+            )
+            
+            result = content_generator.generate_enhanced_story(params)
+            
+            # Should work with clean text-first format
+            assert result is not None
+            assert "[NARRATOR]: Day 15: Test Story" in result
+            assert "Kumusta po kayo?" in result
+            
+            # Should still apply post-processing to create proper breakdowns
+            # (even though content is now clean text instead of JSON-wrapped)
+            assert "kumusta po" in result
+            
+            # Should NOT contain any JSON artifacts from old format
+            assert "PHRASE_TRANSLATIONS:" not in result
+            assert '{"filipino":' not in result
+            assert '"english":' not in result
 
     def test_srs_enforcement_content_gets_post_processed(self, content_generator):
         """Test that content modified by SRS enforcement still gets proper post-processing."""
