@@ -64,6 +64,9 @@ class TestSRSCLICommands:
         
     def teardown_method(self):
         """Clean up test fixtures."""
+        # Close database connection
+        self.db.close()
+        
         # Remove temporary files
         Path(self.db_path).unlink(missing_ok=True)
         Path(self.story_file.name).unlink(missing_ok=True)
@@ -294,6 +297,7 @@ class TestVocabCLICommands:
     
     def teardown_method(self):
         """Clean up test fixtures."""
+        # Note: TestVocabCLICommands doesn't create database instances, so no cleanup needed
         Path(self.story_file.name).unlink(missing_ok=True)
     
     def test_parse_day_specification_single(self):
@@ -519,6 +523,9 @@ class TestEnforcementCLICommands:
         
     def teardown_method(self):
         """Clean up test fixtures."""
+        # Close database connection
+        self.db.close()
+        
         Path(self.db_path).unlink(missing_ok=True)
     
     def test_constraint_enforcement_success(self):
@@ -652,6 +659,9 @@ class TestSRSIntegration:
     
     def teardown_method(self):
         """Clean up integration test fixtures."""
+        # Close database connection
+        self.db.close()
+        
         Path(self.db_path).unlink(missing_ok=True)
         Path(self.story_file.name).unlink(missing_ok=True)
     

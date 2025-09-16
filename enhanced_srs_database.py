@@ -54,12 +54,25 @@ class EnhancedSRSDatabase(SRSDatabase):
             db_path: Path to the SQLite database file
         """
         self.db_path = Path(db_path)
+        self._connection = None
         
         # Ensure the directory exists
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Initialize enhanced database schema
         self.init_enhanced_database()
+    
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit with cleanup."""
+        self.close()
+    
+    def __del__(self):
+        """Cleanup when object is garbage collected."""
+        self.close()
     
     def init_enhanced_database(self):
         """Create enhanced database tables with bidirectional mapping support."""
