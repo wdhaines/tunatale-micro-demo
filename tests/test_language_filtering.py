@@ -10,20 +10,21 @@ SAMPLE_ENGLISH_DICT = {
     "photos", "perfect", "editing", "wait", "call", "here", "view", "take", 
     "smile", "painting", "true", "together", "say", "cheese", "ever", 
     "keychains", "t-shirts", "sunset", "design", "computer", "phone",
-    "mango", "shake", "fresh", "juice", "best", "time", "good", "afternoon"
+    "mango", "shake", "fresh", "juice", "best", "time", "good", "afternoon",
+    "morning", "water", "thank", "you", "special"
 }
 
 SAMPLE_TAGALOG_DICT = {
     "salamat", "kumusta", "magkano", "tubig", "po", "ba", "na", "nga", "ang", 
     "mga", "ito", "yan", "yun", "ako", "ko", "mo", "niya", "tayo", "kayo", 
-    "sila", "maganda", "masarap", "malamig", "sariwang", "napakasarap",
+    "sila", "maganda", "magandang", "umaga", "masarap", "malamig", "sariwang", "napakasarap",
     "paumanhin", "opo", "hindi", "oo", "dito", "sige", "ate", "kuya",
     # Add loan words to Tagalog dict too
-    "computer", "phone", "mango", "shake"
+    "computer", "phone", "mango", "shake", "special"
 }
 
 # Loan words appear in both dictionaries
-LOAN_WORDS = {"computer", "phone", "mango", "shake"}
+LOAN_WORDS = {"computer", "phone", "mango", "shake", "special"}
 
 
 class MockLanguageDetector:
@@ -60,6 +61,21 @@ class MockLanguageDetector:
             return "tagalog"
         else:
             return "unknown"
+    
+    def has_filipino_context(self, phrase: str) -> bool:
+        """Check if a phrase has Filipino linguistic context."""
+        words = phrase.lower().split()
+        
+        # Check for Filipino particles (common ones)
+        filipino_particles = {"po", "ba", "na", "nga", "ang", "mga", "ito", "yan", "yun"}
+        if any(word in filipino_particles for word in words):
+            return True
+        
+        # Check for Filipino words
+        if any(self.is_tagalog_word(word) for word in words):
+            return True
+            
+        return False
 
 
 class TestLanguageClassification:
@@ -117,8 +133,62 @@ class TestLanguageClassification:
             ("Kumusta", "tagalog")
         ]
         
-        for word, expected_class in test_cases:
-            assert self.detector.classify_word(word) == expected_class
+        for word, expected_classification in test_cases:
+            assert self.detector.classify_word(word) == expected_classification
+    
+    def test_integration_with_deterministic_english_detector(self):
+        """Test integration with DeterministicEnglishDetector for SRS enforcement."""
+        # Test words that would be important for SRS enforcement
+        enforcement_test_cases = [
+            # English words that should be detected for replacement
+            ("good", "english"),
+            ("morning", "english"),
+            ("water", "english"),
+            ("thank", "english"),
+            ("you", "english"),
+            
+            # Filipino words that should NOT be replaced
+            ("magandang", "tagalog"),
+            ("umaga", "tagalog"),
+            ("salamat", "tagalog"),
+            ("po", "tagalog"),
+            
+            # Loan words that might be candidates for deepening
+            ("mango", "loan"),
+            ("shake", "loan"),
+            ("special", "loan"),
+        ]
+        
+        for word, expected_type in enforcement_test_cases:
+            classification = self.detector.classify_word(word)
+            assert classification == expected_type, f"Word '{word}' should be classified as '{expected_type}', got '{classification}'"
+    
+    def test_filipino_context_detection_for_enforcement(self):
+        """Test Filipino context detection used in SRS enforcement."""
+        # Test phrases that should be recognized as having Filipino context
+        filipino_context_phrases = [
+            "good morning po",  # English + Filipino particle
+            "salamat thank you",  # Filipino + English mix
+            "magandang umaga everyone",  # Filipino + English mix
+        ]
+        
+        # Test phrases that should NOT be considered Filipino context
+        pure_english_phrases = [
+            "good morning everyone",
+            "thank you very much",
+            "have a nice day",
+        ]
+        
+        for phrase in filipino_context_phrases:
+            # The phrase should be detected as having Filipino context
+            # This would affect whether English terms in it should be replaced
+            has_context = self.detector.has_filipino_context(phrase)
+            assert has_context, f"Phrase '{phrase}' should have Filipino context"
+        
+        for phrase in pure_english_phrases:
+            # Pure English phrases should not have Filipino context
+            has_context = self.detector.has_filipino_context(phrase)
+            assert not has_context, f"Phrase '{phrase}' should not have Filipino context"
 
 
 class TestSingleWordFiltering:

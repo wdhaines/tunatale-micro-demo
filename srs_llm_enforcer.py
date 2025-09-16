@@ -1457,24 +1457,38 @@ AFTER:
 
 Return the complete content with intelligent, grammar-aware replacements applied only to Tagalog speaker lines."""
     
-    def _extract_enforced_content(self, response: Dict) -> str:
+    def _extract_enforced_content(self, response) -> str:
         """Extract the enforced content from LLM response (handles text-first and JSON formats)."""
         import json
         
         # First, get the raw response content
         raw_content = None
-        if 'response' in response and 'choices' in response['response']:
-            raw_content = response['response']['choices'][0]['message']['content'].strip()
-        elif 'choices' in response:
-            raw_content = response['choices'][0]['message']['content'].strip()
-        elif isinstance(response, str):
+        if isinstance(response, str):
+            # Direct string response
             raw_content = response.strip()
+        elif isinstance(response, dict):
+            # Dictionary response - check for different formats
+            if 'response' in response and 'choices' in response['response']:
+                raw_content = response['response']['choices'][0]['message']['content'].strip()
+            elif 'choices' in response:
+                raw_content = response['choices'][0]['message']['content'].strip()
+            else:
+                raise ValueError(f"Invalid LLM response format: {type(response)}")
         else:
             raise ValueError(f"Invalid LLM response format: {type(response)}")
         
         # Check for new text-first format with PHRASE_TRANSLATIONS: marker
-        if "PHRASE_TRANSLATIONS:" in raw_content:
-            # Split on PHRASE_TRANSLATIONS: marker and take everything before it
+        # Look for the marker at the beginning of a line (standalone marker)
+        import re
+        marker_match = re.search(r'\n\s*PHRASE_TRANSLATIONS:\s*\n', raw_content)
+        if marker_match:
+            # Split at the standalone marker and take everything before it
+            return raw_content[:marker_match.start()].strip()
+        elif raw_content.startswith("PHRASE_TRANSLATIONS:"):
+            # Edge case: content starts with the marker
+            return ""
+        elif "PHRASE_TRANSLATIONS:" in raw_content:
+            # Fallback: use simple split if standalone marker not found
             content_parts = raw_content.split("PHRASE_TRANSLATIONS:")
             if len(content_parts) >= 2:
                 return content_parts[0].strip()
@@ -1492,18 +1506,24 @@ Return the complete content with intelligent, grammar-aware replacements applied
         # Fallback to treating entire content as the story
         return raw_content
     
-    def _extract_phrase_translations(self, response: Dict) -> List[Dict[str, Any]]:
+    def _extract_phrase_translations(self, response) -> List[Dict[str, Any]]:
         """Extract phrase translations from LLM response (handles text-first and JSON formats)."""
         import json
         
         # First, get the raw response content
         raw_content = None
-        if 'response' in response and 'choices' in response['response']:
-            raw_content = response['response']['choices'][0]['message']['content'].strip()
-        elif 'choices' in response:
-            raw_content = response['choices'][0]['message']['content'].strip()
-        elif isinstance(response, str):
+        if isinstance(response, str):
+            # Direct string response
             raw_content = response.strip()
+        elif isinstance(response, dict):
+            # Dictionary response - check for different formats
+            if 'response' in response and 'choices' in response['response']:
+                raw_content = response['response']['choices'][0]['message']['content'].strip()
+            elif 'choices' in response:
+                raw_content = response['choices'][0]['message']['content'].strip()
+            else:
+                self.logger.warning(f"Invalid LLM response format for translation extraction: {type(response)}")
+                return []
         else:
             self.logger.warning(f"Invalid LLM response format for translation extraction: {type(response)}")
             return []
