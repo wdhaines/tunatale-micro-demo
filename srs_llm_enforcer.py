@@ -9,6 +9,204 @@ from pathlib import Path
 from llm_mock import MockLLM
 from srs_database import SRSDatabase
 from enhanced_srs_database import EnhancedSRSDatabase
+from language_detector import LanguageDetector
+
+
+class DeterministicEnglishDetector:
+    """Deterministic English term detection with SRS database cross-reference."""
+    
+    def __init__(self, srs_db: SRSDatabase, enhanced_db: Optional[EnhancedSRSDatabase] = None):
+        self.srs_db = srs_db
+        self.enhanced_db = enhanced_db
+        self.language_detector = LanguageDetector()
+        self.logger = logging.getLogger(__name__)
+        
+    def extract_dialogue_content(self, story_content: str) -> List[str]:
+        """Extract only [TAGALOG-*] dialogue lines for English detection."""
+        dialogue_lines = []
+        
+        # Pattern to match [TAGALOG-*]: dialogue
+        dialogue_pattern = r'\[TAGALOG-[^]]+\]:\s*(.+)'
+        
+        for line in story_content.split('\n'):
+            match = re.match(dialogue_pattern, line.strip())
+            if match:
+                dialogue_text = match.group(1).strip()
+                if dialogue_text:
+                    dialogue_lines.append(dialogue_text)
+        
+        return dialogue_lines
+    
+    def detect_english_terms(self, story_content: str) -> Tuple[List[str], List[str]]:
+        """
+        Detect English terms in dialogue and categorize them.
+        
+        Returns:
+            Tuple of (srs_backed_terms, future_candidate_terms)
+        """
+        dialogue_lines = self.extract_dialogue_content(story_content)
+        
+        all_english_terms = set()
+        
+        # Process each dialogue line
+        for line in dialogue_lines:
+            english_terms = self._find_english_in_line(line)
+            all_english_terms.update(english_terms)
+        
+        # Categorize terms based on SRS availability
+        srs_backed_terms = []
+        future_candidate_terms = []
+        
+        for term in all_english_terms:
+            if self._has_srs_equivalent(term):
+                srs_backed_terms.append(term)
+                self.logger.debug(f"SRS-backed English term detected: '{term}'")
+            else:
+                future_candidate_terms.append(term)
+                self.logger.debug(f"Future candidate English term detected: '{term}'")
+        
+        return srs_backed_terms, future_candidate_terms
+    
+    def _find_english_in_line(self, line: str) -> List[str]:
+        """Find English words and phrases in a dialogue line."""
+        english_terms = []
+        
+        # Split into words for individual detection
+        words = re.findall(r'\b\w+\b', line.lower())
+        
+        # Detect individual English words and loanwords that could be deepened
+        for word in words:
+            classification = self.language_detector.classify_word(word)
+            
+            # Include pure English words AND loan words (for deepening to more authentic Filipino)
+            if classification in ['english', 'loan']:
+                english_terms.append(word)
+        
+        # Detect English multi-word phrases using dictionary-based approach
+        english_phrases = self._detect_english_phrases(line)
+        english_terms.extend(english_phrases)
+        
+        return list(set(english_terms))  # Remove duplicates
+    
+    def _detect_english_phrases(self, line: str) -> List[str]:
+        """Detect English multi-word phrases using dictionary-based approach."""
+        english_phrases = []
+        line_lower = line.lower()
+        words = re.findall(r'\b\w+\b', line_lower)
+        
+        # Check for 2-word and 3-word combinations
+        for i in range(len(words)):
+            # 2-word phrases
+            if i < len(words) - 1:
+                two_word = f"{words[i]} {words[i+1]}"
+                if self._is_english_phrase(two_word):
+                    english_phrases.append(two_word)
+            
+            # 3-word phrases  
+            if i < len(words) - 2:
+                three_word = f"{words[i]} {words[i+1]} {words[i+2]}"
+                if self._is_english_phrase(three_word):
+                    english_phrases.append(three_word)
+        
+        return english_phrases
+    
+    def _is_english_phrase(self, phrase: str) -> bool:
+        """Check if a phrase is likely English based on dictionary classification."""
+        words = phrase.split()
+        
+        if len(words) < 2:
+            return False
+        
+        # Check classification of each word
+        pure_english_count = 0
+        filipino_count = 0
+        
+        for word in words:
+            classification = self.language_detector.classify_word(word)
+            if classification in ['english', 'loan']:
+                pure_english_count += 1
+            elif classification == 'tagalog':
+                filipino_count += 1
+        
+        # Phrase is English/loanword if:
+        # 1. Majority of words are English or loanwords, AND
+        # 2. No pure Filipino particles are present
+        return (pure_english_count > filipino_count and 
+                pure_english_count >= len(words) * 0.5 and
+                not self.language_detector.has_filipino_context(phrase))
+    
+    def _has_srs_equivalent(self, english_term: str) -> bool:
+        """Check if English term has Filipino equivalent in SRS database."""
+        try:
+            # Search for Filipino equivalents in SRS database
+            matches = self._search_srs_for_equivalent(english_term)
+            return len(matches) > 0
+        except Exception as e:
+            self.logger.error(f"Error checking SRS equivalent for '{english_term}': {e}")
+            return False
+    
+    def _search_srs_for_equivalent(self, english_term: str) -> List[Dict]:
+        """Search SRS database for Filipino equivalents of English term."""
+        search_queries = self._generate_search_queries(english_term)
+        
+        matches = []
+        for query in search_queries:
+            try:
+                import sqlite3
+                with sqlite3.connect(self.srs_db.db_path) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT text, stability FROM collocations 
+                        WHERE text LIKE ? AND stability >= 0.0
+                        ORDER BY stability DESC
+                        LIMIT 5
+                    """, (f'%{query}%',))
+                    
+                    for row in cursor.fetchall():
+                        matches.append({'text': row[0], 'stability': row[1]})
+                        
+            except Exception as e:
+                self.logger.error(f"Error searching SRS for '{query}': {e}")
+                continue
+        
+        return matches
+    
+    def _generate_search_queries(self, english_term: str) -> List[str]:
+        """Generate potential Filipino search queries for English term."""
+        queries = []
+        
+        # Always include the original term for direct matches
+        queries.append(english_term)
+        
+        # For multi-word terms, also try without spaces
+        if ' ' in english_term:
+            queries.append(english_term.replace(' ', ''))
+            
+            # Try searching for individual words that might be Filipino equivalents
+            words = english_term.split()
+            queries.extend(words)
+        
+        # Try to find existing translations in the enhanced database
+        if self.enhanced_db:
+            try:
+                filipino_equiv = self.enhanced_db.find_filipino_equivalent(english_term)
+                if filipino_equiv:
+                    queries.append(filipino_equiv)
+                    # Also try words from the Filipino equivalent
+                    filipino_words = filipino_equiv.split()
+                    queries.extend(filipino_words)
+            except Exception as e:
+                self.logger.debug(f"Could not search enhanced database for '{english_term}': {e}")
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_queries = []
+        for query in queries:
+            if query.lower() not in seen:
+                seen.add(query.lower())
+                unique_queries.append(query)
+        
+        return unique_queries
 
 
 class SRSLLMEnforcer:
@@ -18,6 +216,7 @@ class SRSLLMEnforcer:
         self.llm = llm
         self.srs_db = srs_db
         self.enhanced_db = enhanced_db or EnhancedSRSDatabase()
+        self.english_detector = DeterministicEnglishDetector(srs_db, enhanced_db)
         self.logger = logging.getLogger(__name__)
     
     def enforce_with_llm(self, content: str, day: int, context: str = "story") -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -54,8 +253,8 @@ class SRSLLMEnforcer:
         if not srs_analysis:
             self.logger.info("SRS analysis found but no English terms need replacement - proceeding with Key Phrases check")
         
-        # Query SRS database with analysis to get actual replacements
-        srs_replacements = self._query_srs_with_analysis(srs_analysis)
+        # Extract English terms from analysis for LLM replacement (no pre-determined mappings)
+        srs_english_terms = self._extract_english_terms_from_analysis(srs_analysis)
         
         # Get Key Phrases replacements as well
         clean_content = self._remove_srs_analysis_section(content)
@@ -64,16 +263,16 @@ class SRSLLMEnforcer:
         key_phrases_violations = key_phrases_info.get('violations', [])
         
         # If no replacements needed at all, skip LLM enforcement
-        if not srs_replacements and not key_phrases_replacements:
-            self.logger.info("No SRS or Key Phrases replacements needed - skipping LLM enforcement")
+        if not srs_english_terms and not key_phrases_replacements:
+            self.logger.info("No SRS English terms or Key Phrases replacements needed - skipping LLM enforcement")
             return clean_content, key_phrases_violations, []
         
-        self.logger.info(f"Found {len(srs_replacements)} SRS-derived replacements")
-        for english, filipino in srs_replacements.items():
-            self.logger.debug(f"  '{english}' → '{filipino}'")
+        self.logger.info(f"Found {len(srs_english_terms)} English terms for LLM replacement")
+        for english in srs_english_terms:
+            self.logger.debug(f"  English term: '{english}'")
         
         # Create prompt for LLM to intelligently replace both English terms and Key Phrases
-        prompt = self._create_combined_enforcement_prompt(content, srs_replacements, key_phrases_replacements, day)
+        prompt = self._create_combined_enforcement_prompt(content, srs_english_terms, key_phrases_replacements, day)
         
         try:
             # Use LLM to do intelligent replacement for both English terms and Key Phrases, AND extract translations
@@ -94,7 +293,7 @@ class SRSLLMEnforcer:
             final_content = self._remove_srs_analysis_section(enforced_content)
             
             # Analyze what was replaced for logging (both English terms and Key Phrases)
-            violations = self._analyze_replacements(content, final_content, srs_replacements, day, context)
+            violations = self._analyze_replacements(content, final_content, srs_english_terms, day, context)
             
             # Update Key Phrases violations to show they were processed in main enforcement
             for violation in key_phrases_violations:
@@ -156,6 +355,115 @@ class SRSLLMEnforcer:
             }
             
         return replacements
+    
+    def enforce_with_deterministic_detection(self, content: str, day: int, context: str = "story") -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        Enhanced enforcement using deterministic English detection + LLM replacement.
+        
+        This method combines reliable English detection with grammar-aware LLM replacement.
+        
+        Args:
+            content: Story content to enforce
+            day: Day number for context
+            context: Generation context
+            
+        Returns:
+            Tuple of (enforced_content, violations_list, phrase_translations_list)
+        """
+        # Save original content before any SRS enforcement
+        self._save_original_backup(content, day, context)
+        
+        # 1. Deterministic English detection
+        self.logger.info("Running deterministic English detection on dialogue...")
+        srs_backed_terms, future_candidate_terms = self.english_detector.detect_english_terms(content)
+        
+        # Log detection results
+        if srs_backed_terms:
+            self.logger.info(f"Found {len(srs_backed_terms)} English terms with SRS equivalents: {srs_backed_terms}")
+        else:
+            self.logger.info("No English terms with SRS equivalents detected")
+            
+        if future_candidate_terms:
+            self.logger.info(f"Found {len(future_candidate_terms)} English terms without SRS equivalents (future deepening candidates): {future_candidate_terms}")
+            # TODO: Store these for future deepening iterations
+        
+        # 2. Check for existing SRS analysis and merge if present
+        existing_analysis, analysis_found = self._extract_srs_analysis(content)
+        
+        if analysis_found:
+            self.logger.info("Found existing LLM-generated SRS analysis - merging with deterministic detection")
+            # Merge deterministic detection with existing analysis
+            merged_terms = self._merge_english_term_lists(srs_backed_terms, existing_analysis)
+        else:
+            self.logger.info("No existing SRS analysis found - using deterministic detection only")
+            merged_terms = srs_backed_terms
+        
+        # 3. Generate complete SRS analysis for LLM replacement
+        if merged_terms:
+            complete_srs_analysis = self._build_srs_analysis_from_terms(merged_terms)
+            enhanced_content = self._inject_srs_analysis(content, complete_srs_analysis)
+        else:
+            enhanced_content = content
+            complete_srs_analysis = []
+        
+        # 4. Run LLM-based grammar-aware replacement using complete analysis
+        if complete_srs_analysis:
+            self.logger.info(f"Running LLM enforcement with {len(complete_srs_analysis)} detected terms...")
+            enforced_content, violations, translations = self._run_llm_replacement(enhanced_content, day, context, complete_srs_analysis)
+        else:
+            self.logger.info("No English terms detected for enforcement - returning original content")
+            enforced_content = self._remove_srs_analysis_section(content)
+            violations = []
+            translations = []
+        
+        return enforced_content, violations, translations
+    
+    def _merge_english_term_lists(self, deterministic_terms: List[str], existing_analysis: List[Dict]) -> List[str]:
+        """Merge deterministic detection with existing LLM analysis."""
+        existing_terms = [term.get("english", "") for term in existing_analysis if term.get("english")]
+        
+        # Combine and deduplicate
+        all_terms = list(set(deterministic_terms + existing_terms))
+        
+        self.logger.debug(f"Merged {len(deterministic_terms)} deterministic + {len(existing_terms)} LLM terms = {len(all_terms)} total")
+        return all_terms
+    
+    def _build_srs_analysis_from_terms(self, english_terms: List[str]) -> List[Dict]:
+        """Build SRS analysis JSON structure from detected English terms."""
+        srs_analysis = []
+        
+        for term in english_terms:
+            search_queries = self.english_detector._generate_search_queries(term)
+            srs_analysis.append({
+                "english": term,
+                "srs_queries": search_queries
+            })
+        
+        return srs_analysis
+    
+    def _inject_srs_analysis(self, content: str, srs_analysis: List[Dict]) -> str:
+        """Inject or replace SRS analysis section in content."""
+        # Remove existing SRS analysis if present
+        content_without_analysis = self._remove_srs_analysis_section(content)
+        
+        # Add new comprehensive analysis
+        analysis_json = {
+            "english_terms": srs_analysis,
+            "key_phrases_analysis": {
+                "phrases": [],  # Will be filled by existing logic if needed
+                "stability_threshold": 2.0,
+                "replacement_suggestions": {}
+            }
+        }
+        
+        analysis_section = f"\n\n[NARRATOR]: SRS Enforcement Analysis\n{json.dumps(analysis_json, indent=2)}"
+        
+        return content_without_analysis + analysis_section
+    
+    def _run_llm_replacement(self, content: str, day: int, context: str, srs_analysis: List[Dict]) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Run the LLM-based replacement logic with complete SRS analysis."""
+        # Use existing LLM enforcement logic
+        return self.enforce_with_llm(content, day, context)
     
     def _extract_srs_analysis(self, content: str) -> Tuple[List[Dict], bool]:
         """
@@ -323,32 +631,17 @@ class SRSLLMEnforcer:
         
         return query_map.get(english_word.lower(), [english_word, english_word.replace(" ", "")])
     
-    def _query_srs_with_analysis(self, srs_analysis: List[Dict]) -> Dict[str, str]:
-        """Query SRS database using story-generated analysis."""
-        replacements = {}
+    def _extract_english_terms_from_analysis(self, srs_analysis: List[Dict]) -> List[str]:
+        """Extract English terms from SRS analysis for LLM replacement."""
+        english_terms = []
         
         for term_analysis in srs_analysis:
             english = term_analysis.get("english", "")
-            search_terms = term_analysis.get("srs_queries", [])
-            
-            if not english or not search_terms:
-                continue
-            
-            # Search SRS database for matches
-            srs_matches = []
-            for search_term in search_terms:
-                matches = self._search_srs_database(search_term, min_stability=0.0)
-                srs_matches.extend(matches)
-            
-            # Pick highest stability match
-            if srs_matches:
-                best_match = max(srs_matches, key=lambda x: x['stability'])
-                replacements[english] = best_match['text']
-                self.logger.debug(f"SRS match: '{english}' → '{best_match['text']}' (stability: {best_match['stability']})")
-            else:
-                self.logger.debug(f"No SRS match found for '{english}' with queries: {search_terms}")
+            if english:
+                english_terms.append(english)
+                self.logger.debug(f"Found English term for LLM replacement: '{english}'")
         
-        return replacements
+        return english_terms
     
     def _search_srs_database(self, search_term: str, min_stability: float = 0.0) -> List[Dict]:
         """Search SRS database for entries containing search term."""
@@ -992,19 +1285,19 @@ Return the complete story content with ONLY the Key Phrases section phrase and t
             self.logger.error(f"Error ensuring Key Phrases count: {e}")
             return replacements
     
-    def _create_combined_enforcement_prompt(self, content: str, srs_replacements: Dict[str, str], 
+    def _create_combined_enforcement_prompt(self, content: str, srs_english_terms: List[str], 
                                           key_phrases_replacements: Dict[str, str], day: int) -> str:
         """Create LLM prompt for combined English terms, Key Phrases enforcement, AND translation extraction."""
         
         # Build combined replacement list
         replacement_sections = []
         
-        if srs_replacements:
+        if srs_english_terms:
             english_list = "\n".join([
-                f"• '{english}' → '{filipino}'" 
-                for english, filipino in srs_replacements.items()
+                f"• '{english}'" 
+                for english in srs_english_terms
             ])
-            replacement_sections.append(f"**ENGLISH TERMS TO REPLACE:**\n{english_list}")
+            replacement_sections.append(f"**ENGLISH TERMS TO REPLACE:**\nReplace these English terms with appropriate Filipino equivalents:\n{english_list}")
         
         if key_phrases_replacements:
             # Handle both regular replacements and new phrase additions
@@ -1074,23 +1367,23 @@ Additionally, extract comprehensive Filipino-to-English translation pairs from t
 
 ## RESPONSE FORMAT
 
-Return a JSON response with this structure:
+Return the enforced content as clean, copyable text followed by translations in JSON format:
+
+COMPLETE_STORY_CONTENT_WITH_REPLACEMENTS_APPLIED_HERE
+
+PHRASE_TRANSLATIONS:
 {{
-  "enforced_content": "COMPLETE_STORY_CONTENT_WITH_REPLACEMENTS_APPLIED",
-  "phrase_translations": [
-    {{"filipino": "magandang umaga po", "english": "good morning (polite)", "confidence": 0.95}},
-    {{"filipino": "salamat sa lahat", "english": "thank you for everything", "confidence": 0.90}},
-    {{"filipino": "alas dos", "english": "two o'clock", "confidence": 0.95}},
-    {{"filipino": "sukli mo", "english": "your change", "confidence": 0.85}},
-    {{"filipino": "tubig", "english": "water", "confidence": 0.90}},
-    {{"filipino": "po", "english": "(polite marker)", "confidence": 0.80}}
-  ]
+  "magandang umaga po": "good morning (polite)",
+  "salamat sa lahat": "thank you for everything", 
+  "alas dos": "two o'clock",
+  "sukli mo": "your change",
+  "tubig": "water",
+  "po": "(polite marker)"
 }}
 
 ## TRANSLATION GUIDELINES:
 - Extract 50-150 translations total (comprehensive coverage)
 - Include translations at all granularities: complete phrases, collocations, single words
-- Only include translations with confidence >= 0.75
 - Include politeness markers in English (e.g., "po" → "(polite)")
 - Prioritize frequent/useful items that would benefit language learners
 - Provide contextual translations even for fragments ("sukli mo" → "your change")
@@ -1165,7 +1458,7 @@ AFTER:
 Return the complete content with intelligent, grammar-aware replacements applied only to Tagalog speaker lines."""
     
     def _extract_enforced_content(self, response: Dict) -> str:
-        """Extract the enforced content from LLM response (handles both old and new formats)."""
+        """Extract the enforced content from LLM response (handles text-first and JSON formats)."""
         import json
         
         # First, get the raw response content
@@ -1179,21 +1472,28 @@ Return the complete content with intelligent, grammar-aware replacements applied
         else:
             raise ValueError(f"Invalid LLM response format: {type(response)}")
         
-        # Try to parse as JSON (new combined format)
+        # Check for new text-first format with PHRASE_TRANSLATIONS: marker
+        if "PHRASE_TRANSLATIONS:" in raw_content:
+            # Split on PHRASE_TRANSLATIONS: marker and take everything before it
+            content_parts = raw_content.split("PHRASE_TRANSLATIONS:")
+            if len(content_parts) >= 2:
+                return content_parts[0].strip()
+        
+        # Try to parse as JSON (old combined format)
         try:
             parsed_response = json.loads(raw_content)
             if 'enforced_content' in parsed_response:
-                # New format with enforced_content
+                # Old JSON format with enforced_content
                 return parsed_response['enforced_content']
         except (json.JSONDecodeError, TypeError):
-            # Not JSON or doesn't have enforced_content, treat as direct content (old format)
+            # Not JSON or doesn't have enforced_content, treat as direct content
             pass
         
-        # Fallback to treating entire content as the story (old format)
+        # Fallback to treating entire content as the story
         return raw_content
     
     def _extract_phrase_translations(self, response: Dict) -> List[Dict[str, Any]]:
-        """Extract phrase translations from combined LLM response."""
+        """Extract phrase translations from LLM response (handles text-first and JSON formats)."""
         import json
         
         # First, get the raw response content
@@ -1208,12 +1508,30 @@ Return the complete content with intelligent, grammar-aware replacements applied
             self.logger.warning(f"Invalid LLM response format for translation extraction: {type(response)}")
             return []
         
-        # Try to parse as JSON (new combined format)
+        # Check for new text-first format with PHRASE_TRANSLATIONS: marker
+        if "PHRASE_TRANSLATIONS:" in raw_content:
+            # Split on PHRASE_TRANSLATIONS: marker and parse JSON from the second part
+            content_parts = raw_content.split("PHRASE_TRANSLATIONS:")
+            if len(content_parts) >= 2:
+                json_part = content_parts[1].strip()
+                try:
+                    translations_dict = json.loads(json_part)
+                    # Convert dictionary format to list format for consistency
+                    translations = [
+                        {"filipino": filipino, "english": english, "confidence": 0.9}
+                        for filipino, english in translations_dict.items()
+                    ]
+                    self.logger.info(f"Extracted {len(translations)} phrase translations from text-first format")
+                    return translations
+                except (json.JSONDecodeError, TypeError) as e:
+                    self.logger.warning(f"Could not parse PHRASE_TRANSLATIONS JSON: {e}")
+        
+        # Try to parse as JSON (old combined format)
         try:
             parsed_response = json.loads(raw_content)
             if 'phrase_translations' in parsed_response:
                 translations = parsed_response['phrase_translations']
-                self.logger.info(f"Extracted {len(translations)} phrase translations from combined response")
+                self.logger.info(f"Extracted {len(translations)} phrase translations from JSON format")
                 return translations
         except (json.JSONDecodeError, TypeError) as e:
             self.logger.debug(f"Could not parse combined response as JSON for translations: {e}")
@@ -1221,13 +1539,13 @@ Return the complete content with intelligent, grammar-aware replacements applied
         # No translations available in this response format
         return []
     
-    def _analyze_replacements(self, original: str, enforced: str, replacements: Dict[str, str], 
+    def _analyze_replacements(self, original: str, enforced: str, english_terms: List[str], 
                             day: int, context: str) -> List[Dict[str, Any]]:
         """Analyze what replacements were made for logging and debugging."""
         violations = []
         
-        # Simple analysis - compare original vs enforced for each replacement word
-        for english, filipino in replacements.items():
+        # Simple analysis - compare original vs enforced for each English term
+        for english in english_terms:
             original_count = original.lower().count(english.lower())
             enforced_count = enforced.lower().count(english.lower())
             
@@ -1235,7 +1553,7 @@ Return the complete content with intelligent, grammar-aware replacements applied
                 replaced_count = original_count - enforced_count
                 violations.append({
                     'english': english,
-                    'filipino': filipino,
+                    'filipino': 'llm_determined',  # LLM chose the replacement
                     'count': replaced_count,
                     'method': 'llm_enforcement',
                     'day': day,
