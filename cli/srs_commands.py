@@ -8,7 +8,7 @@ from typing import Dict, List, Any, Optional
 
 from srs_database import SRSDatabase
 from enhanced_srs_database import EnhancedSRSDatabase
-from srs_tracker import SRSTracker
+# SRSTracker removed - using SRSDatabase directly
 # from collocation_extractor import CollocationExtractor  # Removed - using LLM-based extraction
 from story_collocation_extractor import StoryCollocationExtractor
 from .vocab_commands import _extract_natural_speed_content

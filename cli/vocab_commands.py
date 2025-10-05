@@ -109,9 +109,9 @@ def _handle_preview_extraction(extractor, target_days: List[int], args) -> None:
     story_files = get_story_files()
     
     print_info(f"Previewing extraction for {len(target_days)} day(s)")
-    
+
     for day in target_days:
-        story_file = _find_story_file_for_day(story_files, day)
+        story_file = _find_story_file_for_day_from_list(story_files, day)
         if not story_file:
             print_warning(f"No story file found for day {day}")
             continue
@@ -151,8 +151,8 @@ def _handle_save_extraction(extractor: Any, target_days: List[int], args) -> Non
     
     for i, day in enumerate(target_days):
         show_progress(i, len(target_days), f"Processing day {day}")
-        
-        story_file = _find_story_file_for_day(story_files, day)
+
+        story_file = _find_story_file_for_day_from_list(story_files, day)
         if not story_file:
             print_warning(f"No story file found for day {day}")
             continue
@@ -172,8 +172,10 @@ def _handle_save_extraction(extractor: Any, target_days: List[int], args) -> Non
     print_success(f"Processed {processed_days} days, saved {total_saved} collocations")
 
 
-def _find_story_file_for_day(story_files: List[Path], day: int) -> Optional[Path]:
-    """Find story file for specific day."""
+def _find_story_file_for_day_from_list(story_files: List[Path], day: int) -> Optional[Path]:
+    """Find story file for specific day from a list of files.
+    DEPRECATED: Use cli.utils.find_story_file_for_day() instead.
+    """
     for story_file in story_files:
         if extract_day_number(story_file) == day:
             return story_file
