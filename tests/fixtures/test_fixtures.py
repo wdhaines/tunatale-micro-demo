@@ -17,7 +17,7 @@ import tempfile
 from datetime import datetime
 
 from curriculum_models import Curriculum, CurriculumDay
-from srs_tracker import SRSTracker, CollocationStatus  
+from srs_adapter import SRSAdapter, CollocationStatus  
 from content_strategy import ContentStrategy, DifficultyLevel, EnhancedStoryParams
 
 
@@ -243,30 +243,21 @@ def corrupted_curriculum_data():
 
 @pytest.fixture 
 def srs_tracker_with_data(temp_data_dir):
-    """Fixture providing SRS tracker with test data."""
-    tracker = SRSTracker(data_dir=str(temp_data_dir / 'srs'), filename='test_srs.json')
+    """Fixture providing SRS adapter with test data."""
+    tracker = SRSAdapter()
     
-    # Add collocations with different review states
-    collocations_data = [
-        ("kumusta po", 1, 0, 1.0),      # New, due day 1
-        ("salamat po", 2, 1, 1.2),      # Reviewed once, due day 2  
-        ("magkano po", 5, 2, 1.5),      # Reviewed twice, due day 5
-        ("pwede po bang", 10, 3, 2.0),  # Well-reviewed, due day 10
-        ("tara na po", 1, 0, 0.8)       # New, low stability
+    # Add test collocations to the adapter
+    test_collocations = [
+        "kumusta po",
+        "salamat po", 
+        "magkano po",
+        "pwede po bang",
+        "tara na po"
     ]
     
-    for text, next_review_day, review_count, stability in collocations_data:
-        tracker.collocations[text] = CollocationStatus(
-            text=text,
-            first_seen_day=1,
-            last_seen_day=max(1, next_review_day - 1),
-            appearances=[1] + list(range(2, next_review_day)),
-            review_count=review_count,
-            next_review_day=next_review_day,
-            stability=stability
-        )
+    # Add collocations for day 1 to make them available for testing
+    tracker.add_collocations(test_collocations, day=1)
     
-    tracker._save_state()
     return tracker
 
 
@@ -598,7 +589,7 @@ def assert_curriculum_integrity(curriculum: Curriculum) -> None:
         assert hasattr(day, 'story_guidance')  # Should have this field
 
 
-def assert_srs_data_quality(srs_tracker: SRSTracker) -> None:
+def assert_srs_data_quality(srs_tracker: SRSAdapter) -> None:
     """Assert that SRS tracker contains only valid collocation data."""
     invalid_patterns = [
         'tagalog-female-1', 'tagalog-male-1', 'english-1',

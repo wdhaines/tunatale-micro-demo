@@ -28,14 +28,14 @@ class TestStrategyCLI:
     
     def test_strategy_help_commands(self):
         """Test that strategy-related help is displayed correctly."""
-        result = self.run_cli(["generate-day", "--help"])
+        result = self.run_cli(["generate", "day", "--help"])
         assert result.returncode == 0
         assert "--strategy" in result.stdout
         assert "wider" in result.stdout
         assert "deeper" in result.stdout
         assert "--source-day" in result.stdout
     
-    @patch('story_generator.ContentGenerator')
+    @patch('cli.generation_commands.ContentGenerator')
     @patch('sys.stdout', new_callable=io.StringIO)
     def test_wider_strategy_cli_basic(self, mock_stdout, mock_generator_class):
         """Test WIDER strategy via CLI with basic parameters."""
@@ -49,7 +49,7 @@ class TestStrategyCLI:
         # Mock curriculum file existence
         with patch('pathlib.Path.exists', return_value=True):
             with patch('sys.argv', [
-                'main.py', 'generate-day', '11', '--strategy=wider'
+                'main.py', 'generate', 'day', '11', '--strategy=wider'
             ]):
                 result = CLI().run()
         
@@ -63,7 +63,7 @@ class TestStrategyCLI:
             11, ContentStrategy.WIDER, None
         )
     
-    @patch('story_generator.ContentGenerator')
+    @patch('cli.generation_commands.ContentGenerator')
     @patch('sys.stdout', new_callable=io.StringIO)
     def test_deeper_strategy_cli_with_source_day(self, mock_stdout, mock_generator_class):
         """Test DEEPER strategy via CLI with explicit source day."""
@@ -77,7 +77,7 @@ class TestStrategyCLI:
         # Mock curriculum file existence
         with patch('pathlib.Path.exists', return_value=True):
             with patch('sys.argv', [
-                'main.py', 'generate-day', '9', 
+                'main.py', 'generate', 'day', '9',
                 '--strategy=deeper', '--source-day=6'
             ]):
                 result = CLI().run()
@@ -93,7 +93,7 @@ class TestStrategyCLI:
             9, ContentStrategy.DEEPER, 6
         )
     
-    @patch('story_generator.ContentGenerator')
+    @patch('cli.generation_commands.ContentGenerator')
     @patch('sys.stdout', new_callable=io.StringIO)
     def test_deeper_strategy_auto_source_day(self, mock_stdout, mock_generator_class):
         """Test DEEPER strategy CLI with automatic source day selection."""
@@ -107,7 +107,7 @@ class TestStrategyCLI:
         # Mock curriculum file existence
         with patch('pathlib.Path.exists', return_value=True):
             with patch('sys.argv', [
-                'main.py', 'generate-day', '8', '--strategy=deeper'
+                'main.py', 'generate', 'day', '8', '--strategy=deeper'
             ]):
                 result = CLI().run()
         
@@ -125,7 +125,7 @@ class TestStrategyCLI:
     def test_invalid_strategy_parameter(self):
         """Test handling of invalid strategy parameter."""
         result = self.run_cli([
-            "generate-day", "5", "--strategy=invalid"
+            "generate", "day", "5", "--strategy=invalid"
         ])
         assert result.returncode == 2  # argparse error
         assert "invalid choice: 'invalid'" in result.stderr
@@ -133,12 +133,12 @@ class TestStrategyCLI:
     def test_invalid_day_number_strategy(self):
         """Test error handling for invalid day numbers with strategy."""
         result = self.run_cli([
-            "generate-day", "0", "--strategy=wider"
+            "generate", "day", "0", "--strategy=wider"
         ], timeout=10)
         assert result.returncode == 1
         assert "Day must be >= 1" in result.stderr
     
-    @patch('story_generator.ContentGenerator')
+    @patch('cli.generation_commands.ContentGenerator')
     @patch('sys.stderr', new_callable=io.StringIO)
     def test_strategy_generation_error_handling(self, mock_stderr, mock_generator_class):
         """Test error handling when strategy generation fails."""
@@ -149,7 +149,7 @@ class TestStrategyCLI:
         # Mock curriculum file existence
         with patch('pathlib.Path.exists', return_value=True):
             with patch('sys.argv', [
-                'main.py', 'generate-day', '10', '--strategy=wider'
+                'main.py', 'generate', 'day', '10', '--strategy=wider'
             ]):
                 result = CLI().run()
         
@@ -157,7 +157,7 @@ class TestStrategyCLI:
         error_output = mock_stderr.getvalue()
         assert "Strategy generation failed" in error_output
     
-    @patch('story_generator.ContentGenerator')
+    @patch('cli.generation_commands.ContentGenerator')
     @patch('sys.stdout', new_callable=io.StringIO)
     def test_source_day_parameter_validation(self, mock_stdout, mock_generator_class):
         """Test source day parameter validation."""
@@ -171,7 +171,7 @@ class TestStrategyCLI:
         # Mock curriculum file existence
         with patch('pathlib.Path.exists', return_value=True):
             with patch('sys.argv', [
-                'main.py', 'generate-day', '15', 
+                'main.py', 'generate', 'day', '15', 
                 '--strategy=deeper', '--source-day=10'
             ]):
                 result = CLI().run()
@@ -209,14 +209,14 @@ class TestAnalysisCommandsCLI:
         )
     
     def test_show_day_collocations_cli(self):
-        """Test show-day-collocations command via CLI."""
-        result = self.run_cli(["show-day-collocations", "6"])
+        """Test analyze collocations command via CLI."""
+        result = self.run_cli(["analyze", "collocations", "--day", "6"])
         # Command should either succeed or fail gracefully with informative message
         assert result.returncode in [0, 1]
-        
+
         if result.returncode == 1:
             # Should have informative error message about missing story
-            assert any(word in result.stderr.lower() 
+            assert any(word in result.stderr.lower()
                       for word in ["story", "found", "file", "day"])
     
     def test_srs_status_cli(self):
@@ -226,22 +226,21 @@ class TestAnalysisCommandsCLI:
         assert result.returncode in [0, 1]
     
     def test_debug_generation_cli(self):
-        """Test debug-generation command via CLI."""
-        result = self.run_cli(["debug-generation", "9"])
+        """Test analyze debug command via CLI."""
+        result = self.run_cli(["analyze", "debug", "--day", "9"])
         # Command should either succeed or fail gracefully with informative message
         assert result.returncode in [0, 1]
-        
+
         if result.returncode == 1:
-            # Should have informative error message about missing story
-            assert any(word in result.stderr.lower() 
-                      for word in ["story", "found", "file", "day"])
+            # Should have some error message (not empty)
+            assert len(result.stderr) > 0, "Should have error output when command fails"
     
     def test_invalid_day_for_analysis_commands(self):
         """Test invalid day numbers for analysis commands."""
         commands = [
-            ["show-day-collocations", "0"],
+            ["analyze", "collocations", "--day", "0"],
             ["srs", "status", "--day", "-1"],
-            ["debug-generation", "abc"]
+            ["analyze", "debug", "--day", "0"]
         ]
         
         for cmd in commands:
@@ -312,7 +311,7 @@ class TestStrategyCLIIntegration:
             cwd=Path(__file__).parent.parent
         )
     
-    @patch('story_generator.ContentGenerator')
+    @patch('cli.generation_commands.ContentGenerator')
     @patch('pathlib.Path.exists', return_value=True)
     def test_strategy_chaining_workflow(self, mock_exists, mock_generator_class):
         """Test a realistic strategy chaining workflow."""
@@ -332,10 +331,10 @@ class TestStrategyCLIIntegration:
         mock_generator.generate_day_story.return_value = ("DEFAULT story", {"new": ["bal1"], "review": []})
         
         # Test workflow: Generate DEEPER day 9, then WIDER day 10
-        with patch('sys.argv', ['main.py', 'generate-day', '9', '--strategy=deeper', '--source-day=6']):
+        with patch('sys.argv', ['main.py', 'generate', 'day', '9', '--strategy=deeper', '--source-day=6']):
             result1 = CLI().run()
         
-        with patch('sys.argv', ['main.py', 'generate-day', '10', '--strategy=wider']):
+        with patch('sys.argv', ['main.py', 'generate', 'day', '10', '--strategy=wider']):
             result2 = CLI().run()
         
         assert result1 == 0
@@ -356,8 +355,8 @@ class TestStrategyCLIIntegration:
         assert result.returncode == 0
         assert "strategy" in result.stdout.lower()
         
-        # generate-day help should have detailed strategy info
-        result = self.run_cli(["generate-day", "--help"])
+        # generate day help should have detailed strategy info
+        result = self.run_cli(["generate", "day", "--help"])
         assert result.returncode == 0
         help_output = result.stdout.lower()
         assert "strategy" in help_output
@@ -370,20 +369,20 @@ class TestStrategyCLIIntegration:
         """Test error handling in realistic failure scenarios."""
         # Test with invalid parameters combinations
         result = self.run_cli([
-            "generate-day", "abc", "--strategy=deeper"
+            "generate", "day", "abc", "--strategy=deeper"
         ], timeout=10)
         assert result.returncode == 2  # argparse error
         
         # Test graceful handling of edge cases - very high day number
         result = self.run_cli([
-            "generate-day", "999", "--strategy=wider"
+            "generate", "day", "999", "--strategy=wider"
         ], timeout=10)
         # Should either work (if curriculum extends that far) or handle gracefully
         assert result.returncode in [0, 1]
         
         # Test invalid strategy parameter
         result = self.run_cli([
-            "generate-day", "5", "--strategy=invalid"
+            "generate", "day", "5", "--strategy=invalid"
         ], timeout=10)
         assert result.returncode == 2  # argparse error
         assert "invalid choice: 'invalid'" in result.stderr

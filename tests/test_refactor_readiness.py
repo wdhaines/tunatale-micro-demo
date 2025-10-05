@@ -14,7 +14,7 @@ from typing import Dict, Any, List
 from unittest.mock import MagicMock, patch
 
 from curriculum_models import Curriculum, CurriculumDay
-from srs_tracker import SRSTracker, CollocationStatus
+from srs_adapter import SRSAdapter, CollocationStatus
 # from collocation_extractor import CollocationExtractor # Removed - using LLM-based extraction
 from story_generator import ContentGenerator
 from content_strategy import ContentStrategy, get_strategy_config
@@ -131,7 +131,7 @@ class TestRefactorReadiness:
     def test_srs_tracking_integrity_gate(self, tmp_path):
         """Gate check: Ensure SRS tracking produces valid results."""
         # Create SRS tracker and add mixed data
-        srs_tracker = SRSTracker(data_dir=str(tmp_path), filename='gate_test.json')
+        srs_tracker = SRSAdapter()
         
         # Add only clean collocations (simulating post-cleanup state)
         clean_collocations = ["kumusta po", "salamat po", "magkano po"]
@@ -390,9 +390,9 @@ class TestRefactorSafetyChecks:
         cli = CLI()
         
         # Test that parser still has remaining commands after CLI cleanup
-        # Removed: extract, extend, enhance, recommend, validate, strategy, story
+        # Removed: extract, extend, enhance, recommend, validate, strategy, story, generate-day (now generate day)
         remaining_commands = [
-            'generate', 'generate-day', 'view', 'analyze'
+            'generate', 'view', 'analyze', 'enforce', 'translate'
         ]
         
         for command in remaining_commands:
@@ -493,7 +493,7 @@ class TestPerformanceReadiness:
     
     def test_srs_scalability(self, tmp_path):
         """Test SRS system can handle many collocations efficiently."""
-        srs_tracker = SRSTracker(data_dir=str(tmp_path), filename='performance_test.json')
+        srs_tracker = SRSAdapter(test_mode=True)
         
         # Add many collocations
         import time
@@ -506,8 +506,8 @@ class TestPerformanceReadiness:
         due_collocations = srs_tracker.get_due_collocations(day=1, max_items=50)
         assert len(due_collocations) <= 50
         
-        # Create a new instance to test persistence
-        srs_tracker = SRSTracker(data_dir=str(tmp_path / "srs"), filename='integrity_test.json')
+        # Create a new instance to test persistence (in-memory database should be empty)
+        srs_tracker = SRSAdapter(test_mode=True)
         assert len(srs_tracker.get_all_collocations()) == 0, "SRS data not persisted correctly"
         
         # Clean up by removing the test file

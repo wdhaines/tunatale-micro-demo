@@ -1,8 +1,8 @@
 """CLI tests for Phase 3 content quality analysis commands.
 
 Tests the new CLI commands added for Phase 3:
-- analyze --quality 
-- analyze --trip-readiness
+- analyze vocab --quality
+- analyze vocab --trip-readiness
 - recommend command
 - validate command
 """
@@ -70,11 +70,11 @@ class TestPhase3CLICommands:
         )
 
     def test_analyze_quality_flag_subprocess(self):
-        """Test analyze --quality command via subprocess."""
+        """Test analyze vocab --quality command via subprocess."""
         test_content = "Kumusta po! Salamat po sa inyong tulong!"
-        
+
         result = subprocess.run(
-            [sys.executable, "main.py", "analyze", test_content, "--quality"],
+            [sys.executable, "main.py", "analyze", "vocab", test_content, "--quality"],
             capture_output=True,
             text=True,
             timeout=30
@@ -92,11 +92,11 @@ class TestPhase3CLICommands:
             f"Expected quality analysis sections in output: {result.stdout}"
 
     def test_analyze_trip_readiness_flag_subprocess(self):
-        """Test analyze --trip-readiness command via subprocess."""
+        """Test analyze vocab --trip-readiness command via subprocess."""
         test_content = "Kumusta po! Saan po ang hotel? Salamat po!"
-        
+
         result = subprocess.run(
-            [sys.executable, "main.py", "analyze", test_content, "--trip-readiness"],
+            [sys.executable, "main.py", "analyze", "vocab", test_content, "--trip-readiness"],
             capture_output=True,
             text=True,
             timeout=30
@@ -142,6 +142,7 @@ class TestPhase3CLICommands:
         # Execute with output capture
         cli = CLI()
         args = MagicMock()
+        args.analyze_type = 'vocab'
         args.file_or_text = sample_content  # Use direct text input
         args.quality = True
         args.trip_readiness = False
@@ -217,6 +218,7 @@ class TestPhase3CLICommands:
         # Execute with output capture
         cli = CLI()
         args = MagicMock()
+        args.analyze_type = 'vocab'
         args.file_or_text = sample_content  # Use direct text input
         args.quality = False
         args.trip_readiness = True
@@ -268,7 +270,7 @@ class TestPhase3CLICommands:
     def test_combined_quality_and_trip_flags(self, sample_content):
         """Test using both --quality and --trip-readiness flags together."""
         result = subprocess.run(
-            [sys.executable, "main.py", "analyze", sample_content, "--quality", "--trip-readiness"],
+            [sys.executable, "main.py", "analyze", "vocab", sample_content, "--quality", "--trip-readiness"],
             capture_output=True,
             text=True,
             timeout=30
@@ -325,22 +327,22 @@ class TestPhase3CLICommands:
         help_text = result.stdout.lower()
         assert "analyze" in help_text, "Main help should include analyze command"
         
-        # Test that analyze command supports Phase 3 features
+        # Test that analyze vocab command supports Phase 3 features
         result = subprocess.run(
-            [sys.executable, "main.py", "analyze", "--help"],
+            [sys.executable, "main.py", "analyze", "vocab", "--help"],
             capture_output=True,
             text=True,
             timeout=15
         )
-        
+
         assert result.returncode == 0
         analyze_help = result.stdout.lower()
-        
-        # Should mention Phase 3 features in analyze help
+
+        # Should mention Phase 3 features in analyze vocab help
         phase3_indicators = ["quality", "trip"]
-        
+
         assert any(indicator in analyze_help for indicator in phase3_indicators), \
-            f"Analyze help should mention Phase 3 features: {result.stdout}"
+            f"Analyze vocab help should mention Phase 3 features: {result.stdout}"
 
     def test_file_based_analysis_with_quality_flag(self, tmp_path):
         """Test quality analysis with file input."""
@@ -349,7 +351,7 @@ class TestPhase3CLICommands:
         test_file.write_text("Kumusta po! Salamat po sa inyong tulong!")
         
         result = subprocess.run(
-            [sys.executable, "main.py", "analyze", str(test_file), "--quality"],
+            [sys.executable, "main.py", "analyze", "vocab", str(test_file), "--quality"],
             capture_output=True,
             text=True,
             timeout=30
@@ -378,10 +380,10 @@ class TestPhase3CLIWorkflow:
         
         workflow_steps = [
             # Step 1: Analyze original content quality
-            (["analyze", str(original_file), "--quality"], "Analyze original quality"),
-            
+            (["analyze", "vocab", str(original_file), "--quality"], "Analyze original quality"),
+
             # Step 2: Analyze trip readiness
-            (["analyze", str(original_file), "--trip-readiness"], "Analyze trip readiness"),
+            (["analyze", "vocab", str(original_file), "--trip-readiness"], "Analyze trip readiness"),
             
             # Steps 3-4: recommend and validate commands were removed in CLI cleanup
             # (["recommend", str(original_file), "--strategies", "balanced"], "Get recommendation"),
@@ -422,11 +424,11 @@ class TestPhase3CLIWorkflow:
         
         journey_steps = [
             # Analyze content quality progression
-            (["analyze", str(day1_file), "--quality"], "Analyze day 1 quality"),
-            (["analyze", str(day2_file), "--quality"], "Analyze day 2 quality"),
-            
+            (["analyze", "vocab", str(day1_file), "--quality"], "Analyze day 1 quality"),
+            (["analyze", "vocab", str(day2_file), "--quality"], "Analyze day 2 quality"),
+
             # Check trip readiness
-            (["analyze", str(day2_file), "--trip-readiness"], "Check trip readiness"),
+            (["analyze", "vocab", str(day2_file), "--trip-readiness"], "Check trip readiness"),
             
             # Validate improvement - removed in CLI cleanup
             # (["validate", str(day1_file), str(day2_file), "--strategy", "deeper"], "Validate improvement")

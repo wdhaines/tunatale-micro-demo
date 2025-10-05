@@ -39,7 +39,7 @@ def mock_curriculum():
 @pytest.fixture
 def content_generator():
     """Create a ContentGenerator with mocked dependencies."""
-    with patch('story_generator.SRSTracker') as mock_srs_tracker, \
+    with patch('story_generator.SRSAdapter') as mock_srs_tracker, \
          patch.object(ContentGenerator, '_load_prompt', return_value='test prompt'):
         
         generator = ContentGenerator()
@@ -172,8 +172,8 @@ class TestDeeperStrategyBug:
                 source_day=5
             )
             
-            # Verify SRS was called for review collocations
-            content_generator.srs.get_due_collocations.assert_called_once_with(12, min_items=2, max_items=4)
+            # Verify SRS was called for review collocations (now with filtering - gets extra items)
+            content_generator.srs.get_due_collocations.assert_called_once_with(12, min_items=2, max_items=6)
             
             # Check which method was called and verify parameters
             if mock_enhanced_gen.called:

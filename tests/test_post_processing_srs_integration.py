@@ -82,7 +82,7 @@ kumusta po
     def content_generator(self, mock_llm):
         """Content generator with mocked dependencies."""
         # Need to patch SRSTracker during ContentGenerator construction to avoid data directory issues
-        with patch('story_generator.SRSTracker') as mock_srs_class, \
+        with patch('story_generator.SRSAdapter') as mock_srs_class, \
              patch.object(ContentGenerator, '_load_prompt', return_value="Test prompt: {learning_objective}") as mock_load_prompt:
             mock_srs = MagicMock()
             mock_srs.get_due_collocations.return_value = ["test phrase"]
@@ -414,7 +414,7 @@ class TestPostProcessingOrderValidation:
             'choices': [{'message': {'content': 'test content'}}]
         }
         
-        with patch('story_generator.SRSTracker') as mock_srs_class, \
+        with patch('story_generator.SRSAdapter') as mock_srs_class, \
              patch.object(ContentGenerator, '_load_prompt', return_value="Test prompt: {learning_objective}"):
             mock_srs = MagicMock()
             mock_srs.get_due_collocations.return_value = []

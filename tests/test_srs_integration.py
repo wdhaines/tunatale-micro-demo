@@ -8,7 +8,7 @@ import pytest
 
 from story_generator import ContentGenerator, StoryParams, CEFRLevel
 from curriculum_models import Curriculum, CurriculumDay
-from srs_tracker import SRSTracker
+from srs_adapter import SRSAdapter
 # from collocation_extractor import CollocationExtractor # Removed - using LLM-based extraction
 
 # Sample test data
@@ -118,19 +118,14 @@ def setup_test_environment(tmp_path, mocker):
     mock_extractor.extract_collocations.return_value = ["test collocation"]
     
     # Create a real SRSTracker with the test directory
-    srs_tracker = SRSTracker(data_dir=str(test_data_dir))
+    srs_tracker = SRSAdapter()
     
     # Patch the SRSTracker and CollocationExtractor constructors to return our instances
-    mocker.patch('story_generator.SRSTracker', return_value=srs_tracker)
+    mocker.patch('story_generator.SRSAdapter', return_value=srs_tracker)
     # Note: CollocationExtractor no longer exists - using LLM-based extraction
     
-    # Patch the SRSTracker class to use our test directory
-    original_srs_tracker_init = SRSTracker.__init__
+    # SRSAdapter doesn't need directory patching - uses database backend
     
-    def patched_srs_tracker_init(self, data_dir: str = None, filename: str = 'srs_status.json'):
-        return original_srs_tracker_init(self, data_dir=str(test_data_dir), filename=filename)
-    
-    mocker.patch('srs_tracker.SRSTracker.__init__', patched_srs_tracker_init)
     
     # Store the test_data_dir for use in tests
     mocker.patch('tests.test_srs_integration.test_data_dir', test_data_dir)
@@ -202,7 +197,7 @@ class TestSRSIntegration:
             
             # Initialize ContentGenerator with temp directory and mock dependencies
             content_gen = ContentGenerator()
-            content_gen.srs = SRSTracker(data_dir=temp_dir)
+            content_gen.srs = SRSAdapter(test_mode=True)
             content_gen.llm = mock_llm
             content_gen.collocation_extractor = mock_collocation_extractor
             
@@ -286,7 +281,7 @@ class TestSRSIntegration:
             
             # Initialize ContentGenerator with temp directory and mock dependencies
             content_gen = ContentGenerator()
-            content_gen.srs = SRSTracker(data_dir=temp_dir)
+            content_gen.srs = SRSAdapter(test_mode=True)
             content_gen.llm = mock_llm
             content_gen.collocation_extractor = mock_collocation_extractor
             
@@ -348,45 +343,58 @@ class TestSRSIntegration:
         # Define test collocations
         test_collocations = ["test collocation 1", "test collocation 2"]
         
-        # First, create an SRS instance and add some collocations
-        srs1 = SRSTracker(data_dir=temp_dir)
+        # For persistence testing, use a temporary file instead of in-memory database
+        import tempfile
+        import os
+        temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+        temp_db.close()
         
-        # Add collocations with day=1 to make them due on day 1
-        srs1.add_collocations(test_collocations, day=1)
-        
-        # Get all collocations from the first instance
-        all_collocations = srs1.get_all_collocations()
-        assert len(all_collocations) > 0, "No collocations were added to the tracker"
-        
-        # Get collocations due on day 1 and day 2
-        due_day1 = srs1.get_due_collocations(day=1, max_items=10)
-        due_day2 = srs1.get_due_collocations(day=2, max_items=10)
-        
-        # Save the state
-        srs1._save_state()
-        
-        # Create a new SRS instance which should load the saved state
-        srs2 = SRSTracker(data_dir=temp_dir)
-        
-        # Get all collocations from the second instance
-        loaded_all_collocations = srs2.get_all_collocations()
-        
-        # Get collocations due on day 1 and day 2 from the second instance
-        loaded_due_day1 = srs2.get_due_collocations(day=1, max_items=10)
-        loaded_due_day2 = srs2.get_due_collocations(day=2, max_items=10)
-        
-        # Verify all collocations were persisted
-        assert set(loaded_all_collocations) == set(all_collocations), \
-            f"Collocations don't match. Expected: {all_collocations}, Got: {loaded_all_collocations}"
+        try:
+            # First, create an SRS instance and add some collocations
+            srs1 = SRSAdapter(db_path=temp_db.name)
             
-        # Verify due collocations match for both days
-        assert set(loaded_due_day1) == set(due_day1), \
-            f"Day 1 due collocations don't match. Expected: {due_day1}, Got: {loaded_due_day1}"
+            # Add collocations with day=1 to make them due on day 1
+            srs1.add_collocations(test_collocations, day=1)
             
-        assert set(loaded_due_day2) == set(due_day2), \
-            f"Day 2 due collocations don't match. Expected: {due_day2}, Got: {loaded_due_day2}"
-        
-        # Verify all test collocations exist in the loaded instance
-        for colloc in test_collocations:
-            assert colloc in loaded_all_collocations, \
-                f"Collocation '{colloc}' not found in loaded instance"
+            # Get all collocations from the first instance
+            all_collocations = srs1.get_all_collocations()
+            assert len(all_collocations) > 0, "No collocations were added to the tracker"
+            
+            # Get collocations due on day 1 and day 2
+            due_day1 = srs1.get_due_collocations(day=1, max_items=10)
+            due_day2 = srs1.get_due_collocations(day=2, max_items=10)
+            
+            # Save the state
+            srs1._save_state()
+            
+            # Create a new SRS instance which should load the saved state
+            srs2 = SRSAdapter(db_path=temp_db.name)
+            
+            # Get all collocations from the second instance
+            loaded_all_collocations = srs2.get_all_collocations()
+            
+            # Get collocations due on day 1 and day 2 from the second instance
+            loaded_due_day1 = srs2.get_due_collocations(day=1, max_items=10)
+            loaded_due_day2 = srs2.get_due_collocations(day=2, max_items=10)
+            
+            # Verify all collocations were persisted
+            assert set(loaded_all_collocations) == set(all_collocations), \
+                f"Collocations don't match. Expected: {all_collocations}, Got: {loaded_all_collocations}"
+                
+            # Verify due collocations match for both days
+            assert set(loaded_due_day1) == set(due_day1), \
+                f"Day 1 due collocations don't match. Expected: {due_day1}, Got: {loaded_due_day1}"
+                
+            assert set(loaded_due_day2) == set(due_day2), \
+                f"Day 2 due collocations don't match. Expected: {due_day2}, Got: {loaded_due_day2}"
+            
+            # Verify all test collocations exist in the loaded instance
+            for colloc in test_collocations:
+                assert colloc in loaded_all_collocations, \
+                    f"Collocation '{colloc}' not found in loaded instance"
+        finally:
+            # Clean up temporary database file
+            try:
+                os.unlink(temp_db.name)
+            except FileNotFoundError:
+                pass

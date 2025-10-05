@@ -384,10 +384,10 @@ class TestStrategyIntegration:
     def test_strategy_srs_integration(self, tmp_path):
         """Test that strategy framework integrates properly with SRS."""
         # Import here to avoid circular imports during test collection
-        from srs_tracker import SRSTracker
+        from srs_adapter import SRSAdapter
         
         # Create test SRS tracker
-        srs_tracker = SRSTracker(data_dir=str(tmp_path), filename='strategy_test.json')
+        srs_tracker = SRSAdapter()
         
         # Add some existing collocations with different mastery levels
         basic_collocations = ["kumusta po", "salamat po"] 

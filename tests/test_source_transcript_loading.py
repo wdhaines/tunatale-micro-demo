@@ -123,7 +123,7 @@ class TestSourceTranscriptLoading:
             return "Mock prompt"
         
         with patch.object(ContentGenerator, '_load_prompt', side_effect=mock_load_prompt):
-            with patch('story_generator.SRSTracker'):  # Mock SRS to avoid test data issues
+            with patch('story_generator.SRSAdapter'):  # Mock SRS to avoid test data issues
                 generator = ContentGenerator()
             
         assert hasattr(generator, 'story_prompt_deeper')

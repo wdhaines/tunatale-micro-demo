@@ -27,7 +27,7 @@ def test_cli_help() -> None:
     assert "optional arguments:" in output or "options:" in output
     assert "use <command> -h for help" in output
     
-    # Test help for the generate command
+    # Test help for the generate command (now has subcommands)
     result = subprocess.run(
         [sys.executable, "main.py", "generate", "--help"],
         capture_output=True,
@@ -36,25 +36,42 @@ def test_cli_help() -> None:
     assert result.returncode == 0
     generate_help = result.stdout
     assert "usage: main.py generate" in generate_help
-    assert "positional arguments:" in generate_help or "arguments:" in generate_help
-    assert "goal" in generate_help
-    assert "optional arguments:" in generate_help or "options:" in generate_help
+    assert "curriculum" in generate_help
+    assert "day" in generate_help
+
+    # Test help for generate curriculum subcommand
+    result = subprocess.run(
+        [sys.executable, "main.py", "generate", "curriculum", "--help"],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    curriculum_help = result.stdout
+    assert "goal" in curriculum_help
 
 
 def test_cli_generate_command_required_params() -> None:
     """Test that generate command shows help text when required parameters are missing."""
-    # Test with no arguments
+    # Test with no subcommand (should show error or help)
     result = subprocess.run(
         [sys.executable, "main.py", "generate"],
         capture_output=True,
         text=True
     )
+    assert result.returncode in [1, 2]  # Error for missing subcommand
+
+    # Test curriculum subcommand with no goal
+    result = subprocess.run(
+        [sys.executable, "main.py", "generate", "curriculum"],
+        capture_output=True,
+        text=True
+    )
     assert result.returncode == 2  # Missing required argument: goal
     assert "the following arguments are required: goal" in result.stderr.lower()
-    
+
     # Test with invalid CEFR level
     result = subprocess.run(
-        [sys.executable, "main.py", "generate", "test goal", "--cefr-level", "INVALID"],
+        [sys.executable, "main.py", "generate", "curriculum", "test goal", "--cefr-level", "INVALID"],
         capture_output=True,
         text=True
     )
@@ -65,11 +82,11 @@ def test_cli_generate_command_required_params() -> None:
 def test_cli_invalid_cefr_level() -> None:
     """Test that invalid CEFR level is caught by CLI."""
     result = subprocess.run(
-        [sys.executable, "main.py", "generate", "test goal", "--cefr-level", "INVALID"],
+        [sys.executable, "main.py", "generate", "curriculum", "test goal", "--cefr-level", "INVALID"],
         capture_output=True,
         text=True
     )
-    
+
     # Should fail with invalid choice error
     assert result.returncode == 2
     error_text = result.stderr.lower()

@@ -47,9 +47,9 @@ class TestCLISmoke:
             assert result.returncode in [0, 1], f"{' '.join(cmd)} crashed with code {result.returncode}"
     
     def test_analyze_with_text(self):
-        """Test analyze command with simple text input."""
+        """Test analyze vocab command with simple text input."""
         result = self.run_cli([
-            "analyze", "This is a simple test text for analysis"
+            "analyze", "vocab", "This is a simple test text for analysis"
         ])
         assert result.returncode == 0, "Analyze with text failed"
         assert "VOCABULARY ANALYSIS" in result.stdout
@@ -70,7 +70,7 @@ class TestCLISmoke:
         
         # Test analyze with nonexistent file - this actually succeeds because it treats it as text
         # but we can verify it produces minimal output
-        result = self.run_cli(["analyze", "/nonexistent/file.txt"], timeout=10)
+        result = self.run_cli(["analyze", "vocab", "/nonexistent/file.txt"], timeout=10)
         assert result.returncode == 0  # This succeeds but analyzes as text
         assert "Total words:                                     0" in result.stdout
     
@@ -82,7 +82,7 @@ class TestCLISmoke:
         
         # Test that generate command accepts valid arguments (without actually running generation)
         result = self.run_cli([
-            "generate", "--help"
+            "generate", "curriculum", "--help"
         ], timeout=10)
         assert result.returncode == 0
         assert "goal" in result.stdout
