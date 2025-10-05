@@ -46,7 +46,7 @@ class TestGenerateCommand:
     @pytest.fixture
     def mock_curriculum(self):
         """Create a mock curriculum generator with default settings."""
-        with patch('main.CurriculumGenerator') as mock_gen:
+        with patch('cli.generation_commands.CurriculumGenerator') as mock_gen:
             mock_instance = mock_gen.return_value
             # Create a more realistic curriculum response
             curriculum_data = {
@@ -83,7 +83,7 @@ class TestGenerateCommand:
         }
         
         # Run the command with default parameters
-        with patch('sys.argv', ['main.py', 'generate', 'Learn Spanish']), \
+        with patch('sys.argv', ['main.py', 'generate', 'curriculum', 'Learn Spanish']), \
              patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             result = CLI().run()
             
@@ -116,7 +116,7 @@ class TestGenerateCommand:
         mock_exit.side_effect = SystemExit(2)
         
         with patch('sys.argv', [
-            'main.py', 'generate', 'Learn Spanish',
+            'main.py', 'generate', 'curriculum', 'Learn Spanish',
             '--cefr-level', 'X1'  # Invalid level
         ]):
             with pytest.raises(SystemExit) as exc_info:
@@ -132,7 +132,7 @@ class TestGenerateCommand:
         mock_curriculum.generate_curriculum.side_effect = ValueError("Number of days must be between 1 and 365")
         
         with patch('sys.argv', [
-            'main.py', 'generate', 'Learn Spanish',
+            'main.py', 'generate', 'curriculum', 'Learn Spanish',
             '--days', '0'  # Invalid number of days
         ]), patch('pathlib.Path.exists', return_value=False):
             result = CLI().run()
@@ -166,9 +166,9 @@ class TestGenerateCommand:
             return mock_output_file
         
         # Mock the CurriculumGenerator class and file operations
-        with patch('main.CurriculumGenerator', return_value=mock_curriculum), \
+        with patch('cli.generation_commands.CurriculumGenerator', return_value=mock_curriculum), \
              patch('sys.argv', [
-                 'main.py', 'generate', 'Learn Spanish',
+                 'main.py', 'generate', 'curriculum', 'Learn Spanish',
                  '--transcript', 'nonexistent.txt',
                  '--output', 'test_output.json'  # Explicit output file
              ]), \
@@ -204,7 +204,7 @@ class TestGenerateCommand:
     @patch('sys.stderr', new_callable=io.StringIO)
     def test_generate_validation_error(self, mock_stderr):
         """Test handling of validation errors during generation."""
-        with patch('sys.argv', ['main.py', 'generate', '']), \
+        with patch('sys.argv', ['main.py', 'generate', 'curriculum', '']), \
              patch('pathlib.Path.exists', return_value=False), \
              patch('pathlib.Path.mkdir'):
             result = CLI().run()
@@ -225,7 +225,7 @@ class TestGenerateCommand:
         }
         
         with patch('sys.argv', [
-            'main.py', 'generate', 'Test Goal',
+            'main.py', 'generate', 'curriculum', 'Test Goal',
             '--output', str(output_path)
         ]), patch('pathlib.Path.mkdir'):
             result = CLI().run()
@@ -248,22 +248,22 @@ class TestViewCommand:
     
     @patch('builtins.open', new_callable=mock_open, read_data=json.dumps(SAMPLE_CURRICULUM))
     @patch('sys.stdout', new_callable=io.StringIO)
-    @patch('main.CLI._view_curriculum', return_value=0)
+    @patch('cli.view_commands.view_curriculum', return_value=0)
     def test_view_curriculum(self, mock_view, mock_stdout, mock_file):
         """Test viewing an existing curriculum."""
         with patch('sys.argv', ['main.py', 'view', 'curriculum']):
             result = CLI().run()
-            
+
         assert result == 0
         mock_view.assert_called_once()
 
     @patch('sys.stderr', new_callable=io.StringIO)
-    @patch('main.CLI._view_curriculum', side_effect=FileNotFoundError("Curriculum not found"))
+    @patch('cli.view_commands.view_curriculum', side_effect=FileNotFoundError("Curriculum not found"))
     def test_view_missing_curriculum(self, mock_view, mock_stderr):
         """Test viewing a non-existent curriculum."""
         with patch('sys.argv', ['main.py', 'view', 'curriculum']):
             result = CLI().run()
-            
+
         assert result == 1
         error_output = mock_stderr.getvalue()
         assert "Curriculum not found" in error_output
@@ -292,7 +292,7 @@ class TestErrorHandling:
         
         # Mock the prompt to avoid hanging in tests
         with patch('builtins.input', return_value='y'), \
-             patch('sys.argv', ['main.py', 'generate', 'test goal']), \
+             patch('sys.argv', ['main.py', 'generate', 'curriculum', 'test goal']), \
              patch('pathlib.Path.exists', return_value=False), \
              patch('pathlib.Path.mkdir'), \
              patch('builtins.open', side_effect=PermissionError("Permission denied")):
@@ -311,7 +311,7 @@ class TestErrorHandling:
     @patch('sys.stdout', new_callable=io.StringIO)
     def test_keyboard_interrupt(self, mock_stdout, mock_stderr, mock_handler):
         """Test handling of keyboard interrupt."""
-        with patch('sys.argv', ['main.py', 'generate', 'test_goal']):
+        with patch('sys.argv', ['main.py', 'generate', 'curriculum', 'test_goal']):
             # The KeyboardInterrupt should be caught by the CLI and return 1
             result = CLI().run()
             
