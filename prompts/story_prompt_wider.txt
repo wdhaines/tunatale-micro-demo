@@ -44,13 +44,14 @@
 - Maintain the SAME language complexity level as Day {source_day}
 
 **Key Phrases Strategy:**
-- PRIORITIZE review collocations from Day {source_day}
-- Focus on reinforcing learned patterns in new contexts
+- Generate NEW collocations at the same difficulty level as Day {source_day}
+- Focus on fresh vocabulary that fits the expanded scenarios
+- Only use review collocations from Day {source_day} sparingly (maximum 1-2 per lesson)
 
 **WIDER Content Focus:**
 - Natural Speed section should be the main immersion content
-- Use Key Phrases to reinforce Day {source_day} vocabulary in new scenarios
-- NEW scenarios using familiar language patterns from Day {source_day}
+- Create NEW Key Phrases that expand vocabulary at the same difficulty level
+- NEW scenarios using similar grammatical patterns but fresh vocabulary
 
 **Collocation Marking (for reference only - not used in output):**
 - Mark new collocations with **double asterisks** like this: **new collocation**
@@ -64,7 +65,7 @@ Generate a structured language learning lesson that uses familiar vocabulary fro
 1. Start with: [NARRATOR]: Day {phase}: {focus} – New Scenarios
 2. Add a blank line, then "Key Phrases:"
 3. For each key phrase/collocation (maximum 5 for WIDER strategy):
-   - [TAGALOG-FEMALE-1]: [phrase in target language, prioritizing review from Day {source_day}]
+   - [TAGALOG-FEMALE-1]: [NEW phrase in target language at same difficulty as Day {source_day}]
    - [NARRATOR]: [English translation]
    - [TAGALOG-FEMALE-1]: [phrase again]
    - [breakdowns will be added by post-processing]
@@ -90,7 +91,8 @@ Generate a structured language learning lesson that uses familiar vocabulary fro
    - [NARRATOR]: [English translation]
 
 **Content Guidelines:**
-- Incorporate ALL provided review collocations naturally
+- Focus on generating NEW vocabulary while maintaining complexity level
+- Use provided review collocations sparingly (maximum 1-2 items)
 - Use mostly dialogue (80%+)
 - Keep scenes realistic and engaging in NEW contexts
 - Use appropriate voice assignments matching character gender
@@ -107,8 +109,8 @@ Generate a structured language learning lesson that uses familiar vocabulary fro
 **Day {source_day} Context:** Hotel check-in  
 **WIDER Expansion:** Renting motorbike, booking island tour, asking about transportation
 
-**Day {source_day} Vocabulary:** "Magkano po?" "Salamat po" "Saan po?"
-**WIDER Application:** Use same phrases in market, pharmacy, tourist information
+**Day {source_day} Complexity Level:** Basic polite phrases and questions
+**WIDER Application:** Generate new phrases at same complexity level for different contexts (market: "Ano po ang price?", pharmacy: "Meron po ba?", tourist info: "Saan po located?")
 
 **EXAMPLE OUTPUT FORMAT:**
 
@@ -116,32 +118,13 @@ Generate a structured language learning lesson that uses familiar vocabulary fro
 
 Key Phrases:
 
-[TAGALOG-FEMALE-1]: magkano po ito
-[NARRATOR]: how much is this
-[TAGALOG-FEMALE-1]: magkano po ito
-ito
-po ito
-po
-kano
-mag
-magkano
-magkano po
-magkano po ito
+[TAGALOG-FEMALE-1]: ano po ang specialty
+[NARRATOR]: what is the specialty
+[TAGALOG-FEMALE-1]: ano po ang specialty
 
-[TAGALOG-FEMALE-1]: pwede po bang tawad
-[NARRATOR]: can you give a discount
-[TAGALOG-FEMALE-1]: pwede po bang tawad
-tawad
-ang tawad
-bang tawad
-po bang
-po bang tawad
-de
-pwe
-pwede
-pwede po
-pwede po bang
-pwede po bang tawad
+[TAGALOG-FEMALE-1]: fresh po ba ito
+[NARRATOR]: is this fresh
+[TAGALOG-FEMALE-1]: fresh po ba ito
 
 [NARRATOR]: Natural Speed
 
