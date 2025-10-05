@@ -10,19 +10,23 @@ from enum import Enum
 import config
 
 from llm_mock import MockLLM
-from srs_tracker import SRSTracker
+from srs_adapter import SRSAdapter
 # from collocation_extractor import CollocationExtractor  # Removed - using LLM-based extraction
 from curriculum_models import Curriculum, CurriculumDay
+from language_detector import LanguageDetector
 from content_strategy import (
-    ContentStrategy, 
-    DifficultyLevel, 
+    ContentStrategy,
+    DifficultyLevel,
     EnhancedStoryParams,
-    get_strategy_config
+    get_strategy_config,
+    PedagogicalScoringConfig,
+    DEFAULT_SCORING_CONFIG
 )
 from prompt_generator import DayPromptGenerator, create_prompt_generator
 from mock_srs import MockSRS, create_mock_srs, LessonVocabularyReport
 from srs_enforcer import SRSEnforcer
 from srs_database import SRSDatabase
+
 
 class CEFRLevel(str, Enum):
     A1 = "A1"
@@ -92,6 +96,9 @@ class ContentGenerator:
     def __init__(self):
         self.llm = MockLLM()
         
+        # Initialize language detector for English filtering
+        self.language_detector = LanguageDetector()
+        
         # Initialize collocation extractor for backward compatibility
         from story_collocation_extractor import StoryCollocationExtractor
         self.collocation_extractor = StoryCollocationExtractor()
@@ -127,8 +134,8 @@ class ContentGenerator:
             self.prompt_generator = None
             self.mock_srs = None
         
-        # Legacy SRS (for existing functionality)
-        self.srs = SRSTracker()
+        # SRS system using database backend
+        self.srs = SRSAdapter()
     
     def _load_prompt(self, filename: str) -> str:
         """Load prompt from file or use default if not found."""
@@ -811,7 +818,10 @@ class ContentGenerator:
                 return None
             
             # Get due collocations from SRS (3-5 collocations)
-            review_collocations = self.srs.get_due_collocations(day, min_items=3, max_items=5)
+            raw_review_collocations = self.srs.get_due_collocations(day, min_items=3, max_items=8)  # Get extra to allow for filtering
+            
+            # Filter out English content from review collocations
+            review_collocations = self._filter_quality_collocations(raw_review_collocations, max_count=5)
             
             # Log the collocations being used
             logging.info(f"\n--- Story Generation ---")
@@ -1027,7 +1037,8 @@ class ContentGenerator:
         enhanced_phrases = self._enhance_phrases_for_deeper(source_data.presentation_phrases)
         
         # Get review collocations from SRS
-        review_collocations = self.srs.get_due_collocations(target_day, min_items=2, max_items=4)
+        raw_review_collocations = self.srs.get_due_collocations(target_day, min_items=2, max_items=6)  # Get extra to allow for filtering
+        review_collocations = self._filter_quality_collocations(raw_review_collocations, max_count=4)
         
         # Create enhanced story guidance for deeper Filipino
         deeper_guidance = f"{source_data.story_guidance}. DEEPER STRATEGY: Use more authentic Filipino expressions, reduce English, include cultural context and native speech patterns."
@@ -1094,7 +1105,8 @@ class ContentGenerator:
         wider_collocations = self._generate_progressive_collocations(curriculum_analysis, target_day)
         
         # Get review collocations from SRS
-        review_collocations = self.srs.get_due_collocations(target_day, min_items=4, max_items=6)
+        raw_review_collocations = self.srs.get_due_collocations(target_day, min_items=4, max_items=8)  # Get extra to allow for filtering
+        review_collocations = self._filter_quality_collocations(raw_review_collocations, max_count=6)
         
         # Create learning objective based on curriculum progression
         learning_objective = f"Day {target_day}: {new_focus} - Building on curriculum foundation"
@@ -1199,24 +1211,362 @@ class ContentGenerator:
         return scenario_extensions[scenario_index]
     
     def _generate_progressive_collocations(self, curriculum_analysis: Dict[str, Any], target_day: int) -> List[str]:
-        """Generate collocations appropriate for target day difficulty progression."""
-        base_collocations = [
-            "salamat po", "kumusta po", "magkano po", "puwede po ba",
-            "sarap naman", "ganda talaga", "saan po", "paano po"
-        ]
-        
-        # Add complexity based on target day
-        if target_day > 10:
-            # More advanced collocations for later days
-            advanced_collocations = [
-                "nakakamangha talaga", "sulit na sulit", "hindi ko inexpect",
-                "masaya naman dito", "sobrang ganda", "worth it ba"
+        """Generate collocations using pedagogical scoring system."""
+        try:
+            # Get WIDER strategy configuration
+            from content_strategy import ContentStrategy, get_strategy_config
+            config = get_strategy_config(ContentStrategy.WIDER)
+            max_new = config.max_new_collocations
+            
+            # Get scoring configuration
+            scoring_config = DEFAULT_SCORING_CONFIG
+            
+            # Get all collocations from SRS with their stability info
+            all_collocations_dict = self.srs.collocations  # Returns Dict[str, CollocationStatus]
+            
+            # Convert to list and shuffle to break alphabetical ordering
+            import random
+            collocation_items = list(all_collocations_dict.items())
+            random.shuffle(collocation_items)
+            
+            # Score all candidate collocations
+            scored_collocations = []
+            previously_selected = []  # Track for diversity scoring
+            
+            for text, status in collocation_items:
+                # Calculate pedagogical score
+                scores = self._calculate_pedagogical_score(
+                    text, status, target_day, previously_selected, scoring_config
+                )
+                
+                scored_collocations.append({
+                    'text': text,
+                    'total_score': scores['total'],
+                    'scores': scores
+                })
+            
+            # Sort by total score (highest first)
+            scored_collocations.sort(key=lambda x: x['total_score'], reverse=True)
+            
+            # Select top-scoring collocations with diversity tracking
+            selected_collocations = []
+            for item in scored_collocations:
+                if len(selected_collocations) >= max_new:
+                    break
+                    
+                text = item['text']
+                # Re-calculate diversity score with current selection
+                diversity_score = self._calculate_diversity_score(text, selected_collocations, scoring_config)
+                
+                # Only add if diversity score is reasonable (not too similar to already selected)
+                if diversity_score > 0.2 or len(selected_collocations) < max_new // 2:
+                    # Clean punctuation before adding
+                    clean_text = self._clean_collocation_punctuation(text)
+                    selected_collocations.append(clean_text)
+            
+            # If we still don't have enough, add progressive fallbacks
+            if len(selected_collocations) < max_new:
+                fallback_collocations = self._get_fallback_collocations(target_day)
+                
+                for colloc in fallback_collocations:
+                    if colloc not in selected_collocations and len(selected_collocations) < max_new:
+                        # Check if this isn't already well-learned
+                        if colloc in all_collocations_dict:
+                            status = all_collocations_dict[colloc]
+                            if status.stability >= 2.0 and status.review_count >= 3:
+                                continue  # Skip well-learned items
+                        # Clean punctuation before adding fallback
+                        clean_colloc = self._clean_collocation_punctuation(colloc)
+                        selected_collocations.append(clean_colloc)
+            
+            # Log scoring details for tuning
+            if selected_collocations:
+                self._log_scoring_details(scored_collocations[:max_new], target_day)
+            
+            logging.debug(f"Selected {len(selected_collocations)} scored collocations for day {target_day}: {selected_collocations}")
+            return selected_collocations
+            
+        except Exception as e:
+            logging.warning(f"Failed to generate scored collocations, using fallback: {e}")
+            return self._get_fallback_collocations(target_day)[:8]
+    
+    def _get_fallback_collocations(self, target_day: int) -> List[str]:
+        """Get fallback collocations when scoring system fails."""
+        if target_day > 15:
+            return [
+                "nakakamangha talaga", "sulit na sulit", "hindi ko inexpected",
+                "masaya naman dito", "sobrang ganda", "worth it ba",
+                "mahal na mahal", "sobrang sarap", "grabe naman ito"
             ]
-            # Replace some basic ones with advanced ones for higher days
-            result = base_collocations[:5] + advanced_collocations[:3]
-            return result
+        elif target_day > 10:
+            return [
+                "masarap talaga", "ganda naman", "sobrang sulit",
+                "hindi ko alam", "parang ganito", "sige na nga",
+                "grabe naman", "hindi pa tapos"
+            ]
+        else:
+            return [
+                "salamat po", "kumusta po", "magkano po", "puwede po ba",
+                "sarap naman", "ganda talaga", "saan po", "paano po"
+            ]
+    
+    def _log_scoring_details(self, top_scored: List[Dict], target_day: int) -> None:
+        """Log detailed scoring information for tuning purposes."""
+        logging.debug(f"\n--- Pedagogical Scoring Details for Day {target_day} ---")
+        for i, item in enumerate(top_scored[:5]):  # Log top 5
+            text = item['text']
+            scores = item['scores']
+            logging.debug(f"{i+1}. '{text}' (total: {scores['total']:.3f})")
+            logging.debug(f"   SRS: {scores['srs_readiness']:.3f}, "
+                         f"Language: {scores['language_quality']:.3f}, "
+                         f"Pedagogical: {scores['pedagogical_value']:.3f}, "
+                         f"Diversity: {scores['diversity']:.3f}")
+        logging.debug("--- End Scoring Details ---\n")
+    
+    def _calculate_pedagogical_score(self, text: str, status: 'CollocationStatus', 
+                                   target_day: int, previously_selected: List[str],
+                                   config: PedagogicalScoringConfig = None) -> Dict[str, float]:
+        """
+        Calculate comprehensive pedagogical score for a collocation.
         
-        return base_collocations[:8]  # Limit to reasonable number
+        Args:
+            text: The collocation text
+            status: SRS status information
+            target_day: Current target day
+            previously_selected: Already selected collocations (for diversity)
+            config: Scoring configuration
+            
+        Returns:
+            Dictionary with component scores and total score
+        """
+        if config is None:
+            config = DEFAULT_SCORING_CONFIG
+            
+        # Calculate individual component scores
+        srs_score = self._calculate_srs_readiness_score(status, target_day, config)
+        language_score = self._calculate_language_quality_score(text, config)
+        pedagogical_score = self._calculate_pedagogical_value_score(text, status, config)
+        diversity_score = self._calculate_diversity_score(text, previously_selected, config)
+        
+        # Calculate weighted total
+        total_score = (
+            srs_score * config.srs_readiness_weight +
+            language_score * config.language_quality_weight +
+            pedagogical_score * config.pedagogical_value_weight +
+            diversity_score * config.diversity_weight
+        )
+        
+        return {
+            'srs_readiness': srs_score,
+            'language_quality': language_score,
+            'pedagogical_value': pedagogical_score,
+            'diversity': diversity_score,
+            'total': total_score
+        }
+    
+    def _calculate_srs_readiness_score(self, status: 'CollocationStatus', target_day: int, 
+                                     config: PedagogicalScoringConfig) -> float:
+        """Calculate SRS readiness score (0.0 to 1.0)."""
+        score = 0.5  # Base score
+        
+        # Bonus for low stability (still learning)
+        if status.stability < 2.0:
+            score += config.low_stability_bonus
+        else:
+            score -= 0.2  # Penalty for high stability (already learned)
+            
+        # Bonus for being overdue for review
+        days_overdue = target_day - status.next_review_day
+        if days_overdue > 0:
+            score += min(config.review_overdue_bonus * days_overdue, 0.3)
+            
+        # Slight penalty for items with many reviews (likely well-known)
+        if status.review_count >= 3:
+            score -= 0.1
+            
+        return max(0.0, min(1.0, score))
+    
+    def _clean_collocation_punctuation(self, text: str) -> str:
+        """Clean punctuation from collocation while preserving meaningful content."""
+        if not text or not text.strip():
+            return text
+            
+        # Split on sentence-ending punctuation and take the first meaningful part
+        import re
+        
+        # Split on sentence endings: . ! ... but preserve ?
+        sentences = re.split(r'[.!]+(?:\s*\.\.\.)?', text)
+        
+        if sentences:
+            # Take the first sentence and clean it
+            cleaned = sentences[0].strip()
+            
+            # Remove leading/trailing punctuation except meaningful ones like ?
+            cleaned = re.sub(r'^[^\w\s?]+|[^\w\s?]+$', '', cleaned)
+            
+            # Clean up multiple spaces
+            cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+            
+            # Return the cleaned text or original if cleaning made it empty
+            return cleaned if cleaned and len(cleaned) > 1 else text
+        
+        return text
+    
+    def _filter_quality_collocations(self, collocations: List[str], max_count: int = 5) -> List[str]:
+        """Filter collocations to remove English content and clean punctuation."""
+        filtered = []
+        
+        for collocation in collocations:
+            if len(filtered) >= max_count:
+                break
+                
+            # Clean punctuation first
+            clean_collocation = self._clean_collocation_punctuation(collocation)
+            
+            # Check language quality using same logic as pedagogical scoring
+            words = clean_collocation.lower().split()
+            english_count = 0
+            
+            for word in words:
+                clean_word = word.strip('.,!?;:"\'()-[]{}')
+                if not clean_word:
+                    continue
+                    
+                # Use LanguageDetector for accurate classification
+                if self.language_detector.is_english_word(clean_word):
+                    # Check if it's also a valid Tagalog word (priority to Tagalog)
+                    if not self.language_detector.is_tagalog_word(clean_word):
+                        english_count += 1
+            
+            # Only include if it's pure Tagalog (no English words)
+            if english_count == 0 and clean_collocation.strip():
+                filtered.append(clean_collocation)
+        
+        return filtered
+    
+    def _calculate_language_quality_score(self, text: str, config: PedagogicalScoringConfig) -> float:
+        """Calculate language quality score based on Filipino authenticity."""
+        score = 0.5  # Base score
+        words = text.lower().split()
+        
+        # Count English words using dictionary-based detection
+        english_words = 0
+        tagalog_words = 0
+        for word in words:
+            # Clean word of punctuation for dictionary lookup
+            clean_word = word.strip('.,!?;:"\'()-[]{}')
+            if not clean_word:
+                continue
+                
+            # Use LanguageDetector for accurate classification
+            if self.language_detector.is_english_word(clean_word):
+                # Check if it's also a valid Tagalog word (priority to Tagalog)
+                if not self.language_detector.is_tagalog_word(clean_word):
+                    english_words += 1
+            elif self.language_detector.is_tagalog_word(clean_word) or self.language_detector.is_filipino_particle(clean_word):
+                tagalog_words += 1
+                
+        # Apply English word penalty (now stronger)
+        score += english_words * config.english_word_penalty
+        
+        # Apply Tagalog word bonus
+        score += tagalog_words * config.tagalog_word_bonus
+        
+        # Penalty for digits/numbers
+        if any(char.isdigit() for char in text):
+            score += config.digit_penalty
+            
+        # Check if it's pure Tagalog (no English words)
+        if english_words == 0 and tagalog_words > 0:
+            score += config.pure_tagalog_bonus
+            
+        # Legacy check for additional Tagalog indicators (keeping for completeness)
+        tagalog_indicators = ['po', 'opo', 'naman', 'talaga', 'sobrang', 'hindi', 'ako', 'ka', 'mo']
+        if any(indicator in text.lower() for indicator in tagalog_indicators):
+            score += config.pure_tagalog_bonus
+            
+        return max(0.0, min(1.0, score))
+    
+    def _calculate_pedagogical_value_score(self, text: str, status: 'CollocationStatus', 
+                                         config: PedagogicalScoringConfig) -> float:
+        """Calculate pedagogical value based on usefulness and completeness."""
+        score = 0.3  # Base score
+        
+        # Frequency bonus (more appearances = more useful)
+        appearances_count = len(status.appearances) if status.appearances else 1
+        if appearances_count >= config.min_frequency_threshold:
+            bonus = (appearances_count - config.min_frequency_threshold) * config.frequency_bonus_multiplier
+            score += min(bonus, 0.3)  # Cap bonus
+            
+        # Completeness bonus for meaningful phrases
+        words = text.split()
+        if len(words) >= 2 and len(text) >= 5:  # At least 2 words and 5 characters
+            score += config.completeness_bonus
+            
+        # Practical utility bonus for common conversational patterns
+        practical_patterns = [
+            'po ba', 'naman', 'talaga', 'hindi ko', 'puwede po', 'salamat',
+            'kumusta', 'magkano', 'saan', 'paano', 'ano ang', 'may'
+        ]
+        if any(pattern in text.lower() for pattern in practical_patterns):
+            score += 0.15
+            
+        return max(0.0, min(1.0, score))
+    
+    def _calculate_diversity_score(self, text: str, previously_selected: List[str], 
+                                 config: PedagogicalScoringConfig) -> float:
+        """Calculate diversity score to avoid semantic clustering."""
+        score = 0.5  # Base score
+        
+        # Check for similarity with previously selected items
+        for selected in previously_selected:
+            similarity = self._calculate_semantic_similarity(text, selected)
+            if similarity > 0.5:  # High similarity threshold
+                score += config.similarity_penalty
+                
+        # Bonus for different semantic categories
+        text_category = self._get_semantic_category(text)
+        selected_categories = [self._get_semantic_category(item) for item in previously_selected]
+        
+        if text_category not in selected_categories:
+            score += config.category_diversity_bonus
+            
+        return max(0.0, min(1.0, score))
+    
+    def _calculate_semantic_similarity(self, text1: str, text2: str) -> float:
+        """Simple semantic similarity based on shared words."""
+        words1 = set(text1.lower().split())
+        words2 = set(text2.lower().split())
+        
+        if not words1 or not words2:
+            return 0.0
+            
+        intersection = words1.intersection(words2)
+        union = words1.union(words2)
+        
+        return len(intersection) / len(union) if union else 0.0
+    
+    def _get_semantic_category(self, text: str) -> str:
+        """Categorize collocation by semantic domain."""
+        text_lower = text.lower()
+        
+        # Time-related
+        if any(word in text_lower for word in ['oras', 'minuto', 'araw', 'linggo', 'buwan', 'taon', 'time', 'minutes', 'hours']):
+            return 'time'
+        # Greetings/politeness
+        elif any(word in text_lower for word in ['kumusta', 'salamat', 'pakisuyo', 'paumanhin', 'pasensya']):
+            return 'greetings'
+        # Questions
+        elif any(word in text_lower for word in ['ano', 'sino', 'saan', 'kailan', 'paano', 'bakit', 'magkano']):
+            return 'questions'
+        # Emotions/reactions
+        elif any(word in text_lower for word in ['masaya', 'malungkot', 'galit', 'takot', 'gulat', 'wow', 'grabe']):
+            return 'emotions'
+        # Actions
+        elif any(word in text_lower for word in ['pumunta', 'kumain', 'uminom', 'matulog', 'gumising', 'mag']):
+            return 'actions'
+        else:
+            return 'general'
     
     def _enhance_collocations_for_deeper(self, base_collocations: List[str]) -> List[str]:
         """Enhance collocations for DEEPER strategy - more authentic Filipino."""

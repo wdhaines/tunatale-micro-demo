@@ -18,16 +18,32 @@ class SRSDatabase:
         """Initialize the SRS database.
         
         Args:
-            db_path: Path to the SQLite database file
+            db_path: Path to the SQLite database file or ":memory:" for in-memory database
         """
-        self.db_path = Path(db_path)
-        self._connection = None
-        
-        # Ensure the directory exists
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        if db_path == ":memory:":
+            # Keep as string for in-memory database
+            self.db_path = db_path
+            # For in-memory databases, maintain a persistent connection
+            self._connection = sqlite3.connect(self.db_path)
+            self._connection.row_factory = sqlite3.Row
+            # Enable foreign key support
+            self._connection.execute("PRAGMA foreign_keys = ON")
+        else:
+            # Use Path object for file-based database
+            self.db_path = Path(db_path)
+            # Ensure the directory exists
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            self._connection = None
         
         # Initialize database schema
         self.init_database()
+    
+    def _get_connection(self):
+        """Get appropriate database connection (persistent for in-memory, temporary for file)."""
+        if self._connection:
+            return self._connection
+        else:
+            return sqlite3.connect(self.db_path)
     
     def __enter__(self):
         """Context manager entry."""
@@ -43,64 +59,73 @@ class SRSDatabase:
     
     def init_database(self):
         """Create database tables if they don't exist."""
-        with sqlite3.connect(self.db_path) as conn:
-            # Enable foreign key support
-            conn.execute("PRAGMA foreign_keys = ON")
-            
-            # Create collocations table matching existing JSON structure
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS collocations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    text TEXT UNIQUE NOT NULL,
-                    
-                    -- Core SRS tracking (from existing JSON)
-                    first_seen_day INTEGER NOT NULL,
-                    last_seen_day INTEGER NOT NULL,
-                    appearances TEXT NOT NULL,  -- JSON array of days
-                    review_count INTEGER NOT NULL DEFAULT 0,
-                    next_review_day INTEGER NOT NULL DEFAULT 0,
-                    stability REAL NOT NULL DEFAULT 1.0,
-                    
-                    -- Metadata
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            # Create index on text for fast lookups
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_collocations_text 
-                ON collocations(text)
-            """)
-            
-            # Create index on review scheduling
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_collocations_review 
-                ON collocations(next_review_day, review_count)
-            """)
-            
-            # Add frequency tracking columns if they don't exist (migration)
-            self._add_frequency_tracking_columns(conn)
-            
-            # Create violations table for tracking constraint enforcement
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS srs_violations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    day INTEGER NOT NULL,
-                    english_text TEXT NOT NULL,
-                    known_filipino TEXT NOT NULL,
-                    violation_type TEXT DEFAULT 'constraint_enforcement',
-                    was_replaced BOOLEAN DEFAULT 1,
-                    context TEXT DEFAULT 'story',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            # Create index on violations for reporting
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_violations_day 
-                ON srs_violations(day, created_at)
-            """)
+        if self._connection:
+            # Use persistent connection for in-memory databases
+            conn = self._connection
+            self._create_tables(conn)
+        else:
+            # Use temporary connection for file-based databases
+            with sqlite3.connect(self.db_path) as conn:
+                # Enable foreign key support
+                conn.execute("PRAGMA foreign_keys = ON")
+                self._create_tables(conn)
+    
+    def _create_tables(self, conn):
+        """Create database tables in the given connection."""
+        # Create collocations table matching existing JSON structure
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS collocations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                text TEXT UNIQUE NOT NULL,
+                
+                -- Core SRS tracking (from existing JSON)
+                first_seen_day INTEGER NOT NULL,
+                last_seen_day INTEGER NOT NULL,
+                appearances TEXT NOT NULL,  -- JSON array of days
+                review_count INTEGER NOT NULL DEFAULT 0,
+                next_review_day INTEGER NOT NULL DEFAULT 0,
+                stability REAL NOT NULL DEFAULT 1.0,
+                
+                -- Metadata
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Create index on text for fast lookups
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_collocations_text 
+            ON collocations(text)
+        """)
+        
+        # Create index on review scheduling
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_collocations_review 
+            ON collocations(next_review_day, review_count)
+        """)
+        
+        # Add frequency tracking columns if they don't exist (migration)
+        self._add_frequency_tracking_columns(conn)
+        
+        # Create violations table for tracking constraint enforcement
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS srs_violations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                day INTEGER NOT NULL,
+                english_text TEXT NOT NULL,
+                known_filipino TEXT NOT NULL,
+                violation_type TEXT DEFAULT 'constraint_enforcement',
+                was_replaced BOOLEAN DEFAULT 1,
+                context TEXT DEFAULT 'story',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Create index on violations for reporting
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_violations_day 
+            ON srs_violations(day, created_at)
+        """)
     
     def _add_frequency_tracking_columns(self, conn):
         """Add frequency tracking columns to existing database (migration)."""
@@ -144,7 +169,9 @@ class SRSDatabase:
         """
         appearances_json = json.dumps(appearances)
         
-        with sqlite3.connect(self.db_path) as conn:
+        if self._connection:
+            # Use persistent connection for in-memory databases
+            conn = self._connection
             conn.execute("""
                 INSERT OR REPLACE INTO collocations 
                 (text, first_seen_day, last_seen_day, appearances, 
@@ -152,6 +179,16 @@ class SRSDatabase:
                 VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """, (text, first_seen_day, last_seen_day, appearances_json, 
                   review_count, next_review_day, stability))
+        else:
+            # Use temporary connection for file-based databases
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO collocations 
+                    (text, first_seen_day, last_seen_day, appearances, 
+                     review_count, next_review_day, stability, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """, (text, first_seen_day, last_seen_day, appearances_json, 
+                      review_count, next_review_day, stability))
     
     def get_collocation(self, text: str) -> Optional[Dict[str, Any]]:
         """Get a specific collocation by text.
@@ -186,8 +223,9 @@ class SRSDatabase:
         Returns:
             List of dictionaries with collocation data
         """
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        if self._connection:
+            # Use persistent connection for in-memory databases
+            conn = self._connection
             cursor = conn.execute("""
                 SELECT text, first_seen_day, last_seen_day, appearances,
                        review_count, next_review_day, stability,
@@ -202,6 +240,26 @@ class SRSDatabase:
                 # Parse appearances JSON back to list
                 result['appearances'] = json.loads(result['appearances'])
                 results.append(result)
+            
+            return results
+        else:
+            # Use temporary connection for file-based databases
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute("""
+                    SELECT text, first_seen_day, last_seen_day, appearances,
+                           review_count, next_review_day, stability,
+                           created_at, updated_at
+                    FROM collocations 
+                    ORDER BY text
+                """)
+                
+                results = []
+                for row in cursor.fetchall():
+                    result = dict(row)
+                    # Parse appearances JSON back to list
+                    result['appearances'] = json.loads(result['appearances'])
+                    results.append(result)
             
             return results
     
@@ -224,8 +282,9 @@ class SRSDatabase:
         Returns:
             List of collocations due for review
         """
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        if self._connection:
+            # Use persistent connection for in-memory databases
+            conn = self._connection
             cursor = conn.execute("""
                 SELECT text, first_seen_day, last_seen_day, appearances,
                        review_count, next_review_day, stability,
@@ -243,6 +302,27 @@ class SRSDatabase:
                 results.append(result)
             
             return results
+        else:
+            # Use temporary connection for file-based databases
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute("""
+                    SELECT text, first_seen_day, last_seen_day, appearances,
+                           review_count, next_review_day, stability,
+                           created_at, updated_at
+                    FROM collocations 
+                    WHERE next_review_day <= ?
+                    ORDER BY next_review_day, review_count
+                """, (current_day,))
+                
+                results = []
+                for row in cursor.fetchall():
+                    result = dict(row)
+                    # Parse appearances JSON back to list
+                    result['appearances'] = json.loads(result['appearances'])
+                    results.append(result)
+                
+                return results
     
     def update_collocation_review(self, text: str, new_review_count: int, 
                                  new_next_review_day: int, new_stability: float) -> None:
@@ -261,6 +341,24 @@ class SRSDatabase:
                     updated_at = CURRENT_TIMESTAMP
                 WHERE text = ?
             """, (new_review_count, new_next_review_day, new_stability, text))
+    
+    def update_collocation_stability(self, text: str, new_stability: float) -> bool:
+        """Update only the stability value for a collocation.
+        
+        Args:
+            text: The collocation text
+            new_stability: Updated stability factor
+            
+        Returns:
+            True if collocation was updated, False if not found
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                UPDATE collocations 
+                SET stability = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE text = ?
+            """, (new_stability, text))
+            return cursor.rowcount > 0
     
     def delete_collocation(self, text: str) -> bool:
         """Delete a collocation from the database.

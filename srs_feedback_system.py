@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Set
 from dataclasses import dataclass
 
-from srs_tracker import SRSTracker, ContentStrategy
+from srs_adapter import SRSAdapter
+from content_strategy import ContentStrategy
 from srs_usage_validator import SRSUsageValidator, UsageAnalysis
 # from story_collocation_extractor import StoryCollocationExtractor  # Removed - using LLM-based extraction
 
@@ -45,7 +46,7 @@ class SRSFeedbackSystem:
     
     def __init__(self, data_dir: str = 'data', srs_filename: str = 'srs_status.json'):
         self.logger = logging.getLogger(__name__)
-        self.srs_tracker = SRSTracker(data_dir=data_dir, filename=srs_filename)
+        self.srs_tracker = SRSAdapter()
         self.usage_validator = SRSUsageValidator(data_dir=data_dir, srs_filename=srs_filename)
         self.story_extractor = StoryCollocationExtractor()
         
