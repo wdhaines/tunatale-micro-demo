@@ -3,6 +3,8 @@ Constraint enforcement testing CLI commands.
 """
 import argparse
 import json
+import sys
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 from srs_database import SRSDatabase
@@ -13,6 +15,30 @@ from .utils import (
     print_success, print_warning, print_error, print_info,
     get_story_files, extract_day_number
 )
+
+
+def handle_enforce(args: argparse.Namespace) -> int:
+    """Handle the enforce command and route to subcommands.
+
+    Args:
+        args: Command line arguments
+
+    Returns:
+        int: 0 on success, 1 on error
+    """
+    if args.enforce_type == 'apply':
+        return handle_enforce_srs(args)
+    elif args.enforce_type == 'debug':
+        return handle_debug_srs(args)
+    elif args.enforce_type == 'test':
+        handle_test_enforcement(args)
+        return 0
+    elif args.enforce_type == 'show':
+        handle_show_enforcement(args)
+        return 0
+    else:
+        print("Error: Please specify enforcement operation (apply, debug, test, or show)", file=sys.stderr)
+        return 1
 
 
 def add_enforcement_commands(subparsers) -> None:
