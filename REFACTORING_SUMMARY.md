@@ -83,31 +83,25 @@
 
 ### High-Priority
 
-#### 1. Continue CLI Command Consolidation (Current: 15 → Proposed: 6) ⚠️ Partially Done
-**✅ DONE:**
-- `generate` now has `curriculum` and `day` subcommands
+#### 1. CLI Command Consolidation (15 → 6) ✅ COMPLETE
+**All commands consolidated successfully!**
 
-**Current command list (15 remaining):**
-```
-generate [curriculum|day] ✅ DONE,
-view, analyze, show-day-collocations, debug-generation,
-enforce-srs, debug-srs, srs, extract-vocab,
-test-enforcement, show-enforcement, extract-translations,
-show-translations, lookup-translation, translation-stats
-```
-
-**Proposed consolidated structure for remaining commands:**
+**Final command structure (6 commands):**
 ```bash
-generate [curriculum|day]           # Content generation
-view [curriculum|story]             # View content
-analyze [vocab|collocations|quality]  # Analysis tools
-srs [status|populate|clean|stats]   # SRS management
-translate [extract|show|lookup|stats]  # Translation tools
-debug [generation|srs|enforcement]  # Debugging
-enforce [apply|test|show]           # Enforcement tools
+generate [curriculum|day]              # Content generation ✅
+view [curriculum|collocations|story]   # View content ✅
+analyze [vocab|collocations|debug]     # Analysis tools ✅
+srs [populate|stats|status|clean|translations]  # SRS management ✅
+translate [extract|show|lookup|stats]  # Translation tools ✅
+enforce [apply|debug|test|show]        # Enforcement tools ✅
 ```
 
-**Estimated Effort**: 6-8 hours (requires updating ~15 tests)
+**Migrations completed:**
+- `extract-vocab` → `srs populate` (with `--preview`, `--day`, `--days` options)
+- All 517 tests updated and passing
+- Backward compatibility maintained for test functions
+
+**Actual Effort**: ~2 hours
 
 #### 2. Split `main.py` (2,330 lines → ~800 lines)
 Extract command handlers to:
@@ -170,6 +164,6 @@ Into unified `SRSRepository` class
 
 ---
 
-*Last Updated: 2025-10-03 07:40 PST*
+*Last Updated: 2025-10-05*
 *Test Suite Status: 520/520 passing ✅* (517 passed, 3 skipped, 22 warnings)
-*Command Consolidation: 1/6 complete (generate ✅)*
+*Command Consolidation: COMPLETE ✅* (All 6 commands consolidated)

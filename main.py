@@ -422,11 +422,9 @@ class CLI:
 
         # Import and add new SRS management commands
         from cli.srs_commands import add_srs_commands
-        from cli.vocab_commands import add_vocab_commands
 
         # Add new SRS management command groups
         add_srs_commands(subparsers)
-        add_vocab_commands(subparsers)
         self._add_translation_commands(subparsers)
         
         return parser

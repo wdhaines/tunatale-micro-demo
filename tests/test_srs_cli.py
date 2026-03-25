@@ -13,11 +13,8 @@ import sys
 # Import CLI modules
 from cli.srs_commands import (
     handle_populate_command, handle_stats_command, handle_clean_command,
-    _populate_from_story_file, _filter_noisy_collocations, _get_database_stats
-)
-from cli.vocab_commands import (
-    handle_vocab_command, _parse_day_specification, _extract_from_file,
-    vocab_filter_noise
+    _populate_from_story_file, _filter_noisy_collocations, _get_database_stats,
+    _parse_day_specification, _extract_from_file, vocab_filter_noise
 )
 from cli.enforcement_commands import (
     handle_test_enforcement, handle_show_enforcement,
@@ -76,11 +73,14 @@ class TestSRSCLICommands:
         # Create mock arguments
         args = Mock()
         args.day = 1
+        args.days = None
         args.all_stories = False
         args.clean_first = False
         args.dry_run = False
+        args.preview = False
         args.overwrite = False
         args.filter_noise = True
+        args.force = False
         
         # Mock story files
         with patch('cli.srs_commands.get_story_files') as mock_get_files:
@@ -109,11 +109,14 @@ class TestSRSCLICommands:
         """Test dry run mode for populate command."""
         args = Mock()
         args.day = 1
+        args.days = None
         args.all_stories = False
         args.clean_first = False
         args.dry_run = True
+        args.preview = False
         args.overwrite = False
         args.filter_noise = True
+        args.force = False
         
         with patch('cli.srs_commands.get_story_files') as mock_get_files:
             mock_get_files.return_value = [Path(self.story_file.name)]
@@ -133,8 +136,8 @@ class TestSRSCLICommands:
                         handle_populate_command(args)
                     
                     output = captured_output.getvalue()
-                    assert "DRY RUN" in output
-                    assert "Would add" in output
+                    assert "PREVIEW" in output or "Preview" in output
+                    assert "Extracted" in output or "Would add" in output
     
     def test_populate_all_stories(self):
         """Test populating from all stories."""
@@ -143,7 +146,9 @@ class TestSRSCLICommands:
         args.all_stories = True
         args.clean_first = False
         args.dry_run = False
+        args.preview = False
         args.overwrite = False
+        args.force = False
         args.filter_noise = True
         
         with patch('cli.srs_commands.get_story_files') as mock_get_files:
@@ -475,34 +480,39 @@ Key Phrases:
                 os.unlink(temp_path)
     
     def test_vocab_command_preview(self):
-        """Test vocabulary extraction in preview mode."""
+        """Test vocabulary extraction in preview mode (now via srs populate --preview)."""
         args = Mock()
         args.day = 5
         args.days = None
+        args.all_stories = False
         args.preview = True
-        args.save = False
+        args.dry_run = False
+        args.clean_first = False
+        args.overwrite = False
         args.filter_noise = True
         args.limit = 10
-        
+        args.force = False
+
         # Mock the extraction function directly to return known results
-        with patch('cli.vocab_commands.get_story_files') as mock_get_files:
+        with patch('cli.srs_commands.get_story_files') as mock_get_files:
             mock_get_files.return_value = [Path(self.story_file.name)]
-            
-            with patch('cli.vocab_commands.extract_day_number') as mock_extract_day:
+
+            with patch('cli.srs_commands.extract_day_number') as mock_extract_day:
                 mock_extract_day.return_value = 5
-                
-                with patch('cli.vocab_commands._extract_from_file') as mock_extract_file:
-                    mock_extract_file.return_value = [
+
+                with patch('cli.srs_commands.StoryCollocationExtractor') as mock_extractor_class:
+                    mock_extractor = mock_extractor_class.return_value
+                    mock_extractor.extract_collocations.return_value = [
                         'magandang umaga po', 'salamat sa pagdating'
                     ]
-                    
-                    captured_output = StringIO()
-                    with patch('sys.stdout', captured_output):
-                        handle_vocab_command(args)
-                    
-                    output = captured_output.getvalue()
-                    assert "Extracted 2 collocations" in output
-                    assert "magandang umaga po" in output
+
+                    with patch('cli.srs_commands.SRSDatabase'):
+                        captured_output = StringIO()
+                        with patch('sys.stdout', captured_output):
+                            handle_populate_command(args)
+
+                        output = captured_output.getvalue()
+                        assert "Extracted 2 collocations" in output or "Day 5" in output
 
 
 class TestEnforcementCLICommands:

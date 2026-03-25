@@ -11,10 +11,9 @@ from enhanced_srs_database import EnhancedSRSDatabase
 # SRSTracker removed - using SRSDatabase directly
 # from collocation_extractor import CollocationExtractor  # Removed - using LLM-based extraction
 from story_collocation_extractor import StoryCollocationExtractor
-from .vocab_commands import _extract_natural_speed_content
 from .utils import (
     print_success, print_warning, print_error, print_info,
-    format_stats_table, confirm_action, get_story_files, 
+    format_stats_table, confirm_action, get_story_files,
     extract_day_number, show_progress
 )
 
@@ -29,9 +28,9 @@ def add_srs_commands(subparsers) -> None:
     
     srs_subparsers = srs_parser.add_subparsers(dest='srs_action', help='SRS actions')
     
-    # srs populate command
+    # srs populate command (merged from extract-vocab)
     populate_parser = srs_subparsers.add_parser(
-        'populate', 
+        'populate',
         help='Populate database from story content'
     )
     populate_group = populate_parser.add_mutually_exclusive_group(required=True)
@@ -39,14 +38,22 @@ def add_srs_commands(subparsers) -> None:
                                help='Populate from all story files')
     populate_group.add_argument('--day', type=int,
                                help='Populate from specific day')
+    populate_group.add_argument('--days', type=str,
+                               help='Populate from day range (e.g., "1-17" or "1,3,5")')
+
+    # Action options (preview or save)
+    populate_parser.add_argument('--preview', action='store_true',
+                                help='Preview extraction without saving (replaces --dry-run)')
+    populate_parser.add_argument('--dry-run', action='store_true',
+                                help='Show what would be done without making changes (deprecated, use --preview)')
     populate_parser.add_argument('--clean-first', action='store_true',
                                 help='Clean database before populating')
-    populate_parser.add_argument('--dry-run', action='store_true',
-                                help='Show what would be done without making changes')
     populate_parser.add_argument('--overwrite', action='store_true',
                                 help='Overwrite existing entries')
     populate_parser.add_argument('--filter-noise', action='store_true', default=True,
                                 help='Filter out voice tags and noise (default: True)')
+    populate_parser.add_argument('--limit', type=int, default=20,
+                                help='Limit number of collocations shown in preview (default: 20)')
     populate_parser.add_argument('--force', action='store_true',
                                 help='Skip confirmation prompts')
     
@@ -122,32 +129,52 @@ def handle_srs_command(args) -> int:
 
 def handle_populate_command(args) -> int:
     """Handle database population command."""
-    print_info("Starting SRS database population...")
-    
+    # Handle --dry-run as alias for --preview
+    is_preview = args.preview or args.dry_run
+
+    if is_preview:
+        print_info("Preview mode: extraction without saving...")
+    else:
+        print_info("Starting SRS database population...")
+
     try:
         # Initialize components
         db = SRSDatabase()
         extractor = StoryCollocationExtractor()
-        
+
         if args.clean_first:
-            if args.dry_run:
-                print_info("DRY RUN: Would clean database first")
+            if is_preview:
+                print_info("PREVIEW: Would clean database first")
             else:
                 if args.force or confirm_action("Clean database before populating?"):
                     _clean_database(db)
-        
+
+        # Parse day specification
         if args.all_stories:
-            _populate_from_all_stories(db, extractor, args)
+            _populate_from_all_stories(db, extractor, args, is_preview)
+        elif hasattr(args, 'days') and args.days is not None:
+            # Handle day range (e.g., "1-17" or "1,3,5")
+            target_days = _parse_day_specification(args.days)
+            if not target_days:
+                print_error("Invalid day specification")
+                return 1
+            _populate_from_multiple_days(db, extractor, target_days, args, is_preview)
+        elif hasattr(args, 'day') and args.day is not None:
+            _populate_from_day(db, extractor, args.day, args, is_preview)
         else:
-            _populate_from_day(db, extractor, args.day, args)
-            
-        if not args.dry_run:
+            print_error("Must specify --day, --days, or --all-stories")
+            return 1
+
+        if not is_preview:
             print_success("Database population completed!")
         else:
-            print_info("DRY RUN completed - no changes made")
-            
+            print_info("PREVIEW completed - no changes made")
+
+        return 0
+
     except Exception as e:
         print_error(f"Error during population: {e}")
+        return 1
 
 
 def handle_stats_command(args) -> None:
@@ -432,96 +459,110 @@ def handle_translations_command(args) -> None:
             traceback.print_exc()
 
 
-def _populate_from_all_stories(db: SRSDatabase, extractor: Any, args) -> None:
+def _populate_from_all_stories(db: SRSDatabase, extractor: Any, args, is_preview: bool = False) -> None:
     """Populate database from all story files."""
     story_files = get_story_files()
-    
+
     if not story_files:
         print_error("No story files found!")
         return
-    
+
     print_info(f"Found {len(story_files)} story files")
-    
+
     total_added = 0
     processed_files = 0
-    
+
     for i, story_file in enumerate(story_files):
         show_progress(i, len(story_files), "Processing stories")
-        
+
         day_num = extract_day_number(story_file)
-        added_count = _populate_from_story_file(db, extractor, story_file, day_num, args)
-        
+        added_count = _populate_from_story_file(db, extractor, story_file, day_num, args, is_preview)
+
         if added_count is not None:
             total_added += added_count
             processed_files += 1
-    
+
     show_progress(len(story_files), len(story_files), "Processing stories")
-    
-    if not args.dry_run:
+
+    if not is_preview:
         print_success(f"Processed {processed_files} files, added {total_added} collocations")
     else:
-        print_info(f"DRY RUN: Would process {processed_files} files, add {total_added} collocations")
+        print_info(f"PREVIEW: Would process {processed_files} files, add {total_added} collocations")
 
 
-def _populate_from_day(db: SRSDatabase, extractor: Any, day: int, args) -> None:
+def _populate_from_day(db: SRSDatabase, extractor: Any, day: int, args, is_preview: bool = False) -> None:
     """Populate database from specific day."""
     story_files = get_story_files()
     target_file = None
-    
+
     for story_file in story_files:
         if extract_day_number(story_file) == day:
             target_file = story_file
             break
-    
+
     if not target_file:
         print_error(f"No story file found for day {day}")
         return
-    
+
     print_info(f"Processing day {day}: {target_file.name}")
-    
-    added_count = _populate_from_story_file(db, extractor, target_file, day, args)
-    
+
+    added_count = _populate_from_story_file(db, extractor, target_file, day, args, is_preview)
+
     if added_count is not None:
-        if not args.dry_run:
+        if not is_preview:
             print_success(f"Added {added_count} collocations from day {day}")
         else:
-            print_info(f"DRY RUN: Would add {added_count} collocations from day {day}")
+            print_info(f"PREVIEW: Would add {added_count} collocations from day {day}")
 
 
-def _populate_from_story_file(db: SRSDatabase, extractor: Any, 
-                             story_file: Path, day_num: int, args) -> Optional[int]:
+def _populate_from_story_file(db: SRSDatabase, extractor: Any,
+                             story_file: Path, day_num: int, args, is_preview: bool = False) -> Optional[int]:
     """Populate database from Natural Speed section of a single story file."""
     try:
         # Read story content
         with open(story_file, 'r', encoding='utf-8') as f:
             story = f.read()
-        
+
         # Extract Natural Speed content only
         natural_speed_content = _extract_natural_speed_content(story)
-        
+
         # Skip if no Natural Speed content found
         if not natural_speed_content.strip():
             print_warning(f"No Natural Speed content found in {story_file.name}")
             return 0
-        
+
         # Extract collocations from Natural Speed content only
         collocations = extractor.extract_collocations(natural_speed_content)
-        
+
         # Filter noise if requested
         if args.filter_noise:
             collocations = _filter_noisy_collocations(collocations)
-        
-        if args.dry_run:
+
+        # Preview mode: show collocations with limit
+        if is_preview:
+            if collocations:
+                print_info(f"\nDay {day_num}: {story_file.name}")
+                print("-" * 50)
+                print_info(f"Extracted {len(collocations)} collocations:")
+
+                # Show limited number for preview
+                limit = getattr(args, 'limit', 20)
+                display_count = min(len(collocations), limit)
+                for i, colloc in enumerate(collocations[:display_count]):
+                    print(f"  {i+1:2d}. '{colloc}'")
+
+                if len(collocations) > display_count:
+                    print(f"  ... and {len(collocations) - display_count} more")
             return len(collocations)
-        
-        # Add to database
+
+        # Save mode: Add to database
         added_count = 0
         for colloc in collocations:
             try:
                 existing = db.get_collocation(colloc)
                 if existing and not args.overwrite:
                     continue  # Skip existing unless overwrite requested
-                
+
                 db.add_collocation(
                     text=colloc,
                     first_seen_day=day_num,
@@ -529,32 +570,155 @@ def _populate_from_story_file(db: SRSDatabase, extractor: Any,
                     appearances=[day_num]
                 )
                 added_count += 1
-                
+
             except Exception as e:
                 # Skip individual collocation errors
                 continue
-        
+
         return added_count
-        
+
     except Exception as e:
         print_warning(f"Error processing {story_file.name}: {e}")
         return None
 
 
+def _extract_natural_speed_content(story: str) -> str:
+    """Extract only the Natural Speed section content with Filipino dialogue."""
+    lines = story.split('\n')
+
+    # Find Natural Speed section
+    natural_speed_start = -1
+    natural_speed_end = len(lines)
+
+    for i, line in enumerate(lines):
+        if '[NARRATOR]: Natural Speed' in line:
+            natural_speed_start = i + 1
+        elif natural_speed_start != -1 and '[NARRATOR]: Slow Speed' in line:
+            natural_speed_end = i
+            break
+
+    if natural_speed_start == -1:
+        print_warning("No Natural Speed section found in story")
+        return ""
+
+    # Extract Filipino dialogue lines only (ignore narrator lines)
+    filipino_content = []
+    for i in range(natural_speed_start, natural_speed_end):
+        if i < len(lines):
+            line = lines[i].strip()
+            # Only include Tagalog speaker lines, skip narrator descriptions and empty lines
+            if line.startswith('[TAGALOG-') and ']:' in line:
+                # Extract just the dialogue content after the speaker tag
+                dialogue_start = line.find(']:')
+                if dialogue_start != -1:
+                    dialogue = line[dialogue_start + 2:].strip()
+                    if dialogue:  # Only add non-empty dialogue
+                        filipino_content.append(dialogue)
+
+    return ' '.join(filipino_content)
+
+
+def _parse_day_specification(args_or_str) -> List[int]:
+    """Parse day specification from arguments or string (e.g., "1-17" or "1,3,5").
+
+    Args:
+        args_or_str: Either an argparse.Namespace with 'day'/'days' attrs, or a string
+
+    Returns:
+        List of day numbers
+    """
+    # Handle args object (for backward compatibility)
+    if hasattr(args_or_str, 'day') or hasattr(args_or_str, 'days'):
+        if hasattr(args_or_str, 'day') and args_or_str.day:
+            return [args_or_str.day]
+        if hasattr(args_or_str, 'days') and args_or_str.days:
+            days_str = args_or_str.days
+        else:
+            return []
+    else:
+        # Handle string directly
+        days_str = args_or_str
+
+    days = []
+    parts = days_str.split(',')
+
+    for part in parts:
+        part = part.strip()
+        if '-' in part:
+            # Range specification (e.g., "1-17")
+            start, end = part.split('-', 1)
+            try:
+                start_day = int(start.strip())
+                end_day = int(end.strip())
+                days.extend(range(start_day, end_day + 1))
+            except ValueError:
+                print_error(f"Invalid day range: {part}")
+                return []
+        else:
+            # Single day
+            try:
+                days.append(int(part))
+            except ValueError:
+                print_error(f"Invalid day number: {part}")
+                return []
+
+    return sorted(list(set(days)))  # Remove duplicates and sort
+
+
+def _populate_from_multiple_days(db: SRSDatabase, extractor: Any, target_days: List[int], args, is_preview: bool = False) -> None:
+    """Populate database from multiple specific days."""
+    story_files = get_story_files()
+
+    print_info(f"Processing {len(target_days)} day(s)")
+
+    total_added = 0
+    processed_days = 0
+
+    for i, day in enumerate(target_days):
+        show_progress(i, len(target_days), f"Processing day {day}")
+
+        target_file = None
+        for story_file in story_files:
+            if extract_day_number(story_file) == day:
+                target_file = story_file
+                break
+
+        if not target_file:
+            print_warning(f"No story file found for day {day}")
+            continue
+
+        added_count = _populate_from_story_file(db, extractor, target_file, day, args, is_preview)
+
+        if added_count is not None:
+            total_added += added_count
+            processed_days += 1
+
+    show_progress(len(target_days), len(target_days), "Processing")
+
+    if not is_preview:
+        print_success(f"Processed {processed_days} days, added {total_added} collocations")
+    else:
+        print_info(f"PREVIEW: Would process {processed_days} days, add {total_added} collocations")
+
+
 def _filter_noisy_collocations(collocations: List[str]) -> List[str]:
     """Filter out noisy/invalid collocations."""
     clean_collocations = []
-    
+
     for colloc in collocations:
         # Skip obvious noise
-        if (len(colloc) <= 2 or 
+        if (len(colloc) <= 2 or
             colloc.startswith('[') or
             colloc.startswith('tagalog') or
             'narrator' in colloc.lower() or
             colloc.startswith('-') or
             colloc.count('\n') > 0):
             continue
-        
+
+        # Skip pure numbers or single letters
+        if colloc.isdigit() or (len(colloc) == 1 and colloc.isalpha()):
+            continue
+
         # Skip pure English words that are too common
         common_english = {
             'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
@@ -563,9 +727,9 @@ def _filter_noisy_collocations(collocations: List[str]) -> List[str]:
         }
         if colloc.lower() in common_english:
             continue
-        
+
         clean_collocations.append(colloc)
-    
+
     return clean_collocations
 
 
@@ -651,3 +815,39 @@ def _remove_corrupted_entries(db: SRSDatabase, corrupted_entries: List[str]) -> 
             db.delete_collocation(entry)
         except Exception as e:
             print_warning(f"Could not remove '{entry}': {e}")
+
+
+# Backward compatibility functions for tests (migrated from vocab_commands)
+def _extract_from_file(extractor: Any, story_file: Path, filter_noise: bool) -> List[str]:
+    """Extract collocations from a story file.
+
+    DEPRECATED: This function is kept for backward compatibility with tests.
+    New code should use _populate_from_story_file instead.
+    """
+    try:
+        with open(story_file, 'r', encoding='utf-8') as f:
+            story = f.read()
+
+        # Extract only Natural Speed Filipino dialogue content
+        natural_speed_content = _extract_natural_speed_content(story)
+
+        if not natural_speed_content:
+            print_warning(f"No Natural Speed content found in {story_file.name}")
+            return []
+
+        # Extract collocations from the filtered content
+        collocations_dict = extractor.extract_collocations(natural_speed_content)
+        collocations = list(collocations_dict.keys()) if isinstance(collocations_dict, dict) else collocations_dict
+
+        if filter_noise:
+            collocations = _filter_noisy_collocations(collocations)
+
+        return collocations
+
+    except Exception as e:
+        print_warning(f"Error extracting from {story_file.name}: {e}")
+        return []
+
+
+# Alias for backward compatibility with tests
+vocab_filter_noise = _filter_noisy_collocations

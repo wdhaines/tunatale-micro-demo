@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from cli.vocab_commands import _extract_natural_speed_content, _extract_from_file
+from cli.srs_commands import _extract_natural_speed_content, _extract_from_file
 # from collocation_extractor import CollocationExtractor # Removed - using LLM-based extraction
 
 
@@ -276,9 +276,9 @@ Key Phrases:
         }
         
         # Mock the noise filter to simulate filtering behavior
-        with patch('cli.vocab_commands._filter_noisy_collocations') as mock_filter:
+        with patch('cli.srs_commands._filter_noisy_collocations') as mock_filter:
             mock_filter.return_value = ['kumusta po', 'salamat po']  # Clean results
-            
+
             result = _extract_from_file(mock_extractor, self.story_path, filter_noise=True)
             
             # Verify noise filtering was applied
