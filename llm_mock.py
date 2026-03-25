@@ -131,6 +131,16 @@ class MockLLM:
         print("-" * 30)
         print("Please provide the mock response (type 'exit' to cancel):")
         
+        import sys
+        
+        # Check if we're in an interactive terminal
+        if not sys.stdin.isatty():
+            raise ValueError(
+                "MockLLM requires interactive terminal input.\n"
+                "Please run the command in an interactive terminal, not through pipes or scripts.\n"
+                "This allows you to provide the LLM response when prompted."
+            )
+        
         # Get multi-line input from user
         print("\n=== ENTER RESPONSE ===")
         print("Type your response (multiple lines OK).")
@@ -229,16 +239,15 @@ class MockLLM:
         Returns:
             The user's response content as a string
         """
-        # Check if we're in a non-interactive environment first
-        try:
-            # Try to read from stdin to detect if we're interactive
-            import sys
-            if not sys.stdin.isatty():
-                print("\n=== NON-INTERACTIVE MODE DETECTED ===")
-                print("Generating default story content automatically...")
-                return self._generate_default_story_content()
-        except Exception as e:
-            pass
+        import sys
+        
+        # Check if we're in an interactive terminal
+        if not sys.stdin.isatty():
+            raise ValueError(
+                "MockLLM requires interactive terminal input.\n"
+                "Please run the command in an interactive terminal, not through pipes or scripts.\n"
+                "This allows you to provide the LLM response when prompted."
+            )
         
         # Get multi-line input from user
         print("\n=== ENTER RESPONSE ===")
@@ -257,9 +266,9 @@ class MockLLM:
                     break
                 lines.append(line)
             except EOFError:
-                # Handle Ctrl+D gracefully or non-interactive environment
-                print("\n(Non-interactive environment detected, generating default content...)")
-                return self._generate_default_story_content()
+                # Handle Ctrl+D gracefully  
+                print("\n(End of input detected, finalizing response...)")
+                break
         
         response_content = '\n'.join(lines).strip()
         
@@ -294,6 +303,29 @@ class MockLLM:
                 break
         
         return response_content
+    
+    def _handle_srs_enforcement_passthrough(self, user_prompt: str) -> str:
+        """
+        Handle SRS enforcement requests in non-interactive mode by extracting and returning
+        the original content unchanged.
+        
+        Args:
+            user_prompt: The SRS enforcement prompt containing the original content
+            
+        Returns:
+            The original content extracted from the prompt
+        """
+        import re
+        
+        # Extract the original content from the SRS enforcement prompt
+        # Look for "ORIGINAL CONTENT TO REVIEW:" section
+        match = re.search(r'ORIGINAL CONTENT TO REVIEW:\s*\n(.*?)\n\nVOCABULARY TO ENFORCE', user_prompt, re.DOTALL)
+        if match:
+            original_content = match.group(1).strip()
+            return original_content
+        
+        # Fallback: if we can't extract the content, return a simple no-change response
+        return "No enforcement changes needed - content returned as-is."
     
     def _generate_default_story_content(self) -> str:
         """

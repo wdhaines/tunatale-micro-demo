@@ -1,0 +1,14 @@
+{
+  "day": 16,
+  "description": "Simple validation dataset for day 16 SRS debug testing",
+  "expected_states": {
+    "unknown_vocabulary_gaps": ["umupo", "lasa", "grilled"],
+    "high_priority_collocation_gaps": ["anything_else", "can_we_get", "ill_have_that", "are_you_ready"],
+    "dormant_but_recoverable": ["susunod", "dessert"],
+    "natural_acquisition_successes": ["inside", "outside", "sariwang"]
+  },
+  "validation_metadata": {
+    "total_expected_items": 14,
+    "created_for": "SRS debug system validation testing"
+  }
+}

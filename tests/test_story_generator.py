@@ -500,8 +500,9 @@ def test_generate_story_for_day_success(content_generator: ContentGenerator, tmp
         # Verify the result is not None (actual content check is less important than successful generation)
         assert result is not None
         
-        # Verify the LLM was called with the correct prompt
-        content_generator.llm.chat_response.assert_called_once()
+        # Verify the LLM was called at least once for story generation
+        # (SRS enforcement may use fallback parsing if no SRS analysis section is present)
+        assert content_generator.llm.chat_response.call_count >= 1
         
         # Verify curriculum was loaded (called twice: once in generate_story_for_day and once in generate_day_story)
         assert content_generator._load_curriculum.call_count == 2

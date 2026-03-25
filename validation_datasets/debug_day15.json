@@ -1,0 +1,999 @@
+{
+  "day": 15,
+  "story_file": "story_day15_day_15_sunset_viewing_and_phot.txt",
+  "total_vocabulary": 119,
+  "vocabulary_analyses": [
+    {
+      "word": "adjust",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "ana",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "ang",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "ang",
+        "first_seen_day": 10,
+        "last_seen_day": 12,
+        "appearances": [
+          10,
+          12
+        ],
+        "review_count": 1,
+        "next_review_day": 13,
+        "stability": 1.2
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "anong",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "anong",
+        "first_seen_day": 8,
+        "last_seen_day": 8,
+        "appearances": [
+          8
+        ],
+        "review_count": 0,
+        "next_review_day": 8,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "ba",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "background",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "balik",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "beautiful",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "beautiful",
+        "first_seen_day": 10,
+        "last_seen_day": 10,
+        "appearances": [
+          10
+        ],
+        "review_count": 0,
+        "next_review_day": 10,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "boarding",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "buko",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "camera",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "cebu",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "colors",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "dalawa",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "din",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "dito",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "dito",
+        "first_seen_day": 10,
+        "last_seen_day": 12,
+        "appearances": [
+          10,
+          12
+        ],
+        "review_count": 1,
+        "next_review_day": 13,
+        "stability": 1.2
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "doon",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "doon",
+        "first_seen_day": 10,
+        "last_seen_day": 10,
+        "appearances": [
+          10
+        ],
+        "review_count": 0,
+        "next_review_day": 10,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "eighty",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "enjoy",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "entrance",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "eto",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "excuse",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "farm",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "first",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "for",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "forty",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "fresh",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "from",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "ganda",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "go",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "golden",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "group",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "hello",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "hold",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "hotel",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "hour",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "hundred",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "inyo",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "it",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "juice",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "juice",
+        "first_seen_day": 12,
+        "last_seen_day": 12,
+        "appearances": [
+          12
+        ],
+        "review_count": 0,
+        "next_review_day": 12,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "kami",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "kami",
+        "first_seen_day": 10,
+        "last_seen_day": 10,
+        "appearances": [
+          10
+        ],
+        "review_count": 0,
+        "next_review_day": 10,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "kayo",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "kayo",
+        "first_seen_day": 10,
+        "last_seen_day": 12,
+        "appearances": [
+          10,
+          12
+        ],
+        "review_count": 1,
+        "next_review_day": 13,
+        "stability": 1.2
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "kayong",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "kayong",
+        "first_seen_day": 10,
+        "last_seen_day": 10,
+        "appearances": [
+          10
+        ],
+        "review_count": 0,
+        "next_review_day": 10,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "ko",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "ko",
+        "first_seen_day": 12,
+        "last_seen_day": 12,
+        "appearances": [
+          12
+        ],
+        "review_count": 0,
+        "next_review_day": 12,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "kumuha",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "kumusta",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "kumusta",
+        "first_seen_day": 8,
+        "last_seen_day": 12,
+        "appearances": [
+          8,
+          10,
+          12
+        ],
+        "review_count": 2,
+        "next_review_day": 14,
+        "stability": 1.44
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "lang",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "lang",
+        "first_seen_day": 12,
+        "last_seen_day": 12,
+        "appearances": [
+          12
+        ],
+        "review_count": 0,
+        "next_review_day": 12,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "let",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "libre",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "look",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "madaming",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "mag",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "magandang",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "magandang",
+        "first_seen_day": 10,
+        "last_seen_day": 10,
+        "appearances": [
+          10
+        ],
+        "review_count": 0,
+        "next_review_day": 10,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "magkano",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "magkano",
+        "first_seen_day": 12,
+        "last_seen_day": 12,
+        "appearances": [
+          12
+        ],
+        "review_count": 0,
+        "next_review_day": 12,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "manila",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "may",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "me",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "na",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "na",
+        "first_seen_day": 12,
+        "last_seen_day": 12,
+        "appearances": [
+          12
+        ],
+        "review_count": 0,
+        "next_review_day": 12,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "nagsstart",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "nakakamangha",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "naman",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "namin",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "namin",
+        "first_seen_day": 12,
+        "last_seen_day": 12,
+        "appearances": [
+          12
+        ],
+        "review_count": 0,
+        "next_review_day": 12,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "ng",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "ng",
+        "first_seen_day": 10,
+        "last_seen_day": 12,
+        "appearances": [
+          10,
+          12
+        ],
+        "review_count": 1,
+        "next_review_day": 13,
+        "stability": 1.2
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "ninyo",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "ninyo",
+        "first_seen_day": 10,
+        "last_seen_day": 12,
+        "appearances": [
+          10,
+          12
+        ],
+        "review_count": 1,
+        "next_review_day": 13,
+        "stability": 1.2
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "no",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "okay",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "one",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "opo",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "opo",
+        "first_seen_day": 10,
+        "last_seen_day": 10,
+        "appearances": [
+          10
+        ],
+        "review_count": 0,
+        "next_review_day": 10,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "oras",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "our",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "para",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "parking",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "paumanhin",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "paumanhin",
+        "first_seen_day": 12,
+        "last_seen_day": 12,
+        "appearances": [
+          12
+        ],
+        "review_count": 0,
+        "next_review_day": 12,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "perfect",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "pero",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "pesos",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "photo",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "picture",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "pictures",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "pm",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "po",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "po",
+        "first_seen_day": 10,
+        "last_seen_day": 12,
+        "appearances": [
+          10,
+          12
+        ],
+        "review_count": 1,
+        "next_review_day": 13,
+        "stability": 1.2
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "point",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "puwede",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "quick",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "ready",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "rocks",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "sa",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "sa",
+        "first_seen_day": 10,
+        "last_seen_day": 10,
+        "appearances": [
+          10
+        ],
+        "review_count": 0,
+        "next_review_day": 10,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "saan",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "salamat",
+      "recognition_state": "explicitly_learned",
+      "srs_data": {
+        "text": "salamat",
+        "first_seen_day": 7,
+        "last_seen_day": 10,
+        "appearances": [
+          7,
+          7,
+          8,
+          10
+        ],
+        "review_count": 3,
+        "next_review_day": 15,
+        "stability": 1.728
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "same",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "sarap",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "setting",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "sige",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "six",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "straw",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "sunset",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "sure",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "taas",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "talaga",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "tama",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "tayo",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "three",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "tight",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "time",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "tourist",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "tricycle",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "trip",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "twenty",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "two",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "upuan",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "usually",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "view",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "wait",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "welcome",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "where",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "worth",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "wow",
+      "recognition_state": "unknown",
+      "srs_data": null,
+      "learning_pattern": null
+    },
+    {
+      "word": "yan",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "yan",
+        "first_seen_day": 12,
+        "last_seen_day": 12,
+        "appearances": [
+          12
+        ],
+        "review_count": 0,
+        "next_review_day": 12,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    },
+    {
+      "word": "yung",
+      "recognition_state": "naturally_acquiring",
+      "srs_data": {
+        "text": "yung",
+        "first_seen_day": 12,
+        "last_seen_day": 12,
+        "appearances": [
+          12
+        ],
+        "review_count": 0,
+        "next_review_day": 12,
+        "stability": 1.0
+      },
+      "learning_pattern": "developing"
+    }
+  ],
+  "recognition_state_distribution": {
+    "unknown": 94,
+    "dormant": 0,
+    "unstable": 0,
+    "naturally_acquiring": 24,
+    "explicitly_learned": 1,
+    "high_stability": 0
+  },
+  "srs_effectiveness_metrics": {
+    "srs_coverage_percentage": 21.0,
+    "stability_ratio_percentage": 0.8,
+    "learning_progress_percentage": 21.0,
+    "words_needing_attention": 0,
+    "high_stability_words": 0,
+    "unknown_words": 94
+  },
+  "generated_at": "2025-08-29T19:58:30.680129"
+}

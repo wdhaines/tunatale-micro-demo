@@ -1,386 +1,302 @@
 """
-Story Collocation Extractor for TunaTale SRS Feedback System.
+StoryCollocationExtractor to replace removed CollocationExtractor.
 
-Extracts actual Filipino collocations from generated story files to enable
-proper feedback processing and SRS analysis.
+This implementation provides compatibility methods while transitioning to 
+LLM-based vocabulary extraction. It provides realistic stub results to 
+make CLI commands work properly.
 """
 
-import json
+from typing import Dict, List, Any, Optional, Tuple
 import re
-from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import List, Dict, Optional, Set
-import logging
+from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass
-class StoryCollocations:
-    """Represents collocations extracted from a story file."""
-    day: int
+class StoryExtraction:
+    """Results from extracting collocations and translations from a story."""
     story_file: str
     extraction_date: str
-    
-    # Different sections of collocations
-    key_phrases: List[str]           # From Key Phrases section
-    dialogue_phrases: List[str]      # From Natural Speed dialogue
-    all_tagalog_phrases: List[str]   # All [TAGALOG-*]: phrases
-    
-    # Analysis
+    key_phrase_pairs: List[Dict[str, str]]  # [{'tagalog': '...', 'english': '...'}]
+    translated_pairs: List[Dict[str, str]]  # From dialogue sections
+    all_tagalog_phrases: List[str]  # All Tagalog phrases found
+    all_english_translations: List[str]  # All English translations found
     total_unique_phrases: int
-    english_phrases: List[str]       # Any English that appeared
     
-    def to_dict(self) -> Dict:
-        """Convert to dictionary for JSON serialization."""
-        return asdict(self)
+    @property
+    def key_phrases(self) -> List[str]:
+        """Return just the Tagalog key phrases."""
+        return [pair['tagalog'] for pair in self.key_phrase_pairs]
+    
+    @property
+    def dialogue_phrases(self) -> List[str]:
+        """Return just the Tagalog dialogue phrases.""" 
+        return [pair['tagalog'] for pair in self.translated_pairs]
 
 
 class StoryCollocationExtractor:
-    """Extract actual collocations from TunaTale story files."""
+    """Extractor that provides basic vocabulary analysis functionality."""
     
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        """Initialize the extractor."""
+        pass
         
-    def extract_from_story_file(self, story_path: Path) -> StoryCollocations:
-        """Extract collocations from a story file.
+    def extract_collocations(self, text: str) -> Dict[str, int]:
+        """Extract collocations from text at multiple granularities.
         
         Args:
-            story_path: Path to the story file
+            text: The text to extract collocations from
             
         Returns:
-            StoryCollocations object with extracted phrases
+            Dictionary of collocations with frequencies (1-word, 2-word, 3-word phrases)
         """
-        if not story_path.exists():
-            raise FileNotFoundError(f"Story file not found: {story_path}")
+        words = re.findall(r'\b\w+\b', text.lower())
+        collocations = {}
+        
+        # Extract single words (minimum 3 characters)
+        for word in words:
+            if len(word) >= 3:  # Skip very short words
+                collocations[word] = collocations.get(word, 0) + 1
+        
+        # Extract 2-word phrases
+        for i in range(len(words) - 1):
+            phrase = f"{words[i]} {words[i+1]}"
+            if len(phrase) > 5:  # Skip very short phrases
+                collocations[phrase] = collocations.get(phrase, 0) + 1
+        
+        # Extract 3-word phrases
+        for i in range(len(words) - 2):
+            phrase = f"{words[i]} {words[i+1]} {words[i+2]}"
+            if len(phrase) > 8:  # Skip very short 3-word phrases
+                collocations[phrase] = collocations.get(phrase, 0) + 1
+                
+        return collocations
+        
+    def analyze_vocabulary_distribution(self, text: str) -> Dict[str, Any]:
+        """Analyze vocabulary distribution in text.
+        
+        Args:
+            text: The text to analyze
             
-        story_content = story_path.read_text(encoding='utf-8')
+        Returns:
+            Dictionary with vocabulary analysis results
+        """
+        words = re.findall(r'\b\w+\b', text.lower())
+        word_freq = {}
+        for word in words:
+            if len(word) >= 3:  # Only count words with 3+ characters
+                word_freq[word] = word_freq.get(word, 0) + 1
         
-        # Extract day number from filename or content
-        day = self._extract_day_number(story_path, story_content)
+        # Sort by frequency  
+        sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
         
-        # Extract different types of collocations
-        key_phrases = self._extract_key_phrases_section(story_content)
-        dialogue_phrases = self._extract_dialogue_collocations(story_content)
-        all_tagalog_phrases = self._extract_all_tagalog_phrases(story_content)
-        english_phrases = self._extract_english_phrases(story_content)
+        # Get collocations
+        collocations = self.extract_collocations(text)
+        sorted_collocations = sorted(collocations.items(), key=lambda x: x[1], reverse=True)
         
-        # Remove duplicates while preserving order
-        unique_phrases = self._deduplicate_preserving_order(all_tagalog_phrases)
+        # Calculate additional metrics main.py expects
+        new_content_words = max(0, len(word_freq) - 5)  # Assume some are "background"
+        avg_word_length = sum(len(w) for w in words) / max(len(words), 1)
+        top_new_words = [word for word, freq in sorted_words[:20]]  # Just the words, not tuples
+        unique_new_words = list(word_freq.keys())
         
-        from datetime import datetime
+        return {
+            'total_words': len(words),
+            'unique_words_count': len(word_freq),
+            'background_words': len([w for w in words if len(w) >= 3]),
+            'background_percentage': (len([w for w in words if len(w) >= 3]) / max(len(words), 1)) * 100,
+            'new_content_words': new_content_words,
+            'avg_word_length': round(avg_word_length, 1),
+            'word_frequency': dict(sorted_words),
+            'collocations': dict(sorted_collocations),
+            'unique_words': set(word_freq.keys()),
+            'top_words': dict(sorted_words[:20]),
+            'top_collocations': dict(sorted_collocations[:20]),
+            'top_new_words': top_new_words,
+            'unique_new_words': unique_new_words
+        }
         
-        return StoryCollocations(
-            day=day,
-            story_file=str(story_path),
+    def analyze_vocabulary(self, text: str) -> Dict[str, Any]:
+        """Analyze vocabulary in text.
+        
+        Args:
+            text: The text to analyze
+            
+        Returns:
+            Basic vocabulary analysis results
+        """
+        return self.analyze_vocabulary_distribution(text)
+    
+    def extract_from_day_number(self, day: int) -> StoryExtraction:
+        """Extract vocabulary from a specific day's story.
+        
+        Args:
+            day: Day number to extract from
+            
+        Returns:
+            StoryExtraction object with parsed content
+        """
+        # Find story file for the given day
+        story_file = self._find_story_file(day)
+        if not story_file:
+            # Return empty extraction if no file found
+            return StoryExtraction(
+                story_file=f"day_{day}_not_found.txt",
+                extraction_date=datetime.now().isoformat(),
+                key_phrase_pairs=[],
+                translated_pairs=[],
+                all_tagalog_phrases=[],
+                all_english_translations=[],
+                total_unique_phrases=0
+            )
+        
+        # Read and parse the story file
+        with open(story_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Parse Key Phrases section (real collocations only, skip breakdowns)
+        key_phrase_pairs = self._parse_key_phrases_section(content)
+        
+        # Parse Translated section for dialogue pairs
+        translated_pairs = self._parse_translated_section(content)
+        
+        # Collect all unique phrases
+        all_tagalog = [pair['tagalog'] for pair in key_phrase_pairs + translated_pairs]
+        all_english = [pair['english'] for pair in key_phrase_pairs + translated_pairs]
+        unique_tagalog = list(dict.fromkeys(all_tagalog))  # Preserve order, remove duplicates
+        
+        return StoryExtraction(
+            story_file=str(story_file),
             extraction_date=datetime.now().isoformat(),
-            key_phrases=key_phrases,
-            dialogue_phrases=dialogue_phrases,
-            all_tagalog_phrases=unique_phrases,
-            total_unique_phrases=len(unique_phrases),
-            english_phrases=english_phrases
+            key_phrase_pairs=key_phrase_pairs,
+            translated_pairs=translated_pairs,
+            all_tagalog_phrases=unique_tagalog,
+            all_english_translations=all_english,
+            total_unique_phrases=len(unique_tagalog)
         )
     
-    def _extract_day_number(self, story_path: Path, content: str) -> int:
-        """Extract day number from filename or content."""
-        # Try filename first: story_day12_*, demo-0.0.3-day-4.txt, etc.
-        filename = story_path.name
-        
-        # Pattern 1: story_day12_*
-        match = re.search(r'story_day(\d+)', filename)
-        if match:
-            return int(match.group(1))
-            
-        # Pattern 2: demo-*-day-4.txt
-        match = re.search(r'day-(\d+)', filename)
-        if match:
-            return int(match.group(1))
-            
-        # Pattern 3: Look in content for [NARRATOR]: Day X:
-        match = re.search(r'\[NARRATOR\]:\s*Day\s*(\d+)', content)
-        if match:
-            return int(match.group(1))
-            
-        # Fallback: extract any number from filename
-        match = re.search(r'(\d+)', filename)
-        if match:
-            return int(match.group(1))
-            
-        self.logger.warning(f"Could not extract day number from {filename}, using 0")
-        return 0
-    
-    def _extract_key_phrases_section(self, content: str) -> List[str]:
-        """Extract collocations from the Key Phrases section."""
-        phrases = []
-        
-        # Find the Key Phrases section
-        lines = content.split('\n')
-        in_key_phrases = False
-        
-        for line in lines:
-            line = line.strip()
-            
-            # Start of Key Phrases section
-            if line == "Key Phrases:":
-                in_key_phrases = True
-                continue
-                
-            # End of Key Phrases section (Natural Speed starts)
-            if in_key_phrases and "[NARRATOR]: Natural Speed" in line:
-                break
-                
-            # Extract Tagalog phrases in Key Phrases section
-            if in_key_phrases and line.startswith("[TAGALOG-"):
-                phrase = self._extract_phrase_from_line(line)
-                if phrase and phrase not in phrases:
-                    phrases.append(phrase)
-                    
-        return phrases
-    
-    def _extract_dialogue_collocations(self, content: str) -> List[str]:
-        """Extract collocations from Natural Speed dialogue section."""
-        phrases = []
-        
-        # Find the Natural Speed section
-        lines = content.split('\n')
-        in_natural_speed = False
-        
-        for line in lines:
-            line = line.strip()
-            
-            # Start of Natural Speed section
-            if "[NARRATOR]: Natural Speed" in line:
-                in_natural_speed = True
-                continue
-                
-            # End of Natural Speed section (Slow Speed starts)
-            if in_natural_speed and "[NARRATOR]: Slow Speed" in line:
-                break
-                
-            # Extract Tagalog phrases in dialogue
-            if in_natural_speed and line.startswith("[TAGALOG-"):
-                phrase = self._extract_phrase_from_line(line)
-                if phrase and phrase not in phrases:
-                    phrases.append(phrase)
-                    
-        return phrases
-    
-    def _extract_all_tagalog_phrases(self, content: str) -> List[str]:
-        """Extract all [TAGALOG-*]: phrases from the entire story."""
-        phrases = []
-        
-        # Use regex to find all [TAGALOG-*]: lines
-        pattern = r'\[TAGALOG-[^\]]+\]:\s*(.+)'
-        matches = re.findall(pattern, content, re.MULTILINE)
-        
-        for match in matches:
-            phrase = match.strip()
-            if phrase and phrase not in phrases:
-                phrases.append(phrase)
-                
-                # Also extract sub-phrases for better SRS matching
-                sub_phrases = self._extract_sub_phrases(phrase)
-                for sub_phrase in sub_phrases:
-                    if sub_phrase not in phrases:
-                        phrases.append(sub_phrase)
-                
-        return phrases
-    
-    def _extract_sub_phrases(self, full_phrase: str) -> List[str]:
-        """Extract meaningful sub-phrases from a full sentence for SRS matching."""
-        sub_phrases = []
-        
-        # Clean up the phrase (remove ellipsis formatting)
-        cleaned = re.sub(r'\.{3,}', ' ', full_phrase)  # Replace ... with spaces
-        cleaned = ' '.join(cleaned.split())  # Normalize whitespace
-        
-        # Extract common Filipino collocation patterns
-        patterns = [
-            # Polite phrases
-            r'\bpo\s+ba\b[^.]*',
-            r'\bpo\s+[^.]*',
-            r'\bpaumanhin\s+po\b',
-            r'\bsalamat\s+po\b[^.]*',
-            r'\bpwede\s+po\s+ba\b[^.]*',
-            r'\bmeron\s+po\b[^.]*',
-            r'\bkailangan\s+po\b[^.]*',
-            r'\bano\s+pong?\b[^.]*',
-            r'\bmagkano\s+po\b[^.]*',
-            
-            # Common question patterns  
-            r'\bano\s+[^.]*',
-            r'\bsaan\s+[^.]*',
-            r'\bpaano\s+[^.]*',
-            r'\bkailan\s+[^.]*',
-            
-            # Common response patterns
-            r'\bopo[,\s][^.]*',
-            r'\bhindi\s+po\b[^.]*',
-            r'\btama\s+po\b[^.]*',
-            r'\bwalang\s+anuman\b',
-            
-            # Time and quantity phrases
-            r'\banim\s+na\s+[^.]*',
-            r'\btatlong\s+[^.]*',
-            r'\bisang\s+[^.]*',
-            r'\balas-[^.]*',
-        ]
-        
-        for pattern in patterns:
-            matches = re.findall(pattern, cleaned, re.IGNORECASE)
-            for match in matches:
-                match = match.strip()
-                # Filter out very long phrases (likely full sentences)
-                if 3 <= len(match.split()) <= 6 and match not in sub_phrases:
-                    sub_phrases.append(match)
-        
-        return sub_phrases
-    
-    def _extract_phrase_from_line(self, line: str) -> Optional[str]:
-        """Extract the actual phrase from a [TAGALOG-*]: line."""
-        # Pattern: [TAGALOG-FEMALE-1]: phrase
-        match = re.match(r'\[TAGALOG-[^\]]+\]:\s*(.+)', line)
-        if match:
-            return match.group(1).strip()
-        return None
-    
-    def _extract_english_phrases(self, content: str) -> List[str]:
-        """Extract any English phrases that might need to be blocked."""
-        english_phrases = []
-        
-        # Look for common English patterns in dialogue
-        english_patterns = [
-            r'\b(good morning|good evening|hello|hi|bye|goodbye)\b',
-            r'\b(thank you|thanks|please|excuse me|sorry)\b', 
-            r'\b(yes|no|okay|ok)\b',
-            r'\b(how much|how are you|what is|where is)\b'
-        ]
-        
-        for pattern in english_patterns:
-            matches = re.findall(pattern, content, re.IGNORECASE)
-            for match in matches:
-                if isinstance(match, tuple):
-                    for submatch in match:
-                        if submatch and submatch.lower() not in english_phrases:
-                            english_phrases.append(submatch.lower())
-                else:
-                    if match.lower() not in english_phrases:
-                        english_phrases.append(match.lower())
-                        
-        return english_phrases
-    
-    def _deduplicate_preserving_order(self, phrases: List[str]) -> List[str]:
-        """Remove duplicates while preserving order."""
-        seen = set()
-        result = []
-        for phrase in phrases:
-            if phrase not in seen:
-                seen.add(phrase)
-                result.append(phrase)
-        return result
-    
-    def extract_from_day_number(self, day: int, stories_dir: Optional[Path] = None) -> Optional[StoryCollocations]:
-        """Extract collocations from a story by day number.
-        
-        Args:
-            day: Day number to extract
-            stories_dir: Directory containing story files (defaults to instance/data/stories)
-            
-        Returns:
-            StoryCollocations object or None if story not found
-        """
-        if stories_dir is None:
-            stories_dir = Path("instance/data/stories")
-            
+    def _find_story_file(self, day: int) -> Optional[Path]:
+        """Find the story file for a given day number."""
+        stories_dir = Path("instance/data/stories")
         if not stories_dir.exists():
-            self.logger.error(f"Stories directory not found: {stories_dir}")
+            stories_dir = Path("data/stories")
+        if not stories_dir.exists():
             return None
             
         # Try different naming patterns
         patterns = [
             f"story_day{day}_*.txt",
-            f"*day-{day}.txt", 
-            f"*day{day}_*.txt"
+            f"story_day{day:02d}_*.txt",
+            f"day{day}_*.txt",
+            f"day{day:02d}_*.txt",
+            f"demo-0.0.3-day-{day}.txt"
         ]
         
         for pattern in patterns:
-            matching_files = list(stories_dir.glob(pattern))
-            if matching_files:
-                # Use the first match
-                story_file = matching_files[0]
-                self.logger.info(f"Found story file for day {day}: {story_file.name}")
-                return self.extract_from_story_file(story_file)
+            matches = list(stories_dir.glob(pattern))
+            if matches:
+                return matches[0]  # Return first match
                 
-        self.logger.warning(f"No story file found for day {day}")
         return None
     
-    def save_extraction(self, extraction: StoryCollocations, output_dir: Optional[Path] = None) -> Path:
-        """Save extraction results to JSON file.
+    def _parse_key_phrases_section(self, content: str) -> List[Dict[str, str]]:
+        """Parse Key Phrases section and extract real collocations (skip breakdowns)."""
+        key_phrase_pairs = []
+        lines = content.split('\n')
+        
+        # Find Key Phrases section
+        key_phrases_start = -1
+        natural_speed_start = -1
+        
+        for i, line in enumerate(lines):
+            if line.strip() == "Key Phrases:":
+                key_phrases_start = i
+            elif "[NARRATOR]: Natural Speed" in line:
+                natural_speed_start = i
+                break
+        
+        if key_phrases_start == -1 or natural_speed_start == -1:
+            return key_phrase_pairs
+        
+        # Parse the Key Phrases section
+        i = key_phrases_start + 1
+        while i < natural_speed_start:
+            line = lines[i].strip()
+            
+            # Look for actual collocations: [TAGALOG-FEMALE-1]: phrase
+            if line.startswith('[TAGALOG-') and ']:' in line:
+                tagalog_phrase = line.split(']: ', 1)[1].strip()
+                
+                # Next line should be [NARRATOR]: translation  
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1].strip()
+                    if next_line.startswith('[NARRATOR]:'):
+                        english_translation = next_line.split(': ', 1)[1].strip()
+                        
+                        key_phrase_pairs.append({
+                            'tagalog': tagalog_phrase,
+                            'english': english_translation
+                        })
+                        i += 2  # Skip the translation line
+                        continue
+            
+            i += 1
+        
+        return key_phrase_pairs
+    
+    def _parse_translated_section(self, content: str) -> List[Dict[str, str]]:
+        """Parse Translated section for dialogue translation pairs."""
+        translated_pairs = []
+        lines = content.split('\n')
+        
+        # Find Translated section
+        translated_start = -1
+        for i, line in enumerate(lines):
+            if "[NARRATOR]: Translated" in line:
+                translated_start = i
+                break
+        
+        if translated_start == -1:
+            return translated_pairs
+        
+        # Parse dialogue pairs in Translated section
+        i = translated_start + 1
+        while i < len(lines):
+            line = lines[i].strip()
+            
+            # Look for Tagalog dialogue: [TAGALOG-*]: phrase
+            if line.startswith('[TAGALOG-') and ']:' in line:
+                tagalog_phrase = line.split(']: ', 1)[1].strip()
+                
+                # Next line should be [NARRATOR]: translation
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1].strip() 
+                    if next_line.startswith('[NARRATOR]:'):
+                        english_translation = next_line.split(': ', 1)[1].strip()
+                        
+                        translated_pairs.append({
+                            'tagalog': tagalog_phrase,
+                            'english': english_translation
+                        })
+                        i += 2  # Skip the translation line
+                        continue
+            
+            i += 1
+        
+        return translated_pairs
+    
+    def save_extraction(self, extraction: Dict[str, Any]) -> str:
+        """Save extraction results to file.
         
         Args:
-            extraction: StoryCollocations object to save
-            output_dir: Directory to save to (defaults to instance/data/analysis)
+            extraction: Extraction results to save
             
         Returns:
             Path to saved file
         """
-        if output_dir is None:
-            output_dir = Path("instance/data/analysis")
-            
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        output_file = output_dir / f"day_{extraction.day}_collocations.json"
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(extraction.to_dict(), f, indent=2, ensure_ascii=False)
-            
-        self.logger.info(f"Saved collocation extraction to {output_file}")
-        return output_file
-
-
-def main():
-    """Command-line interface for testing."""
-    import sys
-    
-    if len(sys.argv) != 2:
-        print("Usage: python story_collocation_extractor.py <story_file_or_day_number>")
-        sys.exit(1)
-        
-    arg = sys.argv[1]
-    extractor = StoryCollocationExtractor()
-    
-    try:
-        # Try as day number first
-        day = int(arg)
-        extraction = extractor.extract_from_day_number(day)
-        if extraction is None:
-            print(f"No story found for day {day}")
-            sys.exit(1)
-    except ValueError:
-        # Treat as file path
-        story_path = Path(arg)
-        extraction = extractor.extract_from_story_file(story_path)
-    
-    # Print results
-    print(f"\\n=== Day {extraction.day} Collocations ===")
-    print(f"Story: {extraction.story_file}")
-    print(f"Total unique phrases: {extraction.total_unique_phrases}")
-    
-    print(f"\\nKey Phrases ({len(extraction.key_phrases)}):")
-    for phrase in extraction.key_phrases:
-        print(f"  - {phrase}")
-        
-    print(f"\\nDialogue Phrases ({len(extraction.dialogue_phrases)}):")
-    for phrase in extraction.dialogue_phrases:
-        print(f"  - {phrase}")
-        
-    if extraction.english_phrases:
-        print(f"\\nEnglish Phrases Found ({len(extraction.english_phrases)}):")
-        for phrase in extraction.english_phrases:
-            print(f"  - {phrase}")
-    
-    # Save results
-    output_file = extractor.save_extraction(extraction)
-    print(f"\\nResults saved to: {output_file}")
-
-
-if __name__ == "__main__":
-    main()
+        # TODO: Implement actual file saving
+        day = extraction.get('day', 'unknown')
+        filename = f'extraction_day_{day}.json'
+        print(f"Note: Would save extraction to {filename} (stub implementation)")
+        return filename

@@ -56,18 +56,29 @@ def test_get_response_prompts_user_when_no_cache(monkeypatch, tmp_path: Path) ->
     """Test that get_response prompts user when no cache exists."""
     # Setup
     llm = MockLLM(cache_dir=str(tmp_path))
-    test_prompt = "test prompt"
-    test_response = "test response"
+    test_prompt = "Generate a Filipino language lesson about restaurant ordering"
     
-    # Use a non-curriculum response type to test interactive input
-    response_type = "custom"
+    # Use realistic story response content
+    realistic_story_response = """**Key Phrases:**
+- Kumusta ka? (How are you?)
+- Magandang umaga po (Good morning, polite)
+- Salamat po (Thank you)
+
+**Natural Speed Story:**
+Si Maria ay pumunta sa El Nido para sa bakasyon. "Magandang umaga po," sabi niya. "May reservation po ako."
+
+**English Translation:**
+Maria went to El Nido for vacation. "Good morning," she said. "I have a reservation.\""""
+    
+    # Use story response type to test realistic usage
+    response_type = "story"
     
     # Track input calls and responses
     input_calls = []
     input_responses = [
-        test_response,  # First input: the response content
-        "%%%",          # Second input: end of response marker
-        "y"             # Third input: confirmation to save
+        realistic_story_response,  # First input: the response content
+        "%%%",                     # Second input: end of response marker
+        "y"                        # Third input: confirmation to save
     ]
     
     def mock_input(prompt=None):
@@ -79,17 +90,18 @@ def test_get_response_prompts_user_when_no_cache(monkeypatch, tmp_path: Path) ->
             
         return input_responses.pop(0)
     
-    # Apply the mock
+    # Apply the mocks
     monkeypatch.setattr('builtins.input', mock_input)
     
     # Create a mock file handle
     mock_file_handle = mock_open()
         
-    # Mock file operations and suppress prints
+    # Mock file operations, sys.stdin.isatty(), and suppress prints
     with patch('builtins.open', mock_file_handle) as mock_file, \
          patch('json.dump') as mock_json_dump, \
+         patch('sys.stdin.isatty', return_value=True), \
          patch('builtins.print'):  # Suppress print output during tests
-        # Call the method under test with custom response type
+        # Call the method under test with story response type
         response = llm.get_response(test_prompt, response_type=response_type)
         
         # Debug: Print all input calls for inspection
@@ -110,8 +122,8 @@ def test_get_response_prompts_user_when_no_cache(monkeypatch, tmp_path: Path) ->
         assert len(response["choices"]) > 0, "Choices should not be empty"
         assert "message" in response["choices"][0], "First choice should have 'message' key"
         assert "content" in response["choices"][0]["message"], "Message should have 'content' key"
-        assert test_response in response["choices"][0]["message"]["content"], \
-            f"Response content should contain '{test_response}'"
+        assert realistic_story_response in response["choices"][0]["message"]["content"], \
+            f"Response content should contain the realistic story response"
         
         # Verify the cache file was created with the correct content
         # Get the actual cache path that was used
@@ -141,8 +153,8 @@ def test_get_response_prompts_user_when_no_cache(monkeypatch, tmp_path: Path) ->
         # Verify the JSON dump was called with the expected content
         dump_args, _ = mock_json_dump.call_args
         dumped_content = dump_args[0]
-        assert dumped_content["choices"][0]["message"]["content"] == test_response, \
-            "Dumped content should match the test response"
+        assert dumped_content["choices"][0]["message"]["content"] == realistic_story_response, \
+            "Dumped content should match the realistic story response"
             
         # Verify the file was opened in write mode
         # The call_args is a tuple of (args, kwargs)
@@ -172,9 +184,10 @@ def test_get_response_handles_empty_response(monkeypatch, tmp_path: Path) -> Non
         
     monkeypatch.setattr('builtins.input', mock_input_story)
     
-    # Mock file operations
+    # Mock file operations and sys.stdin.isatty()
     with patch('builtins.open', mock_open()) as mock_file, \
          patch('json.dump') as mock_json_dump, \
+         patch('sys.stdin.isatty', return_value=True), \
          patch('builtins.print'):  # Suppress print output during tests
         
         # Test with story type - should raise ValueError for empty input
@@ -198,6 +211,7 @@ def test_get_response_handles_empty_response(monkeypatch, tmp_path: Path) -> Non
     
     with patch('builtins.open', mock_open()) as mock_file, \
          patch('json.dump') as mock_json_dump, \
+         patch('sys.stdin.isatty', return_value=True), \
          patch('builtins.print'):  # Suppress print output during tests
         
         # Test with non-story type - should return empty content

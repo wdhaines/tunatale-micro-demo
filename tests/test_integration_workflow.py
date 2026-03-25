@@ -89,15 +89,15 @@ class TestWorkflowIntegration:
         
         # Step 3: Show day collocations (replaces deprecated extract command)
         print("Showing collocations...")
-        result = self.run_cli(["show-day-collocations", "1"], timeout=30)
+        result = self.run_cli(["analyze", "collocations", "--day", "1"], timeout=30)
         # This command shows collocations but doesn't fail if none exist
         assert result.returncode in [0, 1], f"Show collocations failed: {result.stderr}"
-        
-        # Verify we get some output about collocations 
+
+        # Verify we get some output about collocations
         print("✓ Collocations command completed successfully")
-        
-        # Skip collocation file verification since show-day-collocations doesn't create files
-        # Original extract command created collocations.json but show-day-collocations just displays them
+
+        # Skip collocation file verification since analyze collocations doesn't create files
+        # Original extract command created collocations.json but analyze collocations just displays them
         # with open(collocations_file) as f:
         #     collocations = json.load(f)
         # assert isinstance(collocations, (list, dict)), "Collocations should be list or dict"
@@ -154,7 +154,7 @@ class TestWorkflowIntegration:
         
         # Test with direct text
         result = self.run_cli([
-            "analyze", "Kumusta ka? Ako ay tourist sa Pilipinas. Salamat!"
+            "analyze", "vocab", "Kumusta ka? Ako ay tourist sa Pilipinas. Salamat!"
         ], timeout=20)
         assert result.returncode == 0, f"Analyze failed: {result.stderr}"
         assert "VOCABULARY ANALYSIS" in result.stdout
@@ -166,7 +166,7 @@ class TestWorkflowIntegration:
         test_file.write_text("Hello world. This is a test file for analysis.")
         
         # Test with file
-        result = self.run_cli(["analyze", str(test_file)], timeout=20)
+        result = self.run_cli(["analyze", "vocab", str(test_file)], timeout=20)
         assert result.returncode == 0, f"File analyze failed: {result.stderr}"
         assert "VOCABULARY ANALYSIS" in result.stdout
         print("✓ File analysis works")
@@ -271,16 +271,16 @@ class TestWorkflowIntegration:
         
         phase3_steps = [
             # Test quality analysis
-            (["analyze", str(test_file), "--quality"], "Analyze content quality"),
-            
+            (["analyze", "vocab", str(test_file), "--quality"], "Analyze content quality"),
+
             # Test trip readiness
-            (["analyze", str(test_file), "--trip-readiness"], "Analyze trip readiness"),
-            
+            (["analyze", "vocab", str(test_file), "--trip-readiness"], "Analyze trip readiness"),
+
             # Test both together
-            (["analyze", str(test_file), "--quality", "--trip-readiness"], "Combined analysis"),
-            
+            (["analyze", "vocab", str(test_file), "--quality", "--trip-readiness"], "Combined analysis"),
+
             # Test direct text analysis
-            (["analyze", test_content, "--quality"], "Direct text quality analysis"),
+            (["analyze", "vocab", test_content, "--quality"], "Direct text quality analysis"),
         ]
         
         successful_steps = 0

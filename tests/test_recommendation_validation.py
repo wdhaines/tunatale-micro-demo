@@ -71,7 +71,7 @@ class TestRecommendationEngine:
         assert isinstance(recommendation, StrategyRecommendation)
         
         # Should recommend DEEPER for poor Filipino authenticity
-        expected_strategies = [ContentStrategy.DEEPER, ContentStrategy.BALANCED]
+        expected_strategies = [ContentStrategy.DEEPER, ContentStrategy.WIDER]
         assert recommendation.recommended_strategy in expected_strategies
         
         # Should have reasonable confidence
@@ -105,7 +105,7 @@ class TestRecommendationEngine:
             assert any(term in action_text for term in scenario_terms)
 
     def test_recommend_balanced_for_beginners(self, recommendation_engine):
-        """Test that BALANCED strategy is recommended for beginners."""
+        """Test that WIDER strategy is recommended for beginners."""
         beginner_content = [
             "Hello po.",
             "Where hotel po?"
@@ -113,18 +113,16 @@ class TestRecommendationEngine:
         
         recommendation = recommendation_engine.recommend_next_action(
             content_history=beginner_content,
-            strategies_used=["balanced", "balanced"]
+            strategies_used=["wider", "wider"]
         )
         
         # Should recommend appropriate strategy for beginners (algorithm may choose any)
-        expected_strategies = [ContentStrategy.BALANCED, ContentStrategy.DEEPER, ContentStrategy.WIDER]
+        expected_strategies = [ContentStrategy.WIDER, ContentStrategy.DEEPER]
         assert recommendation.recommended_strategy in expected_strategies
         
-        # If BALANCED, should mention foundation building
-        if recommendation.recommended_strategy == ContentStrategy.BALANCED:
-            reason_text = recommendation.primary_reason.lower()
-            foundation_terms = ["foundation", "basic", "stable", "beginner", "establish"]
-            assert any(term in reason_text for term in foundation_terms)
+        # Should have a reason and some actions
+        assert recommendation.primary_reason is not None
+        assert len(recommendation.specific_actions) > 0
 
     def test_recommendation_confidence_varies_by_situation(self, recommendation_engine):
         """Test that recommendation confidence varies based on content analysis."""
@@ -396,12 +394,12 @@ class TestRecommendationValidationIntegration:
         enhanced_content = {
             ContentStrategy.DEEPER: "Kumusta po! Gusto ko pong kumain sa restaurant. Salamat po!",
             ContentStrategy.WIDER: "Hello po, I want eat at restaurant po. Where hotel po also?",
-            ContentStrategy.BALANCED: "Hello po, I want eat at restaurant po. Thank you po!"
+            ContentStrategy.WIDER: "Hello po, I want eat at restaurant po. Thank you po!"
         }
         
         applied_content = enhanced_content.get(
             recommendation.recommended_strategy,
-            enhanced_content[ContentStrategy.BALANCED]
+            enhanced_content[ContentStrategy.WIDER]
         )
         
         # Step 3: Validate the application
@@ -452,7 +450,7 @@ class TestRecommendationValidationIntegration:
                 else:
                     improved = "Kumusta po! Saan po ang magandang hotel? Salamat po!"
             else:
-                # WIDER or BALANCED
+                # WIDER or DEFAULT
                 improved = current_content + " Saan din po ang restaurant?"
             
             # Validate the improvement

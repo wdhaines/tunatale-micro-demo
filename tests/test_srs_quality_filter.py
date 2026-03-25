@@ -4,13 +4,13 @@
 import sys
 sys.path.append('.')
 
-from srs_tracker import SRSTracker
+from srs_adapter import SRSAdapter
 
 def test_quality_filtering():
     """Test that quality filtering prevents bad collocations."""
     
     # Create a test SRS tracker
-    tracker = SRSTracker(data_dir=".", filename="test_srs.json")
+    tracker = SRSAdapter()
     
     # Test cases: bad collocations that should be filtered out
     bad_collocations = [

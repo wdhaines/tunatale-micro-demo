@@ -1,0 +1,128 @@
+**Language Learning Content Generation Request**
+
+**Learning Objective:** {learning_objective}
+**Theme/Focus:** {focus}
+**Target CEFR Level:** {learner_level}
+**Language:** Tagalog/Filipino
+
+**New Collocations to Teach:**
+{new_collocations}
+
+**Review Collocations to Include:**
+{review_collocations}
+
+**Story Guidance:**
+{story_guidance}
+
+**CONTENT GENERATION INSTRUCTIONS:**
+
+**Collocation Marking (for reference only - not used in output):**
+- Mark new collocations with **double asterisks** like this: **new collocation**
+- Mark review collocations with *single asterisks* like this: *review collocation*
+- Example in context: "I think we should **make a decision** soon," said Maria. "Remember when we had to *deal with* something similar last month?"
+
+**Story Requirements:**
+- word count between 400-500 words
+- Use 60% or more dialogue
+- Keep paragraphs short (2-3 sentences max)
+- Include a title at the top
+- Focus on practical, immediately useful language skills
+
+**Story Structure Guidelines:**
+- clear beginning, middle, and end
+- 60% or more dialogue between characters
+- natural conversation flow with realistic interactions
+- cultural context appropriate for Filipino language learning
+- practical scenarios relevant to real-world usage
+- simple, clear language
+
+**Instructions:**
+Generate a structured language learning lesson that follows this format:
+
+**SECTION 1: Title and Key Phrases**
+1. Start with: [NARRATOR]: {focus}
+2. Add a blank line, then "Key Phrases:"
+3. For each key phrase/collocation:
+   - [TAGALOG-FEMALE-1]: [phrase in target language]
+   - [NARRATOR]: [English translation]
+   - [TAGALOG-FEMALE-1]: [phrase again]
+   - [syllable breakdown lines - break ONLY Tagalog words at natural syllable boundaries]
+   - Blank line before next phrase
+
+**SECTION 2: Natural Speed Dialogue**
+1. Add: [NARRATOR]: Natural Speed
+2. Create dialogue scenes with substantial content
+3. Use voice tags: [TAGALOG-FEMALE-1], [TAGALOG-FEMALE-2], [TAGALOG-MALE-1], [TAGALOG-MALE-2]
+4. Mix English and target language naturally in conversations
+5. Focus on practical, engaging scenarios
+
+**SECTION 3: Slow Speed**
+1. Add: [NARRATOR]: Slow Speed  
+2. Repeat the exact same dialogues but with ellipses (...) between words
+3. Example: "Magandang... hapon... po" instead of "Magandang hapon po"
+
+**SECTION 4: Translated**
+1. Add: [NARRATOR]: Translated
+2. Repeat each dialogue scene with alternating lines:
+   - [SPEAKER]: [Original line]
+   - [NARRATOR]: [English translation]
+
+**SECTION 5: SRS Enforcement Analysis**
+1. Add: [NARRATOR]: SRS Enforcement Analysis
+2. Generate JSON analysis with both English terms and translation pairs:
+   {{
+     "english_terms": [
+       {{"english": "Good morning", "srs_queries": ["magandang umaga", "good morning", "umaga"]}},
+       {{"english": "How much", "srs_queries": ["magkano", "how much", "presyo"]}},
+       {{"english": "excuse me", "srs_queries": ["paumanhin", "excuse", "sorry"]}},
+       {{"english": "thank you", "srs_queries": ["salamat", "thank you", "thanks"]}}
+     ],
+     "translation_pairs": [
+       {{"english": "water", "filipino": "tubig", "confidence": 1.0}},
+       {{"english": "delicious", "filipino": "masarap", "confidence": 1.0}},
+       {{"english": "thank you", "filipino": "salamat po", "confidence": 0.95}},
+       {{"english": "how much", "filipino": "magkano", "confidence": 1.0}}
+     ],
+     "key_phrases_analysis": {{
+       "phrases": ["magkano po ito", "salamat po", "kumusta po", "puwede po ba"],
+       "stability_threshold": 2.0,
+       "replacement_suggestions": {{
+         "salamat po": ["maraming salamat", "salamat na po", "pasasalamat po"],
+         "kumusta po": ["kamusta na po", "musta na", "kumusta po kayo"],
+         "magkano po": ["presyo po nito", "magkano po kaya", "ano pong halaga"]
+       }}
+     }}
+   }}
+3. For each English term found in Tagalog speaker dialogue:
+   - "english": exact English phrase/word to be replaced
+   - "srs_queries": list of Filipino terms to search for in SRS database
+4. For each translation pair from [TAGALOG-*] → [NARRATOR] dialogue alignment:
+   - "english": English word/phrase from narrator translation
+   - "filipino": corresponding Filipino word/phrase from Tagalog speaker
+   - "confidence": alignment confidence (0.8-1.0 for high quality pairs)
+5. Translation pair extraction guidelines:
+   - Analyze all [TAGALOG-SPEAKER] → [NARRATOR] pairs in Translated section
+   - Extract word-level and phrase-level alignments with high confidence
+   - Include common vocabulary: food, greetings, numbers, adjectives, verbs
+   - Exclude proper nouns, place names, and ambiguous alignments
+   - Assign confidence 1.0 for perfect matches, 0.9-0.95 for good matches, 0.8+ for acceptable
+6. Focus on English words/phrases that have clear Filipino equivalents
+7. Do not include proper nouns, place names, or culturally appropriate English terms
+8. Include both individual words and common phrases
+9. For Key Phrases Analysis:
+   - "phrases": list of Tagalog phrases from Key Phrases section
+   - "stability_threshold": SRS stability threshold (use 2.0) for flagging already-known phrases
+   - "replacement_suggestions": alternative phrases for potentially high-stability items
+10. For replacement suggestions, provide 2-3 alternatives that:
+   - Are useful collocations that haven't been learned yet
+   - Have low SRS stability (new vocabulary for the learner)
+   - Fit the general learning context and day theme
+11. Extract phrases only from Key Phrases section, not from Natural Speed dialogue
+
+**Content Guidelines:**
+- Incorporate ALL provided review collocations naturally
+- Use mostly dialogue (80%+)
+- Keep scenes realistic and engaging
+- Use appropriate voice assignments matching character gender
+- Maintain consistency across all three speed/translation sections
+- Generate authentic Filipino conversation patterns

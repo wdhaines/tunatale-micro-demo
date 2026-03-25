@@ -1,8 +1,8 @@
 """
-Content Post-Processing for TunaTale Story Generation
+Enhanced Content Post-Processing for TunaTale Story Generation
 
 Handles algorithmic fixes to LLM-generated content, specifically:
-- Pimsleur breakdown correction using algorithmic generation
+- Always generates correct Pimsleur breakdowns algorithmically
 - Content validation and quality checks
 """
 
@@ -29,14 +29,11 @@ def extract_key_phrases_sections(content: str) -> List[Tuple[str, int, int]]:
     # [NARRATOR]: translation  
     # [TAGALOG-FEMALE-1]: phrase
     # [breakdown lines...]
-    # 
-    # Until next [TAGALOG-X] or [NARRATOR]: (not translation)
     
-    # Find all Tagalog phrases in Key Phrases sections
     lines = content.split('\n')
     in_key_phrases = False
     current_phrase = None
-    phrase_start_line = 0
+    phrase_start_line = None
     breakdown_lines = []
     
     for i, line in enumerate(lines):
@@ -48,35 +45,31 @@ def extract_key_phrases_sections(content: str) -> List[Tuple[str, int, int]]:
             continue
             
         # Check if we're leaving Key Phrases section
-        if in_key_phrases and (line.startswith("[NARRATOR]: Natural Speed") or 
-                              line.startswith("[NARRATOR]: Slow Speed")):
-            # Process any pending phrase
+        if in_key_phrases and line.startswith("[NARRATOR]: Natural Speed"):
+            # Handle last phrase if we ended while still in key phrases
             if current_phrase and breakdown_lines:
-                end_line = i - 1
-                phrases.append((current_phrase, phrase_start_line, end_line, breakdown_lines[:]))
+                phrases.append((current_phrase, phrase_start_line, i - 1, breakdown_lines[:]))
             in_key_phrases = False
             break
             
         if not in_key_phrases:
             continue
             
-        # Look for Tagalog phrase pattern
-        tagalog_match = re.match(r'\[TAGALOG-[FEMALE|MALE]+-\d+\]:\s*(.+)', line)
+        # Look for Tagalog phrase pattern: [TAGALOG-X]: phrase
+        tagalog_match = re.match(r'\[TAGALOG-(?:FEMALE|MALE)-\d+\]:\s*(.+)', line)
         if tagalog_match:
-            # Save previous phrase if exists
+            # Store previous phrase if we had one
             if current_phrase and breakdown_lines:
-                end_line = i - 1
-                phrases.append((current_phrase, phrase_start_line, end_line, breakdown_lines[:]))
-                
+                phrases.append((current_phrase, phrase_start_line, i - 1, breakdown_lines[:]))
+            
             # Start new phrase
             current_phrase = tagalog_match.group(1).strip()
             phrase_start_line = i
             breakdown_lines = []
             continue
             
-        # Look for narrator translation
-        narrator_match = re.match(r'\[NARRATOR\]:\s*(.+)', line)
-        if narrator_match and current_phrase:
+        # Check if this is a translation line
+        if re.match(r'\[NARRATOR\]:\s*(.+)', line):
             # This is the translation line - skip it
             continue
             
@@ -98,19 +91,20 @@ def extract_key_phrases_sections(content: str) -> List[Tuple[str, int, int]]:
 
 def fix_pimsleur_breakdowns(content: str) -> str:
     """
-    Replace LLM-generated Pimsleur breakdowns with algorithmically correct ones.
+    Generate algorithmic Pimsleur breakdowns for all Key Phrases, replacing any existing breakdowns.
     
     Args:
-        content: Full story content with potentially incorrect breakdowns
+        content: Full story content that may or may not have breakdowns
         
     Returns:
-        Content with corrected breakdowns
+        Content with correct algorithmic Pimsleur breakdowns added
     """
     try:
         lines = content.split('\n')
         result_lines = []
         i = 0
         in_key_phrases = False
+        processed_phrases = set()  # Track processed phrases to avoid duplicates
         
         while i < len(lines):
             line = lines[i].strip()
@@ -118,6 +112,7 @@ def fix_pimsleur_breakdowns(content: str) -> str:
             # Check if we're entering Key Phrases section
             if line == "Key Phrases:":
                 in_key_phrases = True
+                processed_phrases.clear()  # Reset for each Key Phrases section
                 result_lines.append(lines[i])
                 i += 1
                 continue
@@ -135,61 +130,79 @@ def fix_pimsleur_breakdowns(content: str) -> str:
                 tagalog_match = re.match(r'\[TAGALOG-(?:FEMALE|MALE)-\d+\]:\s*(.+)', line)
                 if tagalog_match:
                     phrase = tagalog_match.group(1).strip()
+                    
+                    # Skip if we've already processed this phrase
+                    if phrase in processed_phrases:
+                        logging.debug(f"Skipping duplicate phrase: '{phrase}'")
+                        # Skip this entire phrase section
+                        i += 1
+                        # Skip narrator translation if present
+                        if (i < len(lines) and 
+                            re.match(r'\[NARRATOR\]:\s*(.+)', lines[i].strip())):
+                            i += 1
+                        # Skip all existing breakdown content
+                        while (i < len(lines) and 
+                               lines[i].strip() and 
+                               not lines[i].strip().startswith('[') and
+                               not lines[i].strip() == "Key Phrases:"):
+                            i += 1
+                        continue
+                    
+                    # Only process if this looks like a legitimate phrase (not a breakdown fragment)
+                    # Legitimate phrases should be followed by a narrator translation
+                    next_line_is_narrator = (i + 1 < len(lines) and 
+                                           re.match(r'\[NARRATOR\]:\s*(.+)', lines[i + 1].strip()))
+                    
+                    if not next_line_is_narrator:
+                        # This is likely a breakdown line with voice tags, skip it
+                        logging.debug(f"Skipping voice-tagged breakdown line: '{phrase}'")
+                        i += 1
+                        continue
+                    
+                    # Process this phrase (first time we've seen it and has narrator translation)
+                    processed_phrases.add(phrase)
                     result_lines.append(lines[i])  # Add the tagalog line
                     i += 1
                     
-                    # Check if next line is narrator translation
+                    # Look for narrator translation (should be next)
                     if (i < len(lines) and 
                         re.match(r'\[NARRATOR\]:\s*(.+)', lines[i].strip())):
                         result_lines.append(lines[i])  # Add translation
                         i += 1
-                        
-                        # Check if next line is phrase repetition 
-                        if (i < len(lines) and 
-                            re.match(r'\[TAGALOG-(?:FEMALE|MALE)-\d+\]:\s*' + re.escape(phrase), lines[i].strip())):
-                            result_lines.append(lines[i])  # Add repetition
-                            i += 1
-                            
-                            # Skip existing breakdown lines until we hit next phrase or section end
-                            while (i < len(lines) and 
-                                   lines[i].strip() and  # Not empty line
-                                   not re.match(r'\[TAGALOG-(?:FEMALE|MALE)-\d+\]:', lines[i].strip()) and  # Not next phrase
-                                   not lines[i].strip().startswith('[NARRATOR]: Natural Speed')):  # Not section end
-                                i += 1
-                            
-                            # Generate correct breakdown
-                            logging.info(f"Correcting breakdown for phrase: '{phrase}'")
-                            correct_breakdown = generate_pimsleur_breakdown(phrase)
-                            
-                            # Remove initial phrase and final phrase repetitions
-                            # The breakdown starts and ends with full phrase repetitions
-                            breakdown_steps = correct_breakdown[1:]  # Remove first (initial phrase)
-                            
-                            # Remove final repetitions of the full phrase
-                            while breakdown_steps and breakdown_steps[-1] == phrase:
-                                breakdown_steps.pop()
-                                
-                            # Keep the word-building steps but remove the final full phrase
-                            if breakdown_steps and breakdown_steps[-1] == phrase:
-                                breakdown_steps = breakdown_steps[:-1]
-                            
-                            # Add correct breakdown lines with voice assignments
-                            voice = "[TAGALOG-FEMALE-1]"  # Use consistent voice
-                            for breakdown_line in breakdown_steps:
-                                result_lines.append(f"{voice}: {breakdown_line}")
-                            
-                            # Add empty line for separation
-                            result_lines.append("")
-                            continue
-                
-            # For all other lines, just add them
+                    
+                    # Skip ALL existing breakdown lines (anything that's not a voice tag or section marker)
+                    # This includes any existing phrase repetitions
+                    while (i < len(lines) and 
+                           lines[i].strip() and 
+                           not lines[i].strip().startswith('[') and
+                           not lines[i].strip() == "Key Phrases:"):
+                        i += 1
+                    
+                    # Generate correct algorithmic Pimsleur breakdown (includes proper phrase repetition)
+                    logging.debug(f"Generating Pimsleur breakdown for phrase: '{phrase}'")
+                    breakdown_lines = generate_pimsleur_breakdown(phrase)
+                    for breakdown_line in breakdown_lines:
+                        result_lines.append(breakdown_line)
+                    
+                    # Add blank line after breakdown if the next line isn't already blank
+                    if i < len(lines) and lines[i].strip():
+                        result_lines.append("")
+                    continue
+                    
+                # Handle empty lines in key phrases section
+                elif not line:
+                    result_lines.append(lines[i])
+                    i += 1
+                    continue
+            
+            # Add line as-is if not in key phrases processing
             result_lines.append(lines[i])
             i += 1
-        
+            
         return '\n'.join(result_lines)
         
     except Exception as e:
-        logging.error(f"Error fixing Pimsleur breakdowns: {e}")
+        logging.error(f"Error in fix_pimsleur_breakdowns: {e}")
         logging.debug("Returning original content due to processing error")
         return content
 
@@ -213,14 +226,14 @@ def post_process_story_content(content: str) -> str:
     
     try:
         # Apply Pimsleur breakdown corrections
-        logging.info("Applying Pimsleur breakdown corrections...")
+        logging.info("Applying algorithmic Pimsleur breakdown generation...")
         corrected_content = fix_pimsleur_breakdowns(content)
         
         # Check if any changes were made
         if corrected_content != content:
-            logging.info("✅ Pimsleur breakdowns were corrected")
+            logging.info("✅ Pimsleur breakdowns were generated algorithmically")
         else:
-            logging.info("ℹ️ No Pimsleur breakdown corrections needed")
+            logging.info("ℹ️ No Pimsleur breakdown changes needed")
         
         # Future post-processing steps can be added here:
         # - Content validation
@@ -234,38 +247,3 @@ def post_process_story_content(content: str) -> str:
         logging.error(f"❌ Post-processing failed: {e}")
         logging.debug("Returning original content due to post-processing error")
         return content
-
-
-if __name__ == "__main__":
-    # Test with sample content
-    sample_content = """[NARRATOR]: Day 14: Shopping - Day 6 Revisited
-
-Key Phrases:
-
-[TAGALOG-FEMALE-1]: meron po ba kayo
-[NARRATOR]: do you have
-[TAGALOG-FEMALE-1]: meron po ba kayo
-kayo
-ba kayo
-po ba kayo
-ron po ba kayo
-me
-meron
-meron po
-meron po ba
-meron po ba kayo
-meron po ba kayo
-
-[NARRATOR]: Natural Speed
-"""
-    
-    print("=== Content Post-Processing Test ===")
-    print("\nOriginal breakdown:")
-    phrases = extract_key_phrases_sections(sample_content)
-    for phrase, start, end, breakdown in phrases:
-        print(f"Phrase: {phrase}")
-        print(f"Breakdown: {breakdown}")
-        
-    print("\nCorrected content:")
-    corrected = post_process_story_content(sample_content)
-    print(corrected)

@@ -56,6 +56,9 @@ instance/
 # Logs
 *.log
 
+# SRS test data (runtime generated)
+test_srs.json
+
 # Local development overrides
 local_settings.py
 

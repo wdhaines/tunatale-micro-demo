@@ -16,7 +16,7 @@ class TestAnalyzeCommand:
     @pytest.fixture
     def mock_extractor(self):
         """Create a mock collocation extractor with sample analysis results."""
-        with patch('main.CollocationExtractor') as mock_extractor_cls:
+        with patch('story_collocation_extractor.StoryCollocationExtractor') as mock_extractor_cls:
             mock_instance = mock_extractor_cls.return_value
             
             # Create a custom mock class that handles comparison operations
@@ -95,10 +95,11 @@ class TestAnalyzeCommand:
         test_file = tmp_path / "test_curriculum.json"
         test_content = "Carnivorous plants are fascinating because they can trap and digest insects."
         test_file.write_text(test_content)
-        
+
         # Execute
         cli = CLI()
         args = MagicMock()
+        args.analyze_type = 'vocab'
         args.file_or_text = str(test_file)
         args.verbose = False
         args.min_word_len = 3
@@ -137,10 +138,11 @@ class TestAnalyzeCommand:
         """Test analyzing direct text input with the analyze command."""
         # Setup
         test_text = "Carnivorous plants are fascinating because they can trap and digest insects."
-        
+
         # Execute
         cli = CLI()
         args = MagicMock()
+        args.analyze_type = 'vocab'
         args.file_or_text = test_text
         args.verbose = False
         args.min_word_len = 3
@@ -191,6 +193,7 @@ class TestAnalyzeCommand:
         # Execute with verbose flag
         cli = CLI()
         args = MagicMock()
+        args.analyze_type = 'vocab'
         args.file_or_text = test_text
         args.verbose = True  # Enable verbose output
         args.min_word_len = 3
@@ -222,10 +225,11 @@ class TestAnalyzeCommand:
         """Test handling of non-existent file."""
         # Setup
         non_existent_file = "nonexistent.json"
-        
+
         # Execute
         cli = CLI()
         args = MagicMock()
+        args.analyze_type = 'vocab'
         args.file_or_text = non_existent_file
         args.verbose = False
         args.min_word_len = 3
@@ -267,6 +271,7 @@ class TestAnalyzeCommand:
         # Execute
         cli = CLI()
         args = MagicMock()
+        args.analyze_type = 'vocab'
         args.file_or_text = str(empty_file)
         args.verbose = False
         args.min_word_len = 3
@@ -329,6 +334,7 @@ class TestAnalyzeCommand:
         # Execute
         cli = CLI()
         args = MagicMock()
+        args.analyze_type = 'vocab'
         args.file_or_text = ""  # Empty for day-based analysis
         args.day = 1
         args.verbose = False
@@ -355,6 +361,7 @@ class TestAnalyzeCommand:
         # Execute with non-existent day
         cli = CLI()
         args = MagicMock()
+        args.analyze_type = 'vocab'
         args.file_or_text = ""
         args.day = 99  # Non-existent day
         args.verbose = False
@@ -391,6 +398,7 @@ class TestAnalyzeCommand:
         # Execute with verbose flag
         cli = CLI()
         args = MagicMock()
+        args.analyze_type = 'vocab'
         args.file_or_text = ""
         args.day = 2
         args.verbose = True  # Enable verbose output
@@ -415,17 +423,17 @@ class TestAnalyzeCommand:
         # This is more of an integration test for the argument parser
         cli = CLI()
         parser = cli._create_parser()
-        
+
         # Should work with just file/text
-        args = parser.parse_args(["analyze", "test.txt"])
+        args = parser.parse_args(["analyze", "vocab", "test.txt"])
         assert args.file_or_text == "test.txt"
         assert not hasattr(args, 'day') or args.day is None
-        
+
         # Should work with just --day
-        args = parser.parse_args(["analyze", "--day", "1"])
+        args = parser.parse_args(["analyze", "vocab", "--day", "1"])
         assert args.day == 1
         assert args.file_or_text == ""
-        
+
         # Should raise error with both (handled by argparse)
         with pytest.raises(SystemExit):
-            parser.parse_args(["analyze", "test.txt", "--day", "1"])
+            parser.parse_args(["analyze", "vocab", "test.txt", "--day", "1"])

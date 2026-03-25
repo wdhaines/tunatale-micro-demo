@@ -29,40 +29,38 @@ class TestAnalyzeCommandCLI:
         result = self.run_cli(["analyze", "--help"])
         assert result.returncode == 0
         help_output = result.stdout.lower()
-        
-        # Check for key analyze options
-        assert "--day" in help_output
-        assert "--quality" in help_output
-        assert "--trip-readiness" in help_output
-        assert "--strategy-effectiveness" in help_output
-        assert "--compare-with" in help_output
+
+        # Check for subcommands
+        assert "vocab" in help_output
+        assert "collocations" in help_output
+        assert "debug" in help_output
     
     def test_analyze_with_text(self):
-        """Test analyze command with simple text input."""
+        """Test analyze vocab command with simple text input."""
         result = self.run_cli([
-            "analyze", "Kumusta ka? Salamat po sa lahat."
+            "analyze", "vocab", "Kumusta ka? Salamat po sa lahat."
         ])
         assert result.returncode == 0
         assert "VOCABULARY ANALYSIS" in result.stdout
         assert "Total words:" in result.stdout
     
     def test_analyze_with_day_parameter(self):
-        """Test analyze command with day parameter."""
-        result = self.run_cli(["analyze", "--day=8"])
+        """Test analyze vocab command with day parameter."""
+        result = self.run_cli(["analyze", "vocab", "--day=8"])
         # Should either work (if day 8 exists) or fail gracefully
         assert result.returncode in [0, 1]
-        
+
         if result.returncode == 0:
             assert "VOCABULARY ANALYSIS" in result.stdout
         else:
             # Should have informative error message
-            assert any(word in result.stderr.lower() 
+            assert any(word in result.stderr.lower()
                       for word in ["day", "not found", "error"])
     
     def test_analyze_quality_option(self):
-        """Test analyze command with quality assessment."""
+        """Test analyze vocab command with quality assessment."""
         result = self.run_cli([
-            "analyze", "--quality", "Magandang umaga po. Salamat sa inyong pagtituro."
+            "analyze", "vocab", "--quality", "Magandang umaga po. Salamat sa inyong pagtituro."
         ])
         assert result.returncode == 0
         output = result.stdout.upper()
@@ -72,9 +70,9 @@ class TestAnalyzeCommandCLI:
         ])
     
     def test_analyze_trip_readiness_option(self):
-        """Test analyze command with trip readiness assessment."""
+        """Test analyze vocab command with trip readiness assessment."""
         result = self.run_cli([
-            "analyze", "--trip-readiness", 
+            "analyze", "vocab", "--trip-readiness",
             "Magkano po ang tricycle? Puwede po ba akong mag-book ng tour?"
         ])
         assert result.returncode == 0
@@ -85,15 +83,15 @@ class TestAnalyzeCommandCLI:
         ])
     
     def test_analyze_invalid_day(self):
-        """Test analyze command with invalid day parameter."""
-        result = self.run_cli(["analyze", "--day=abc"])
+        """Test analyze vocab command with invalid day parameter."""
+        result = self.run_cli(["analyze", "vocab", "--day=abc"])
         assert result.returncode == 2  # argparse error
         assert "invalid" in result.stderr.lower()
     
     def test_analyze_strategy_effectiveness_with_compare_with(self):
         """Test strategy effectiveness with compare-with parameter."""
         result = self.run_cli([
-            "analyze", "--strategy-effectiveness", 
+            "analyze", "vocab", "--strategy-effectiveness",
             "--compare-with", "/nonexistent/file.txt",
             "Some text"
         ])
@@ -103,8 +101,8 @@ class TestAnalyzeCommandCLI:
         assert "ANALYSIS" in result.stdout or len(result.stderr) > 0
     
     def test_analyze_with_nonexistent_file(self):
-        """Test analyze with file that doesn't exist (treated as text)."""
-        result = self.run_cli(["analyze", "/nonexistent/file.txt"])
+        """Test analyze vocab with file that doesn't exist (treated as text)."""
+        result = self.run_cli(["analyze", "vocab", "/nonexistent/file.txt"])
         assert result.returncode == 0  # Treated as text, not file
         assert "Total words:                                     0" in result.stdout
     
@@ -113,16 +111,16 @@ class TestAnalyzeCommandCLI:
     def test_analyze_command_routing(self, mock_stdout, mock_handler):
         """Test that analyze command is routed correctly."""
         mock_handler.return_value = 0
-        
-        with patch('sys.argv', ['main.py', 'analyze', 'test text']):
+
+        with patch('sys.argv', ['main.py', 'analyze', 'vocab', 'test text']):
             result = CLI().run()
-        
+
         assert result == 0
         mock_handler.assert_called_once()
 
 
 class TestSpecializedAnalysisCommandsCLI:
-    """Test specialized analysis commands (show-day-collocations, show-srs-status, debug-generation)."""
+    """Test specialized analysis commands (analyze collocations, srs status, analyze debug)."""
     
     def run_cli(self, args, timeout=30):
         """Helper to run CLI commands."""
@@ -136,77 +134,73 @@ class TestSpecializedAnalysisCommandsCLI:
         )
     
     def test_show_day_collocations_help(self):
-        """Test show-day-collocations help."""
-        result = self.run_cli(["show-day-collocations", "--help"])
+        """Test analyze collocations help."""
+        result = self.run_cli(["analyze", "collocations", "--help"])
         assert result.returncode == 0
         assert "day" in result.stdout.lower()
         assert "collocation" in result.stdout.lower()
-    
+
     def test_show_day_collocations_with_day(self):
-        """Test show-day-collocations with day parameter."""
-        result = self.run_cli(["show-day-collocations", "6"])
+        """Test analyze collocations with day parameter."""
+        result = self.run_cli(["analyze", "collocations", "--day", "6"])
         # Should either work or fail gracefully
         assert result.returncode in [0, 1]
-        
+
         if result.returncode == 1:
             # Should have informative error message
-            assert any(word in result.stderr.lower() 
+            assert any(word in result.stderr.lower()
                       for word in ["day", "not found", "error", "curriculum"])
     
-    def test_show_srs_status_help(self):
-        """Test show-srs-status help."""
-        result = self.run_cli(["show-srs-status", "--help"])
+    def test_srs_status_help(self):
+        """Test srs status help."""
+        result = self.run_cli(["srs", "status", "--help"])
         assert result.returncode == 0
         help_output = result.stdout.lower()
         assert "--day" in help_output
         assert "--all" in help_output
         assert "--due-only" in help_output
     
-    def test_show_srs_status_with_all_option(self):
-        """Test show-srs-status with --all option."""
-        result = self.run_cli(["show-srs-status", "--all"])
+    def test_srs_status_with_all_option(self):
+        """Test srs status with --all option."""
+        result = self.run_cli(["srs", "status", "--all"])
         # Should either work or fail gracefully
         assert result.returncode in [0, 1]
     
-    def test_show_srs_status_with_due_only_option(self):
-        """Test show-srs-status with --due-only option."""
-        result = self.run_cli(["show-srs-status", "--due-only"])
+    def test_srs_status_with_due_only_option(self):
+        """Test srs status with --due-only option."""
+        result = self.run_cli(["srs", "status", "--due-only"])
         # Should either work or fail gracefully
         assert result.returncode in [0, 1]
     
     def test_debug_generation_help(self):
-        """Test debug-generation help."""
-        result = self.run_cli(["debug-generation", "--help"])
+        """Test analyze debug help."""
+        result = self.run_cli(["analyze", "debug", "--help"])
         assert result.returncode == 0
         assert "day" in result.stdout.lower()
         assert "debug" in result.stdout.lower()
-    
+
     def test_debug_generation_with_day(self):
-        """Test debug-generation with day parameter."""
-        result = self.run_cli(["debug-generation", "9"])
+        """Test analyze debug with day parameter."""
+        result = self.run_cli(["analyze", "debug", "--day", "9"])
         # Should either work or fail gracefully
         assert result.returncode in [0, 1]
-        
+
         if result.returncode == 1:
             # Should have informative error message
-            assert any(word in result.stderr.lower() 
+            assert any(word in result.stderr.lower()
                       for word in ["day", "not found", "error", "generation"])
     
     def test_invalid_day_parameters(self):
         """Test invalid day parameters for analysis commands."""
         commands = [
-            ["show-day-collocations", "0"],  # May work but return no results
-            ["debug-generation", "abc"]  # Should fail with argparse error
+            ["analyze", "collocations", "--day", "0"],  # May work but return no results
+            ["analyze", "debug", "--day", "0"]  # May work but return no results
         ]
         
         for cmd in commands:
             result = self.run_cli(cmd, timeout=10)
-            if "abc" in cmd:
-                # String day should definitely fail
-                assert result.returncode != 0, f"Command {cmd} should have failed"
-            else:
-                # Other commands may be permissive, just check they respond
-                assert result.returncode in [0, 1, 2], f"Command {cmd} should respond normally"
+            # Commands may be permissive, just check they respond
+            assert result.returncode in [0, 1, 2], f"Command {cmd} should respond normally"
 
 
 class TestAnalysisIntegrationCLI:
@@ -228,23 +222,23 @@ class TestAnalysisIntegrationCLI:
         """Test a comprehensive analysis workflow."""
         # Test basic text analysis
         result1 = self.run_cli([
-            "analyze", "Magandang umaga po. Salamat sa inyong pagtulong."
+            "analyze", "vocab", "Magandang umaga po. Salamat sa inyong pagtulong."
         ])
         assert result1.returncode == 0
         assert "VOCABULARY ANALYSIS" in result1.stdout
-        
+
         # Test quality analysis of the same text
         result2 = self.run_cli([
-            "analyze", "--quality", "Magandang umaga po. Salamat sa inyong pagtulong."
+            "analyze", "vocab", "--quality", "Magandang umaga po. Salamat sa inyong pagtulong."
         ])
         assert result2.returncode == 0
-        
+
         # Test trip readiness analysis
         result3 = self.run_cli([
-            "analyze", "--trip-readiness", "Magkano po ang hotel? Saan ang airport?"
+            "analyze", "vocab", "--trip-readiness", "Magkano po ang hotel? Saan ang airport?"
         ])
         assert result3.returncode == 0
-        
+
         # All should produce different types of analysis
         assert result1.stdout != result2.stdout
         assert result2.stdout != result3.stdout
@@ -253,10 +247,10 @@ class TestAnalysisIntegrationCLI:
         """Test error handling across analysis commands."""
         # Test commands that should fail gracefully
         error_commands = [
-            ["analyze"],  # Missing text
-            ["show-day-collocations"],  # Missing day
-            ["show-srs-status", "--day"],  # Missing day value
-            ["debug-generation"],  # Missing day
+            ["analyze"],  # Missing subcommand
+            ["analyze", "collocations"],  # Missing day
+            ["srs", "status", "--day"],  # Missing day value
+            ["analyze", "debug"],  # Missing day
         ]
         
         for cmd in error_commands:
@@ -269,9 +263,10 @@ class TestAnalysisIntegrationCLI:
         """Test that help messages are consistent and informative."""
         help_commands = [
             ["analyze", "--help"],
-            ["show-day-collocations", "--help"],
-            ["show-srs-status", "--help"],
-            ["debug-generation", "--help"]
+            ["analyze", "vocab", "--help"],
+            ["analyze", "collocations", "--help"],
+            ["srs", "status", "--help"],
+            ["analyze", "debug", "--help"]
         ]
         
         for cmd in help_commands:

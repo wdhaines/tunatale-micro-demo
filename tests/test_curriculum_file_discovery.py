@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from main import CLI
-from collocation_extractor import CollocationExtractor
+# from collocation_extractor import CollocationExtractor # Removed - using LLM-based extraction
 
 
 class TestCurriculumFileDiscovery:
@@ -156,62 +156,3 @@ class TestCurriculumFileDiscovery:
     #     # This test was disabled because the extract command was removed in CLI cleanup
     #     pass
     
-    def test_collocation_extractor_with_custom_path(self):
-        """Test that CollocationExtractor works with custom curriculum path."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create test curriculum file
-            curriculum_data = {
-                "learning_objective": "Test curriculum",
-                "content": "This is test content for collocation extraction.",
-                "days": [
-                    {
-                        "day": 1,
-                        "title": "Day 1: Test"
-                    }
-                ]
-            }
-            
-            curriculum_file = Path(temp_dir) / "custom_curriculum.json"
-            curriculum_file.write_text(json.dumps(curriculum_data, indent=2))
-            
-            # Initialize extractor and test with custom path
-            extractor = CollocationExtractor()
-            
-            # Mock the spacy components to avoid dependencies
-            with patch.object(extractor, 'nlp') as mock_nlp:
-                # Mock spacy doc processing
-                mock_doc = MagicMock()
-                mock_token1 = MagicMock()
-                mock_token1.text = "test"
-                mock_token1.pos_ = "NOUN"
-                mock_token1.is_alpha = True
-                mock_token1.is_stop = False
-                
-                mock_token2 = MagicMock()
-                mock_token2.text = "content"
-                mock_token2.pos_ = "NOUN"
-                mock_token2.is_alpha = True
-                mock_token2.is_stop = False
-                
-                mock_doc.__iter__ = lambda self: iter([mock_token1, mock_token2])
-                mock_nlp.return_value = mock_doc
-                
-                try:
-                    result = extractor.extract_from_curriculum(curriculum_file)
-                    # Should return some result without error
-                    assert isinstance(result, dict)
-                except FileNotFoundError:
-                    # If the file handling fails, that's expected in test environment
-                    pass
-    
-    def test_collocation_extractor_defaults_to_config_path(self):
-        """Test that CollocationExtractor defaults to config.CURRICULUM_PATH when no path provided."""
-        extractor = CollocationExtractor()
-        
-        # Mock config.CURRICULUM_PATH to point to non-existent file
-        with tempfile.TemporaryDirectory() as temp_dir:
-            non_existent_file = Path(temp_dir) / "non_existent.json"
-            
-            with patch('config.CURRICULUM_PATH', non_existent_file):
-                with pytest.raises(FileNotFoundError):
-                    extractor.extract_from_curriculum()  # No path provided, should use config default

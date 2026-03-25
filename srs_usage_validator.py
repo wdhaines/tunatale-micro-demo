@@ -15,8 +15,8 @@ from typing import List, Dict, Optional, Set, Tuple
 import logging
 from datetime import datetime
 
-from story_collocation_extractor import StoryCollocationExtractor
-from srs_tracker import SRSTracker
+# from story_collocation_extractor import StoryCollocationExtractor  # Removed - using LLM-based extraction
+from srs_adapter import SRSAdapter
 
 
 @dataclass
@@ -84,7 +84,7 @@ class SRSUsageValidator:
     
     def __init__(self, data_dir: str = 'data', srs_filename: str = 'srs_status.json'):
         self.logger = logging.getLogger(__name__)
-        self.srs_tracker = SRSTracker(data_dir=data_dir, filename=srs_filename)
+        self.srs_tracker = SRSAdapter()
         self.story_extractor = StoryCollocationExtractor()
     
     def validate_story_usage(self, day: int, story_path: Optional[Path] = None, 

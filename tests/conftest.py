@@ -259,19 +259,19 @@ def content_generator(mocker, tmp_path):
     collocations_file.write_text('[]')
     
     # Create a real SRSTracker with the test directory
-    from srs_tracker import SRSTracker
-    srs_tracker = SRSTracker(data_dir=str(srs_data_dir), filename='srs_status.json')
+    from srs_adapter import SRSAdapter
+    srs_adapter = SRSAdapter()
     
-    # Patch the SRSTracker to use our test instance
-    mocker.patch('story_generator.SRSTracker', return_value=srs_tracker)
+    # Patch the SRSAdapter to use our test instance
+    mocker.patch('story_generator.SRSAdapter', return_value=srs_adapter)
     
     # Create a prompts directory and a test prompt file
     test_prompts_dir = test_output_dir / 'prompts'
     test_prompts_dir.mkdir(exist_ok=True)
     
     # Create test prompt files with the expected format
-    # Main story prompt (balanced strategy)
-    test_prompt_file = test_prompts_dir / 'story_prompt_balanced.txt'
+    # Main story prompt (default baseline)
+    test_prompt_file = test_prompts_dir / 'story_prompt.txt'
     test_prompt_file.write_text("""
     VOCABULARY CONTEXT:
     - Focus on teaching: {NEW_VOCABULARY}
@@ -294,23 +294,23 @@ def content_generator(mocker, tmp_path):
     # Mock the DATA_DIR and PROMPTS_DIR to use our test directories
     mocker.patch('story_generator.config.DATA_DIR', test_output_dir)
     mocker.patch('story_generator.config.PROMPTS_DIR', test_prompts_dir)
-    mocker.patch('collocation_extractor.config.DATA_DIR', test_output_dir)
+    # mocker.patch('collocation_extractor.config.DATA_DIR', test_output_dir)  # Removed - collocation_extractor no longer exists
     
     # Create a temporary directory for SRSTracker data if it doesn't exist
     srs_data_dir = tmp_path / 'srs_data'
     srs_data_dir.mkdir(exist_ok=True)
     
-    # Create a real SRSTracker with the test directory
-    from srs_tracker import SRSTracker
-    srs_tracker = SRSTracker(data_dir=str(srs_data_dir), filename='test_srs.json')
+    # Create a real SRSAdapter for testing
+    from srs_adapter import SRSAdapter
+    srs_adapter = SRSAdapter()
     
-    # Create a mock CollocationExtractor
+    # Create a mock StoryCollocationExtractor  
     mock_extractor = mocker.MagicMock()
     mock_extractor.extract_collocations.return_value = ["test collocation"]
     
-    # Patch the SRSTracker and CollocationExtractor to return our instances
-    mocker.patch('story_generator.SRSTracker', return_value=srs_tracker)
-    mocker.patch('story_generator.CollocationExtractor', return_value=mock_extractor)
+    # Patch the SRSAdapter to return our instance
+    mocker.patch('story_generator.SRSAdapter', return_value=srs_adapter)
+    # Note: StoryCollocationExtractor is imported locally in story_generator, so no need to patch here
     
     # Create a mock for the LLM with a default response
     mock_llm = MagicMock()

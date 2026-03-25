@@ -213,10 +213,10 @@ class StrategyRecommendationEngine:
         
         # Default recommendation
         recommendation = StrategyRecommendation(
-            recommended_strategy=ContentStrategy.BALANCED,
+            recommended_strategy=ContentStrategy.WIDER,
             confidence_score=0.5,
-            primary_reason="Continue balanced progression",
-            specific_actions=["Generate next lesson with balanced approach"],
+            primary_reason="Continue wider progression",
+            specific_actions=["Generate next lesson with wider approach"],
             expected_improvements=["Steady progression"],
             warning_notes=[]
         )
@@ -257,7 +257,7 @@ class StrategyRecommendationEngine:
                 "More practical vocabulary for real situations",
                 "Increased confidence for diverse interactions"
             ]
-            recommendation.alternative_strategy = ContentStrategy.BALANCED
+            recommendation.alternative_strategy = ContentStrategy.DEEPER
         
         # ADVANCED learner ready for enhancement -> DEEPER strategy
         elif progress['progress_level'] == 'advanced' and 'vocabulary_mastery' in progress['mastery_indicators']:
@@ -300,17 +300,17 @@ class StrategyRecommendationEngine:
                 recommendation.confidence_score = 0.7
                 recommendation.primary_reason = "Good scenario coverage achieved - enhance quality and authenticity"
         
-        # BEGINNER or declining quality -> BALANCED to stabilize
+        # BEGINNER or declining quality -> WIDER to stabilize
         elif (progress['progress_level'] == 'beginner' or 
               progress['content_quality_trend'] == 'declining'):
             
-            recommendation.recommended_strategy = ContentStrategy.BALANCED
+            recommendation.recommended_strategy = ContentStrategy.WIDER
             recommendation.confidence_score = 0.8
-            recommendation.primary_reason = "Build solid foundation before strategy specialization"
+            recommendation.primary_reason = "Build solid foundation with scenario expansion"
             recommendation.specific_actions = [
-                "Continue with BALANCED strategy to establish core competencies",
+                "Continue with WIDER strategy to establish core competencies",
                 "Focus on essential vocabulary and basic interaction patterns",
-                "Ensure steady quality before attempting strategy enhancements"
+                "Ensure steady quality before attempting complexity enhancements"
             ]
             recommendation.expected_improvements = [
                 "Stable learning progression",

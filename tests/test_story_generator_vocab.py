@@ -21,7 +21,7 @@ class TestStoryGeneratorVocab:
         srs_dir.mkdir()
         
         # Patch SRSTracker to use the temporary directory
-        with patch('story_generator.SRSTracker') as mock_srs_class:
+        with patch('story_generator.SRSAdapter') as mock_srs_class:
             mock_srs = Mock()
             mock_srs.get_due_collocations.return_value = []
             mock_srs_class.return_value = mock_srs
@@ -88,7 +88,7 @@ class TestStoryGeneratorVocab:
         srs_dir.mkdir()
         
         # Patch SRSTracker to use the temporary directory
-        with patch('story_generator.SRSTracker') as mock_srs_class:
+        with patch('story_generator.SRSAdapter') as mock_srs_class:
             mock_srs = Mock()
             mock_srs.get_due_collocations.return_value = []
             mock_srs_class.return_value = mock_srs

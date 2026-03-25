@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Dict, Any, List
 from unittest.mock import patch, MagicMock
 
-from srs_tracker import SRSTracker, CollocationStatus
-from collocation_extractor import CollocationExtractor
+from srs_adapter import SRSAdapter, CollocationStatus
+# from collocation_extractor import CollocationExtractor # Removed - using LLM-based extraction
 from curriculum_models import Curriculum, CurriculumDay
 
 
@@ -151,7 +151,7 @@ class TestSRSTrackingLogic:
         """Create SRS tracker with test data."""
         srs_dir = tmp_path / 'srs_test'
         srs_dir.mkdir(exist_ok=True)
-        tracker = SRSTracker(data_dir=str(srs_dir), filename='test_srs.json')
+        tracker = SRSAdapter()
         
         # Add valid collocations
         valid_collocations = ["kumusta po", "salamat po", "paano po"]
